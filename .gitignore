@@ -1,0 +1,30 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.log
+appsettings.Development.json
+
+# NuGet
+*.nupkg
+project.lock.json
+packages/
+
+# Rider / JetBrains
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Node / React (frontend)
+node_modules/
+dist/
+build/
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
