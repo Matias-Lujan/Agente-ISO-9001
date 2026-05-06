@@ -7,7 +7,27 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Google.Apis.Drive.v3" Version="1.74.0.4135" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.14" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ISOAuditAgent.DocumentAnalysis\ISOAuditAgent.DocumentAnalysis.csproj" />
+    <ProjectReference Include="..\ISOAuditAgent.Corpus\ISOAuditAgent.Corpus.csproj" />
+    <ProjectReference Include="..\ISOAuditAgent.Contracts\ISOAuditAgent.Contracts.csproj" />
+  </ItemGroup>
+
+  <!--
+    Copia el PDF de la norma ISO 9001 al directorio de salida para que el host
+    disponga de una ruta estable durante la ejecución (data/norma/...).
+    Los artefactos generados por la indexación (chunks/embeddings) NO deben
+    versionarse; viven bajo data/index/ y están excluidos por .gitignore.
+  -->
+  <ItemGroup>
+    <Content Include="data\norma\NOM_ISO_9001-2015.pdf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
 </Project>
