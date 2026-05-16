@@ -4,91 +4,62 @@ using ISOAuditAgent.API.DTOs;
 namespace ISOAuditAgent.API.Services;
 
 /// <summary>
-/// Construye el resumen textual de los documentos
-/// que se incluye en cada prompt que se manda a Gemini.
+/// Convierte el DocumentosExtraidos (Contrato 2) en texto legible
+/// para incluirlo en el prompt que le mandamos a Gemini.
+/// Gemini no entiende objetos C# — necesita texto plano bien estructurado.
 /// </summary>
 public interface IDocumentSummaryBuilder
 {
-    string Build(IEnumerable<DocumentContext> documents);
-    string BuildRulesList(IEnumerable<ValidationRule> rules);
-    string BuildIssuesList(ConsistencyVerificationResult partial);
+    string BuildArtefactosSummary(IReadOnlyList<ArtefactoExtraido> artefactos);
 }
 
 public class DocumentSummaryBuilder : IDocumentSummaryBuilder
 {
     /// <summary>
-    /// Genera un resumen legible de cada documento para incluir en el prompt.
-    /// Limita el contenido a 2000 caracteres por documento para no 
-    /// exceder el límite de tokens de Gemini.
+    /// Genera el resumen de artefactos para el prompt de Gemini.
+    /// Solo incluye artefactos Exigibles y Encontrados.
+    /// Los demas no tienen sentido analizar: si no esta, no hay nada que verificar.
+    /// No incluimos fechas ni firmas porque el cliente aclaro que no se validan.
     /// </summary>
-    public string Build(IEnumerable<DocumentContext> documents)
+    public string BuildArtefactosSummary(IReadOnlyList<ArtefactoExtraido> artefactos)
     {
         var sb = new StringBuilder();
 
-        foreach (var doc in documents)
+        var analizables = artefactos
+            .Where(a => a.Exigibilidad == ExigibilidadArtefacto.Exigible
+                     && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado)
+            .ToList();
+
+        if (analizables.Count == 0)
+            return "No hay artefactos encontrados y exigibles para analizar.";
+
+        foreach (var a in analizables)
         {
-            sb.AppendLine($"--- DOCUMENTO: {doc.DocumentId} ---");
-            sb.AppendLine($"Nombre: {doc.FileName}");
-            sb.AppendLine($"Tipo: {doc.Type}");
-            sb.AppendLine($"Versión: {doc.Version ?? "N/D"}");
-            sb.AppendLine($"Autor: {doc.Author ?? "N/D"}");
-            sb.AppendLine($"Última modificación: {doc.LastModified?.ToString("yyyy-MM-dd") ?? "N/D"}");
-            sb.AppendLine($"Aprobado por: {doc.ApprovedBy ?? "N/D"}");
-            sb.AppendLine($"Fecha aprobación: {doc.ApprovalDate?.ToString("yyyy-MM-dd") ?? "N/D"}");
-            sb.AppendLine($"Vencimiento: {doc.ExpirationDate?.ToString("yyyy-MM-dd") ?? "Sin fecha de vencimiento"}");
-            sb.AppendLine("Contenido:");
+            sb.AppendLine($"--- ARTEFACTO ID: {a.ArtefactoEsperadoId} ---");
+            sb.AppendLine($"Nombre         : {a.NombreArtefacto}");
+            sb.AppendLine($"Codigo         : {a.CodigoArtefacto ?? "N/A"}");
+            sb.AppendLine($"Obligatoriedad : {a.Obligatoriedad}");
+            sb.AppendLine($"Archivo        : {a.DocumentoEncontrado?.NombreArchivo ?? "N/A"}");
+            sb.AppendLine($"Fuente         : {a.DocumentoEncontrado?.Fuente}");
 
-            // Limitamos el contenido para no exceder el contexto de la IA
-            var preview = doc.ContentText.Length > 2000
-                ? doc.ContentText[..2000] + "...[truncado]"
-                : doc.ContentText;
+            if (a.SeccionesDetectadas.Count > 0)
+            {
+                sb.AppendLine("Secciones detectadas:");
+                foreach (var s in a.SeccionesDetectadas)
+                {
+                    // TieneContenido = false significa que la seccion existe pero esta vacia
+                    var estado = s.TieneContenido ? "con contenido" : "VACIA";
+                    sb.AppendLine($"  - {s.Titulo}: {estado}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("Secciones: no aplica template para este tipo de artefacto");
+            }
 
-            sb.AppendLine(preview);
             sb.AppendLine();
         }
 
         return sb.ToString();
-    }
-
-    /// <summary>
-    /// Convierte las reglas de validación a texto para el prompt.
-    /// </summary>
-    public string BuildRulesList(IEnumerable<ValidationRule> rules)
-    {
-        var sb = new StringBuilder();
-
-        foreach (var rule in rules)
-        {
-            sb.AppendLine($"- [{rule.RuleId}] {rule.Description} | Tipo: {rule.Type} | Obligatorio: {rule.IsMandatory}");
-        }
-
-        return sb.ToString();
-    }
-
-    /// <summary>
-    /// Consolida todos los problemas encontrados en las 4 sub-tareas
-    /// para mandárselos a Gemini y que genere los hallazgos finales.
-    /// </summary>
-    public string BuildIssuesList(ConsistencyVerificationResult partial)
-    {
-        var sb = new StringBuilder();
-
-        // Problemas de registros faltantes o incompletos
-        foreach (var c in partial.RecordValidation.Checks.Where(x => !x.Exists || !x.IsComplete))
-            sb.AppendLine($"[REGISTRO] {c.Description}: existe={c.Exists}, completo={c.IsComplete}");
-
-        // Problemas de fechas y firmas
-        foreach (var c in partial.DateSignatureVerification.Checks.Where(x => x.Issue != null))
-            sb.AppendLine($"[FECHA/FIRMA] {c.DocumentName}: {c.Issue}");
-
-        // Inconsistencias entre documentos
-        foreach (var c in partial.CrossDocumentConsistency.Checks.Where(x => !x.IsConsistent))
-            sb.AppendLine($"[CONSISTENCIA] {c.Aspect} entre {c.DocumentAId} y {c.DocumentBId}: {c.DiscrepancyDescription}");
-
-        // Problemas de vigencia
-        foreach (var c in partial.ValidityCheck.Checks.Where(x => !x.IsValid || (x.DaysUntilExpiration is < 30)))
-            sb.AppendLine($"[VIGENCIA] {c.DocumentName}: {c.Issue ?? $"Vence en {c.DaysUntilExpiration} días"}");
-
-        return sb.Length > 0 ? sb.ToString() : "No se detectaron problemas.";
     }
 }

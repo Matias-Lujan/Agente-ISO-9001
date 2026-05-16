@@ -1,149 +1,161 @@
 namespace ISOAuditAgent.API.DTOs;
 
-// ─── Input ───────────────────────────────────────────────────────────────────
+// =============================================================================
+// CONTRATO 2 — Input que llega desde DocumentAnalysis
+// DocumentAnalysis ya fue a buscar los documentos.
+// Nosotros recibimos la lista lista para analizar.
+// =============================================================================
 
-public class ConsistencyVerificationRequest
+/// <summary>
+/// Input principal del agente. Llega desde DocumentAnalysis
+/// con la lista de artefactos ya buscados y clasificados.
+/// </summary>
+public sealed record DocumentosExtraidos(
+    int AuditoriaId,
+    int ProyectoId,
+    int EtapaId,
+    IReadOnlyList<ArtefactoExtraido> Artefactos
+);
+
+/// <summary>
+/// Un artefacto (documento) que DocumentAnalysis encontro o no encontro.
+/// Contiene todo lo que nuestro agente necesita para analizar consistencia.
+/// </summary>
+public sealed record ArtefactoExtraido(
+    int ArtefactoEsperadoId,
+    string? CodigoArtefacto,
+    string NombreArtefacto,
+    int EtapaArtefactoId,
+
+    // Exigible = hay que revisarlo ahora.
+    // PendienteEtapaFutura = todavia no corresponde a esta etapa.
+    ExigibilidadArtefacto Exigibilidad,
+
+    // Mandatorio = siempre obligatorio.
+    // EvaluarYJustificar = en proyectos tipo B puede no generarse con justificacion.
+    ObligatoriedadArtefacto Obligatoriedad,
+
+    // Viene del tailoring del proyecto.
+    EstadoTailoring EstadoTailoring,
+
+    // Si el tailoring dice NoAplica, aca viene la razon.
+    string? JustificacionNoAplica,
+
+    // Resultado de la busqueda que hizo DocumentAnalysis.
+    EstadoDisponibilidad EstadoDisponibilidad,
+
+    string? UrlReferencia,
+
+    // Ruta al template que corresponde a este artefacto.
+    // Ya viene resuelta por DocumentAnalysis — no hay que calcularla.
+    string? PathTemplateAbsoluto,
+
+    // El archivo encontrado. Es null si EstadoDisponibilidad != Encontrado.
+    DocumentoEncontrado? DocumentoEncontrado,
+
+    // Secciones que DocumentAnalysis detecto dentro del documento.
+    // Lista vacia si no aplica template (ej: registro de Clockify, tarjeta de Trello).
+    IReadOnlyList<SeccionDetectada> SeccionesDetectadas
+);
+
+/// <summary>
+/// Informacion del archivo encontrado por DocumentAnalysis.
+/// </summary>
+public sealed record DocumentoEncontrado(
+    string NombreArchivo,
+    FuenteDocumento Fuente,
+    string HashContenido
+);
+
+/// <summary>
+/// Una seccion detectada dentro de un documento.
+/// TieneContenido = false significa que la seccion existe pero esta vacia.
+/// </summary>
+public sealed record SeccionDetectada(
+    string Titulo,
+    bool TieneContenido
+);
+
+// ── Enums del Contrato 2 ──────────────────────────────────────────────────────
+
+public enum ExigibilidadArtefacto
 {
-    public required string AuditId { get; set; }
-    public required string ProcessName { get; set; }
-    public required List<DocumentContext> Documents { get; set; }
-    public List<ValidationRule> ValidationRules { get; set; } = [];
+    Exigible,
+    PendienteEtapaFutura
 }
 
-public class DocumentContext
+public enum ObligatoriedadArtefacto
 {
-    public required string DocumentId { get; set; }
-    public required string FileName { get; set; }
-    public required string ContentText { get; set; }
-    public string? Version { get; set; }
-    public string? Author { get; set; }
-    public DateTime? LastModified { get; set; }
-    public string? ApprovedBy { get; set; }
-    public DateTime? ApprovalDate { get; set; }
-    public DateTime? ExpirationDate { get; set; }
-    public DocumentType Type { get; set; }
+    Mandatorio,
+    EvaluarYJustificar
 }
 
-public enum DocumentType { Policy, Procedure, Record, Form, Evidence, Other }
-
-public class ValidationRule
+public enum EstadoTailoring
 {
-    public required string RuleId { get; set; }
-    public required string Description { get; set; }
-    public RuleType Type { get; set; }
-    public bool IsMandatory { get; set; } = true;
-    public string? ExpectedValue { get; set; }
+    Aplica,
+    NoAplica,
+    SinDeclararEnTailoring
 }
 
-public enum RuleType
+public enum EstadoDisponibilidad
 {
-    RecordExists,
-    DateSequence,
-    SignatureRequired,
-    VersionConsistency,
-    CrossDocumentReference,
-    Validity
+    Encontrado,
+    Faltante,
+    NoBuscado
 }
 
-// ─── Output ──────────────────────────────────────────────────────────────────
-
-public class ConsistencyVerificationResult
+public enum FuenteDocumento
 {
-    public required string AuditId { get; set; }
-    public required string AgentName { get; set; }
-    public DateTime ExecutedAt { get; set; } = DateTime.UtcNow;
-    public AgentStatus Status { get; set; }
-    public string? ErrorMessage { get; set; }
-
-    public RecordValidationResult RecordValidation { get; set; } = new();
-    public DateSignatureResult DateSignatureVerification { get; set; } = new();
-    public CrossDocumentResult CrossDocumentConsistency { get; set; } = new();
-    public ValidityResult ValidityCheck { get; set; } = new();
-
-    public List<Finding> Findings { get; set; } = [];
-
-    public int TotalChecks => Findings.Count;
-    public int IssuesFound => Findings.Count(f => f.Severity != Severity.None);
+    Drive,
+    Trello,
+    Clockify,
+    MSProject
 }
 
+// =============================================================================
+// CONTRATO 3 — Output de nuestro agente (HallazgosPreliminares)
+// Esto es lo que le entregamos a FindingsClassification.
+// Solo detectamos problemas — NO los clasificamos en NC/OBS/OM.
+// Eso le corresponde a FindingsClassification.
+// =============================================================================
+
+/// <summary>
+/// Output principal del agente. Lista de problemas detectados
+/// sobre estructura y consistencia de los documentos.
+/// FindingsClassification los recibira y clasificara en NC/OBS/OM.
+/// </summary>
+public sealed record HallazgosPreliminares(
+    int AuditoriaId,
+    AgenteOrigen AgenteOrigen,
+    IReadOnlyList<HallazgoPreliminar> Hallazgos
+);
+
+/// <summary>
+/// Un problema detectado sobre un artefacto.
+/// </summary>
+public sealed record HallazgoPreliminar(
+    // ID del artefacto con problema. Debe existir en el DocumentosExtraidos recibido.
+    int ArtefactoEsperadoId,
+    // Que problema tiene. Ej: "El ERS no tiene la seccion Alcance con contenido".
+    string Descripcion,
+    // Por que es un problema. Ej: "El template del ERS requiere la seccion Alcance".
+    string Justificacion,
+    // De donde viene la regla incumplida.
+    OrigenRegla OrigenRegla
+);
+
+public enum AgenteOrigen
+{
+    ComplianceValidation,
+    ConsistencyVerification   // Este es nuestro agente
+}
+
+public enum OrigenRegla
+{
+    Procedimiento,  // La regla viene del procedimiento PR 11-13 de BDT
+    Template,       // La regla viene del template del artefacto
+    Tailoring       // La regla viene del tailoring del proyecto
+}
+
+// ── Interno — solo para manejo de errores dentro del agente ──────────────────
 public enum AgentStatus { Success, PartialSuccess, Failed }
-
-// ── 4.4.1 Validar registros ──────────────────────────────────────────────────
-public class RecordValidationResult
-{
-    public bool Completed { get; set; }
-    public List<RecordCheck> Checks { get; set; } = [];
-}
-
-public class RecordCheck
-{
-    public required string RuleId { get; set; }
-    public required string Description { get; set; }
-    public bool Exists { get; set; }
-    public bool IsComplete { get; set; }
-    public string? Evidence { get; set; }
-}
-
-// ── 4.4.2 Verificar fechas/firmas ────────────────────────────────────────────
-public class DateSignatureResult
-{
-    public bool Completed { get; set; }
-    public List<DateSignatureCheck> Checks { get; set; } = [];
-}
-
-public class DateSignatureCheck
-{
-    public required string DocumentId { get; set; }
-    public required string DocumentName { get; set; }
-    public bool HasRequiredDates { get; set; }
-    public bool DateSequenceIsValid { get; set; }
-    public bool HasRequiredSignatures { get; set; }
-    public string? Issue { get; set; }
-}
-
-// ── 4.4.3 Consistencia entre docs ────────────────────────────────────────────
-public class CrossDocumentResult
-{
-    public bool Completed { get; set; }
-    public List<ConsistencyCheck> Checks { get; set; } = [];
-}
-
-public class ConsistencyCheck
-{
-    public required string DocumentAId { get; set; }
-    public required string DocumentBId { get; set; }
-    public required string Aspect { get; set; }
-    public bool IsConsistent { get; set; }
-    public string? DiscrepancyDescription { get; set; }
-}
-
-// ── 4.4.4 Validar vigencia ───────────────────────────────────────────────────
-public class ValidityResult
-{
-    public bool Completed { get; set; }
-    public List<ValidityCheck> Checks { get; set; } = [];
-}
-
-public class ValidityCheck
-{
-    public required string DocumentId { get; set; }
-    public required string DocumentName { get; set; }
-    public bool IsValid { get; set; }
-    public DateTime? ExpirationDate { get; set; }
-    public int? DaysUntilExpiration { get; set; }
-    public string? Issue { get; set; }
-}
-
-// ─── Finding ─────────────────────────────────────────────────────────────────
-public class Finding
-{
-    public required string FindingId { get; set; }
-    public required string Source { get; set; }
-    public required string Description { get; set; }
-    public Severity Severity { get; set; }
-    public string? Evidence { get; set; }
-    public string? RelatedDocumentId { get; set; }
-    public string? RelatedRuleId { get; set; }
-}
-
-public enum Severity { None, Low, Medium, High, Critical }
