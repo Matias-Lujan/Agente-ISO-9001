@@ -85,6 +85,10 @@ builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 // Servicios — logica de negocio
 builder.Services.AddScoped<AuthService>();
 
+// Modulo 2.2 — Proyectos
+builder.Services.AddScoped<IProyectoRepository, ProyectoRepository>();
+builder.Services.AddScoped<ProyectoService>();
+
 // Sub-agente de consistencia
 builder.Services.AddScoped<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
 builder.Services.AddScoped<ConsistencyVerificationAgentService>();
