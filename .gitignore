@@ -6,6 +6,7 @@ obj/
 .vs/
 *.log
 appsettings.Development.json
+appsettings.json
 
 # NuGet
 *.nupkg

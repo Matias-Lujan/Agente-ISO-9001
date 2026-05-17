@@ -1,3 +1,5 @@
+using System.Linq;
+using System.Text.Json;
 using ISOAuditAgent.API.DTOs;
 using ISOAuditAgent.API.Integrations.MCP;
 using ISOAuditAgent.API.Models;
@@ -15,24 +17,156 @@ public class ComplianceValidationAgent : IComplianceValidationAgent
 {
     private readonly IMcpClient _mcpClient;
     private readonly IReglaValidacionRepository _reglaRepository;
-    private readonly Kernel? _kernel;
+    private readonly Kernel _kernel;
     private readonly ILogger<ComplianceValidationAgent> _logger;
 
     public ComplianceValidationAgent(
         IMcpClient mcpClient,
         IReglaValidacionRepository reglaRepository,
         ILogger<ComplianceValidationAgent> logger,
-        Kernel? kernel = null)
+        Kernel kernel)
     {
         _mcpClient = mcpClient ?? throw new ArgumentNullException(nameof(mcpClient));
         _reglaRepository = reglaRepository ?? throw new ArgumentNullException(nameof(reglaRepository));
-        _kernel = kernel; // Puede ser null para tests
+        _kernel = kernel ?? throw new ArgumentNullException(nameof(kernel));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
-    /// Valida el proceso obteniendo datos y reglas, luego delegando el análisis al LLM.
+    /// Ejecuta el análisis de validación de cumplimiento de manera asincrónica.
+    /// Punto de entrada para la arquitectura MAF (Microsoft Agent Framework).
+    /// 
+    /// Obtiene datos desde MCP (Trello y Clockify), consulta reglas, y delega análisis al LLM.
+    /// Retorna hallazgos preliminares con evidencias y justificaciones.
     /// </summary>
+    public async Task<HallazgosPreliminares> ExecuteAsync(DocumentosExtraidos input)
+    {
+        Console.WriteLine($"[TAILORING DEBUG] Cantidad de reglas recibidas: {input.ReglasTailoring?.Count ?? 0}");
+        if (input.ReglasTailoring?.Any() == true)
+        {
+            foreach (var regla in input.ReglasTailoring)
+            {
+                Console.WriteLine($"  - {regla}");
+            }
+        }
+
+        var auditoriaId = input.AuditoriaId;
+        var proyectoId = input.ProyectoId;
+
+        // Para esta implementación, usamos un procesoId por defecto
+        // En una arquitectura completa, esto vendría del input o de metadatos asociados
+        int procesoId = 1; // TODO: Obtener dinámicamente del contexto
+
+        try
+        {
+            // Paso 1: Obtener datos desde MCP (Trello y Clockify)
+            // Convertir proyectoId de int a string para pasar a métodos MCP
+            var proyectoIdStr = proyectoId.ToString();
+            var tareasTrello = await _mcpClient.GetTareasTrelloAsync(proyectoIdStr);
+            var registrosClockify = await _mcpClient.GetRegistrosClockifyAsync(proyectoIdStr);
+
+            // Paso 2: Obtener reglas de validación desde la BD
+            var reglas = await _reglaRepository.GetReglasByProcesoAsync(procesoId);
+
+            // Paso 3: Agrupar reglas por tipo (Strategy Pattern)
+            var reglasObligatorias = reglas
+                .Where(r => r.TipoObligatorioOpcional == "Obligatorio" && r.Activa)
+                .ToList();
+
+            var reglasOpcionales = reglas
+                .Where(r => r.TipoObligatorioOpcional == "Opcional" && r.Activa)
+                .ToList();
+
+            // Paso 4: Preparar contexto para el LLM
+            var reglasTailoringText = input.ReglasTailoring != null && input.ReglasTailoring.Any()
+                ? string.Join(Environment.NewLine, input.ReglasTailoring.Select(r => $"- {r}"))
+                : "No hay reglas de tailoring específicas, proceder con validación estándar.";
+
+            var kernelArguments = new KernelArguments();
+            kernelArguments["reglasTailoring"] = reglasTailoringText;
+            
+            // Filtrar artefactos según exigibilidad: solo enviar al LLM los que son Exigible en esta etapa
+            var artefactosExigibles = input.Artefactos
+                .Where(a => a.Exigibilidad == ExigibilidadArtefacto.Exigible)
+                .ToList();
+            
+            kernelArguments["documentos"] = JsonSerializer.Serialize(artefactosExigibles);
+            
+            Console.WriteLine($"[TAILORING DEBUG] Contenido de reglasTailoring para KernelArguments:\n{reglasTailoringText}");
+            Console.WriteLine($"[DOCUMENTOS DEBUG] Documentos inyectados: {artefactosExigibles.Count} exigibles de {input.Artefactos.Count} totales");
+            Console.WriteLine($"[ETAPAS DEBUG] Artefactos filtrados por Exigibilidad:\n  - Exigibles: {artefactosExigibles.Count}\n  - Pendientes próxima etapa: {input.Artefactos.Count - artefactosExigibles.Count}");
+
+            var contextoValidacion = new ContextoValidacion
+            {
+                ProjectId = proyectoIdStr,
+                ProcesoId = procesoId,
+                TareasTrello = tareasTrello,
+                RegistrosClockify = registrosClockify,
+                ReglasObligatorias = reglasObligatorias,
+                ReglasOpcionales = reglasOpcionales,
+                FechaAnalisis = DateTime.UtcNow,
+                AuditoriaId = auditoriaId.ToString(),
+                ReglasTailoring = input.ReglasTailoring ?? new List<string>()
+            };
+
+            _logger.LogInformation("ReglasTailoring aplicadas: {ReglasCount}", contextoValidacion.ReglasTailoring.Count);
+
+            // Paso 5: Delegar al LLM para análisis
+            var hallazgosLLM = await AnalizarConLLMAsync(contextoValidacion, kernelArguments);
+
+            // Paso 6: Convertir hallazgos directamente del LLM al nuevo formato (HallazgoPreliminar)
+            var hallazgosPreliminares = ConvertirAHallazgosPreliminares(hallazgosLLM);
+
+            // Paso 7: Retornar en formato MAF con AgenteOrigen
+            return new HallazgosPreliminares
+            {
+                AuditoriaId = auditoriaId,
+                ProyectoId = proyectoId,
+                AgenteOrigen = Models.AgenteOrigen.ComplianceValidation,
+                Hallazgos = hallazgosPreliminares
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error ejecutando ExecuteAsync del ComplianceValidationAgent para auditoría {AuditoriaId} y proyecto {ProyectoId}",
+                auditoriaId, proyectoId);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Convierte hallazgos directamente desde la respuesta del LLM (HallazgoLLMRespuesta) 
+    /// al nuevo formato de HallazgoPreliminar.
+    /// Mapeo 1:1 directo sin hardcoding ni transformaciones.
+    /// </summary>
+    private static List<HallazgoPreliminar> ConvertirAHallazgosPreliminares(
+        List<HallazgoLLMRespuesta> hallazgosLLM)
+    {
+        var hallazgosPreliminares = new List<HallazgoPreliminar>();
+
+        foreach (var hallazgo in hallazgosLLM)
+        {
+            // Mapeo 1:1 directo: las propiedades vienen del LLM como están
+            var hallazgoPreliminar = new HallazgoPreliminar
+            {
+                ArtefactoEsperadoId = hallazgo.ArtefactoEsperadoId,  // Directo del LLM
+                Descripcion = hallazgo.Descripcion,                  // Directo del LLM
+                Justificacion = hallazgo.Justificacion,              // Directo del LLM
+                OrigenRegla = hallazgo.OrigenRegla                   // Directo del LLM
+            };
+
+            hallazgosPreliminares.Add(hallazgoPreliminar);
+        }
+
+        return hallazgosPreliminares;
+    }
+
+    /// <summary>
+    /// Método heredado para compatibilidad con código existente.
+    /// Se mantiene para transiciones graduales en la arquitectura.
+    /// TODO: Remover una vez se complete la migración a MAF.
+    /// </summary>
+    [Obsolete("Use ExecuteAsync(DocumentosExtraidos) en su lugar.", false)]
     public async Task<List<ValidationFinding>> ValidateProcessAsync(string projectId, int procesoId)
     {
         // Paso 1: Obtener datos desde MCP (Trello y Clockify)
@@ -63,35 +197,37 @@ public class ComplianceValidationAgent : IComplianceValidationAgent
             FechaAnalisis = DateTime.UtcNow
         };
 
-        // Paso 5: Delegar al LLM para análisis (será implementado en PASO 5-7)
-        // Por ahora, retornamos una lista vacía como placeholder
-        var hallazgos = await AnalizarConLLMAsync(contextoValidacion);
+        // Paso 5: Delegar al LLM para análisis
+        var hallazgosLLM = await AnalizarConLLMAsync(contextoValidacion);
 
-        // Paso 6: Enriquecer hallazgos con información del proceso
-        foreach (var hallazgo in hallazgos)
+        // Paso 6: Convertir a formato legacy para compatibilidad
+        var hallazgosLegacy = new List<ValidationFinding>();
+        foreach (var hallazgo in hallazgosLLM)
         {
-            hallazgo.ProcesoId = procesoId;
-            hallazgo.ProjectId = projectId;
+            hallazgosLegacy.Add(new ValidationFinding
+            {
+                Id = Guid.NewGuid().ToString(),
+                Descripcion = hallazgo.Descripcion,
+                Fuente = hallazgo.OrigenRegla,
+                ProcesoId = procesoId,
+                ProjectId = projectId,
+                ReglaIncumplida = hallazgo.Justificacion,
+                DetallesJSON = "{}"
+            });
         }
 
-        return hallazgos;
+        return hallazgosLegacy;
     }
 
     /// <summary>
     /// Delega el análisis a Semantic Kernel (OpenAI/Gemini).
     /// Construye el prompt dinámico, invoca el LLM y deserializa los hallazgos.
+    /// Retorna los hallazgos en el formato exacto que devuelve Gemini (HallazgoLLMRespuesta).
     /// </summary>
-    private async Task<List<ValidationFinding>> AnalizarConLLMAsync(ContextoValidacion contexto)
+    private async Task<List<HallazgoLLMRespuesta>> AnalizarConLLMAsync(ContextoValidacion contexto, KernelArguments? kernelArguments = null)
     {
         try
         {
-            // Si no hay Kernel (ej: en tests), retornar lista vacía
-            if (_kernel == null)
-            {
-                _logger.LogWarning("Kernel no disponible. Retornando lista vacía de hallazgos.");
-                return new List<ValidationFinding>();
-            }
-
             // Paso 1: Construir el prompt dinámico
             var promptConstructor = new PromptConstructor(contexto);
             var prompt = promptConstructor.ConstruirPrompt();
@@ -111,7 +247,16 @@ public class ComplianceValidationAgent : IComplianceValidationAgent
             string respuestaTexto = null;
             try
             {
-                var respuestaLlm = await _kernel.InvokePromptAsync(prompt);
+                var finalArgs = kernelArguments ?? new KernelArguments();
+                Console.WriteLine($"[TAILORING DEBUG] KernelArguments contiene 'reglasTailoring': {finalArgs.ContainsName("reglasTailoring")}");
+                if (finalArgs.ContainsName("reglasTailoring"))
+                {
+                    var tailoringValue = finalArgs["reglasTailoring"];
+                    Console.WriteLine($"[TAILORING DEBUG] Valor de reglasTailoring en KernelArguments:\n{tailoringValue}");
+                }
+                Console.WriteLine($"[TAILORING DEBUG] El prompt contiene {{{{$reglasTailoring}}}}: {prompt.Contains("{{$reglasTailoring}}")}");
+                
+                var respuestaLlm = await _kernel.InvokePromptAsync(prompt, finalArgs);
                 respuestaTexto = respuestaLlm.ToString();
             }
             catch (Microsoft.SemanticKernel.HttpOperationException httpEx)
@@ -162,56 +307,44 @@ public class ComplianceValidationAgent : IComplianceValidationAgent
     }
 
     /// <summary>
-    /// Deserializa el JSON en una lista de ValidationFinding.
-    /// Mapea los campos del JSON de respuesta a las propiedades del modelo.
+    /// Deserializa el JSON en una lista de HallazgoLLMRespuesta.
+    /// Parsea exactamente la estructura que devuelve Gemini.
     /// </summary>
-    private static List<ValidationFinding> DeserializarHallazgos(string jsonHallazgos)
+    private static List<HallazgoLLMRespuesta> DeserializarHallazgos(string respuestaLLM)
+{
+    try
     {
-        try
+        // 1. Limpieza extrema
+        var cleanJson = respuestaLLM.Replace("```json", "", StringComparison.OrdinalIgnoreCase)
+                                    .Replace("```", "")
+                                    .Trim();
+
+        // 2. Ruteo inteligente basado en el primer caracter
+        if (cleanJson.StartsWith("["))
         {
-            using var doc = System.Text.Json.JsonDocument.Parse(jsonHallazgos);
-            var root = doc.RootElement;
-
-            if (root.ValueKind != System.Text.Json.JsonValueKind.Array)
-            {
-                return new List<ValidationFinding>();
-            }
-
-            var hallazgos = new List<ValidationFinding>();
-
-            foreach (var elemento in root.EnumerateArray())
-            {
-                var hallazgo = new ValidationFinding
-                {
-                    Id = Guid.NewGuid().ToString(),
-                    Descripcion = elemento.TryGetProperty("descripcion", out var desc) 
-                        ? desc.GetString() ?? "" 
-                        : "",
-                    Fuente = elemento.TryGetProperty("fuente", out var fuente) 
-                        ? fuente.GetString() ?? "" 
-                        : "Trello vs Clockify",
-                    IdTareaRelacionada = elemento.TryGetProperty("idTareaRelacionada", out var idTarea) 
-                        ? idTarea.GetString() 
-                        : null,
-                    ReglaIncumplida = elemento.TryGetProperty("reglaIncumplida", out var regla) 
-                        ? regla.GetString() ?? "" 
-                        : "",
-                    DetallesJSON = elemento.TryGetProperty("detallesJSON", out var detalles) 
-                        ? detalles.GetString() 
-                        : null
-                };
-
-                hallazgos.Add(hallazgo);
-            }
-
-            return hallazgos;
+            // El LLM devolvió un array directo
+            var hallazgosDirectos = JsonSerializer.Deserialize<List<HallazgoLLMRespuesta>>(cleanJson);
+            return hallazgosDirectos ?? new List<HallazgoLLMRespuesta>();
         }
-        catch (Exception ex)
+        else if (cleanJson.StartsWith("{"))
         {
-            System.Console.WriteLine($"Error deserializando hallazgos: {ex.Message}");
-            return new List<ValidationFinding>();
+            // El LLM devolvió el objeto esperado
+            var respuesta = JsonSerializer.Deserialize<RespuestaHallazgosLLM>(cleanJson);
+            return respuesta?.Hallazgos ?? new List<HallazgoLLMRespuesta>();
+        }
+        else
+        {
+            throw new Exception("El JSON limpio no empieza con '{' ni con '['.");
         }
     }
+    catch (Exception ex)
+    {
+        System.Console.WriteLine($"Error deserializando hallazgos: {ex.Message}");
+        // ESTA ES LA CLAVE: Si falla, imprimimos la evidencia del delito
+        System.Console.WriteLine($"[EVIDENCIA LLM] Texto crudo recibido:\n{respuestaLLM}");
+        return new List<HallazgoLLMRespuesta>();
+    }
+}
 }
 
 /// <summary>
@@ -220,6 +353,16 @@ public class ComplianceValidationAgent : IComplianceValidationAgent
 /// </summary>
 internal class ContextoValidacion
 {
+    /// <summary>
+    /// Identificador único de la auditoría asociada a este análisis.
+    /// </summary>
+    public string AuditoriaId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Reglas de tailoring dinámico aplicadas a este análisis.
+    /// </summary>
+    public List<string> ReglasTailoring { get; set; } = new();
+
     /// <summary>
     /// Identificador del proyecto que se está validando.
     /// </summary>

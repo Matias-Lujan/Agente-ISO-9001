@@ -1,4 +1,5 @@
 using ISOAuditAgent.API.Agents.ComplianceValidation;
+using ISOAuditAgent.API.DTOs;
 using ISOAuditAgent.API.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -92,6 +93,78 @@ public class ComplianceValidationController : ControllerBase
             return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
             {
                 Mensaje = "Error interno en el servidor durante la validación.",
+                Codigo = "VALIDATION_ERROR",
+                Detalles = ex.Message
+            });
+        }
+    }
+
+    /// <summary>
+    /// Ejecuta la validación de cumplimiento usando el nuevo contrato MAF (Microsoft Agent Framework).
+    /// Recibe documentos extraídos y retorna hallazgos preliminares estructurados.
+    /// </summary>
+    /// <param name="input">Datos de entrada con AuditoriaId, ProyectoId y documentos a analizar.</param>
+    /// <returns>Hallazgos preliminares con evidencias y justificaciones.</returns>
+    /// <response code="200">Validación MAF completada exitosamente. Retorna HallazgosPreliminares.</response>
+    /// <response code="400">Parámetros de entrada inválidos.</response>
+    /// <response code="500">Error interno en el servidor.</response>
+    [HttpPost("validate-maf")]
+    [ProducesResponseType(typeof(HallazgosPreliminares), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<HallazgosPreliminares>> ValidateProcessMaf(
+        [FromBody] DocumentosExtraidos input)
+    {
+        try
+        {
+            // Validar parámetros
+            if (input == null)
+            {
+                _logger.LogWarning("Validación MAF rechazada: input es null");
+                return BadRequest(new ErrorResponse
+                {
+                    Mensaje = "El cuerpo de la solicitud (input) es requerido.",
+                    Codigo = "PARAM_INVALID"
+                });
+            }
+
+            if (input.AuditoriaId <= 0)
+            {
+                _logger.LogWarning("Validación MAF rechazada: AuditoriaId inválido ({AuditoriaId})", input.AuditoriaId);
+                return BadRequest(new ErrorResponse
+                {
+                    Mensaje = "El parámetro 'AuditoriaId' debe ser un número mayor a 0.",
+                    Codigo = "PARAM_INVALID"
+                });
+            }
+
+            if (input.ProyectoId <= 0)
+            {
+                _logger.LogWarning("Validación MAF rechazada: ProyectoId inválido ({ProyectoId})", input.ProyectoId);
+                return BadRequest(new ErrorResponse
+                {
+                    Mensaje = "El parámetro 'ProyectoId' debe ser un número mayor a 0.",
+                    Codigo = "PARAM_INVALID"
+                });
+            }
+
+            _logger.LogInformation("Iniciando validación MAF: AuditoriaId={AuditoriaId}, ProyectoId={ProyectoId}, ArtefactosCount={ArtefactosCount}",
+                input.AuditoriaId, input.ProyectoId, input.Artefactos?.Count ?? 0);
+
+            // Invocar el agente con el nuevo contrato MAF
+            var hallazgosPreliminares = await _agent.ExecuteAsync(input);
+
+            _logger.LogInformation("Validación MAF completada: {HallazgosCount} hallazgos preliminares generados por agente {AgenteOrigen}",
+                hallazgosPreliminares.Hallazgos.Count, hallazgosPreliminares.AgenteOrigen);
+
+            return Ok(hallazgosPreliminares);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error durante la validación MAF para auditoría {AuditoriaId}", input?.AuditoriaId.ToString() ?? "UNKNOWN");
+            return StatusCode(StatusCodes.Status500InternalServerError, new ErrorResponse
+            {
+                Mensaje = "Error interno en el servidor durante la validación MAF.",
                 Codigo = "VALIDATION_ERROR",
                 Detalles = ex.Message
             });
