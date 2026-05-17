@@ -20,7 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\ISOAuditAgent.API\ISOAuditAgent.API.csproj" />
-    <ProjectReference Include="..\..\ISOAuditAgent.DocumentAnalysis\ISOAuditAgent.DocumentAnalysis.csproj" />
+    <ProjectReference Include="..\..\ISOAuditAgent.API\Agents\DocumentAnalysis\ISOAuditAgent.DocumentAnalysis.csproj" />
   </ItemGroup>
 
 </Project>

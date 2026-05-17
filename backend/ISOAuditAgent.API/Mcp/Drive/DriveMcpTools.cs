@@ -107,4 +107,42 @@ public sealed class DriveMcpTools
             throw ex.AsToolError(toolName);
         }
     }
+
+    [McpServerTool(Name = "get_file_content_by_url")]
+    [Description(
+        "Descarga un archivo de Google Drive a partir de su URL de " +
+        "visualización o enlace compartido (extrae el fileId automáticamente).")]
+    public async Task<DriveFileContent> GetFileContentByDriveUrlAsync(
+        [Description("URL https://drive.google.com/... del archivo.")]
+        string driveUrl,
+        CancellationToken cancellationToken = default)
+    {
+        const string toolName = "get_file_content_by_url";
+
+        try
+        {
+            var fileId = GoogleDriveShareUrl.TryExtractFileId(driveUrl);
+            if (string.IsNullOrEmpty(fileId))
+            {
+                throw new InvalidOperationException(
+                    "La URL no contiene un identificador de archivo de Drive reconocible " +
+                    "(espere /file/d/... o ?id=...).");
+            }
+
+            return await _client
+                .DownloadFileAsync(fileId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (McpException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error invocando MCP tool '{ToolName}' con driveUrl.",
+                toolName);
+            throw ex.AsToolError(toolName);
+        }
+    }
 }

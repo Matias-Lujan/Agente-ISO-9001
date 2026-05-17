@@ -1,3 +1,4 @@
+using ISOAuditAgent.Contracts;
 using ISOAuditAgent.DocumentAnalysis.Drive;
 using ISOAuditAgent.DocumentAnalysis.Parsing;
 using ISOAuditAgent.DocumentAnalysis.Sources;
@@ -8,7 +9,7 @@ namespace ISOAuditAgent.API.Internal;
 /// Endpoint <b>solo Development</b> para inspeccionar el pipeline
 /// de DocumentAnalysis sin necesitar el <c>Runner</c> (Fase 5):
 /// <c>resolver → listing → descarga → stream → hash</c> de Fase 3 y,
-/// opcionalmente, <c>parser → texto + formato</c> de Fase 4.
+/// opcionalmente, <c>parser → secciones detectadas</c> de Fase D.
 /// </summary>
 /// <remarks>
 /// <list type="bullet">
@@ -19,13 +20,9 @@ namespace ISOAuditAgent.API.Internal;
 ///   <item><description>
 ///     <c>GET /internal/document-source/{proyectoId}?parse=true</c> —
 ///     además ejecuta el parser apropiado (PDF/DOCX/XLSX) y devuelve
-///     <c>formato</c>, <c>caracteresExtraidos</c> y <c>textoPreview</c>
-///     (primeros 500 caracteres).
-///   </description></item>
-///   <item><description>
-///     <c>?parse=true&amp;full=true</c> — además devuelve
-///     <c>textoCompleto</c>. Útil para validar UTF-8/NFC y la salida
-///     Markdown de Excel; cuidado con archivos grandes.
+///     <c>formato</c>, lista <c>secciones</c> y <c>resumenSecciones</c> (primeras
+///     entradas como texto compacto). Ya no se devuelve texto completo del
+///     documento (Fase D).
 ///   </description></item>
 /// </list>
 /// Apto para inspección rápida desde curl / Postman / browser; no apto
@@ -33,7 +30,7 @@ namespace ISOAuditAgent.API.Internal;
 /// </remarks>
 internal static class DocumentSourcePreviewEndpoint
 {
-    private const int PreviewMaxChars = 500;
+    private const int PreviewMaxSectionTitles = 12;
 
     public static IEndpointRouteBuilder MapDocumentSourcePreview(this IEndpointRouteBuilder app)
     {
@@ -55,8 +52,8 @@ internal static class DocumentSourcePreviewEndpoint
         ILogger<Program> logger,
         CancellationToken cancellationToken)
     {
+        _ = full;
         var doParse = parse ?? false;
-        var includeFullText = doParse && (full ?? false);
 
         try
         {
@@ -77,7 +74,7 @@ internal static class DocumentSourcePreviewEndpoint
                     totalBytes += bytesLeidos;
 
                     var parseInfo = doParse
-                        ? await TryParseAsync(raw, registry, includeFullText, logger, cancellationToken)
+                        ? await TryParseAsync(raw, registry, logger, cancellationToken)
                             .ConfigureAwait(false)
                         : null;
 
@@ -137,7 +134,6 @@ internal static class DocumentSourcePreviewEndpoint
     private static async Task<DocumentParsePreview> TryParseAsync(
         RawDocument raw,
         DocumentParserRegistry registry,
-        bool includeFullText,
         ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -146,9 +142,9 @@ internal static class DocumentSourcePreviewEndpoint
             return new DocumentParsePreview(
                 ParserDisponible: false,
                 Formato: null,
-                CaracteresExtraidos: 0,
-                TextoPreview: null,
-                TextoCompleto: null,
+                CaracteresEnTitulosSecciones: 0,
+                ResumenSecciones: null,
+                Secciones: null,
                 Error: $"No hay parser registrado para MIME '{raw.MimeType}'.");
         }
 
@@ -160,17 +156,21 @@ internal static class DocumentSourcePreviewEndpoint
                 .ParseAsync(raw.Contenido, raw.NombreArchivo, cancellationToken)
                 .ConfigureAwait(false);
 
-            var texto = result.TextoNormalizado;
-            var preview = texto.Length <= PreviewMaxChars
-                ? texto
-                : texto[..PreviewMaxChars] + "…";
+            var secciones = result.Secciones;
+            var caracteresTitulos = secciones.Sum(s => s.Titulo.Length);
+            var resumen = secciones.Count == 0
+                ? null
+                : string.Join(
+                    " | ",
+                    secciones.Take(PreviewMaxSectionTitles).Select(static s =>
+                        s.Titulo + (s.TieneContenido ? " (con cuerpo)" : " (vacía)")));
 
             return new DocumentParsePreview(
                 ParserDisponible: true,
                 Formato: result.Formato.ToString(),
-                CaracteresExtraidos: texto.Length,
-                TextoPreview: preview,
-                TextoCompleto: includeFullText ? texto : null,
+                CaracteresEnTitulosSecciones: caracteresTitulos,
+                ResumenSecciones: resumen,
+                Secciones: secciones,
                 Error: null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -182,9 +182,9 @@ internal static class DocumentSourcePreviewEndpoint
             return new DocumentParsePreview(
                 ParserDisponible: true,
                 Formato: null,
-                CaracteresExtraidos: 0,
-                TextoPreview: null,
-                TextoCompleto: null,
+                CaracteresEnTitulosSecciones: 0,
+                ResumenSecciones: null,
+                Secciones: null,
                 Error: $"{ex.GetType().Name}: {ex.Message}");
         }
     }
@@ -212,8 +212,8 @@ internal static class DocumentSourcePreviewEndpoint
     private sealed record DocumentParsePreview(
         bool ParserDisponible,
         string? Formato,
-        int CaracteresExtraidos,
-        string? TextoPreview,
-        string? TextoCompleto,
+        int CaracteresEnTitulosSecciones,
+        string? ResumenSecciones,
+        IReadOnlyList<SeccionDetectada>? Secciones,
         string? Error);
 }

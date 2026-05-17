@@ -35,4 +35,6 @@ backend/**/data/index/
 backend/**/data/**/index/
 
 *.md
-docs/
+!docs/migracion-estructura-backend-api.md
+docs/*
+!docs/migracion-estructura-backend-api.md

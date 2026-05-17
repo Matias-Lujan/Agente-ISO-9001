@@ -4,6 +4,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Sdk.Web agrupa todos los *.cs bajo esta carpeta; los proyectos referenciados están anidados y deben compilarse sólo como referencias de proyecto. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Contracts\**;Corpus\**;Agents\**;Infrastructure\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,9 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ISOAuditAgent.DocumentAnalysis\ISOAuditAgent.DocumentAnalysis.csproj" />
-    <ProjectReference Include="..\ISOAuditAgent.Corpus\ISOAuditAgent.Corpus.csproj" />
-    <ProjectReference Include="..\ISOAuditAgent.Contracts\ISOAuditAgent.Contracts.csproj" />
+    <ProjectReference Include="Agents\DocumentAnalysis\ISOAuditAgent.DocumentAnalysis.csproj" />
+    <ProjectReference Include="Corpus\ISOAuditAgent.Corpus.csproj" />
+    <ProjectReference Include="Contracts\ISOAuditAgent.Contracts.csproj" />
+    <ProjectReference Include="Infrastructure\ISOAuditAgent.Infrastructure.csproj" />
   </ItemGroup>
 
   <!--

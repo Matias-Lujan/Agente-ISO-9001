@@ -10,7 +10,8 @@ namespace ISOAuditAgent.DocumentAnalysis.Tests.Sources;
 
 /// <summary>
 /// Tests de <see cref="DriveDocumentSource"/> (Fase 3) usando un
-/// <see cref="FakeDriveClient"/> en memoria. Cubren:
+/// <see cref="FakeDriveMcpClient"/> (misma lógica de listing que el
+/// servidor MCP, sin HTTP). Cubren:
 /// <list type="bullet">
 ///   <item>Enumeración de documentos crudos para un proyecto.</item>
 ///   <item>Mapeo correcto de metadatos a <see cref="RawDocument"/>.</item>
@@ -36,7 +37,7 @@ public sealed class DriveDocumentSourceTests
         var modificado = new DateTimeOffset(2026, 4, 30, 10, 15, 0, TimeSpan.Zero);
         var creado     = new DateTimeOffset(2026, 4, 1, 9, 0, 0, TimeSpan.Zero);
 
-        var fake = new FakeDriveClient(
+        var fakeClient = new FakeDriveClient(
             tree: new Dictionary<string, IReadOnlyList<DriveItem>>
             {
                 ["root"] = new DriveItem[]
@@ -57,12 +58,12 @@ public sealed class DriveDocumentSourceTests
                 ["f3"] = Content("f3", "kpi.xlsx", Xlsx, bytesF3, modificado)
             });
 
-        var source = BuildSource(fake, new[] { Pdf, Docx, Xlsx });
+        var source = BuildSource(fakeClient, new[] { Pdf, Docx, Xlsx });
 
         var raws = await CollectAsync(source.EnumerateAsync(1));
 
         Assert.Equal(3, raws.Count);
-        Assert.All(raws, r => Assert.Equal(FuenteDocumento.GoogleDrive, r.Fuente));
+        Assert.All(raws, r => Assert.Equal(FuenteDocumento.Drive, r.Fuente));
         Assert.Equal(new[] { "f1", "f2", "f3" }, raws.Select(r => r.IdEnFuente).ToArray());
         Assert.Equal(new[] { "manual.pdf", "registro.docx", "kpi.xlsx" }, raws.Select(r => r.NombreArchivo).ToArray());
         Assert.Equal(new[] { Pdf, Docx, Xlsx }, raws.Select(r => r.MimeType).ToArray());
@@ -82,7 +83,7 @@ public sealed class DriveDocumentSourceTests
     [Fact]
     public async Task Filtra_archivos_no_permitidos_antes_de_descargar()
     {
-        var fake = new FakeDriveClient(
+        var fakeClient = new FakeDriveClient(
             tree: new Dictionary<string, IReadOnlyList<DriveItem>>
             {
                 ["root"] = new DriveItem[]
@@ -96,7 +97,7 @@ public sealed class DriveDocumentSourceTests
                 ["f1"] = Content("f1", "ok.pdf", Pdf, new byte[] { 1, 2, 3 }, null)
             });
 
-        var source = BuildSource(fake, new[] { Pdf });
+        var source = BuildSource(fakeClient, new[] { Pdf });
 
         var raws = await CollectAsync(source.EnumerateAsync(1));
 
@@ -109,7 +110,7 @@ public sealed class DriveDocumentSourceTests
     public async Task Stream_arranca_en_position_cero_y_es_legible()
     {
         var bytes = Encoding.UTF8.GetBytes("hola-mundo");
-        var fake = new FakeDriveClient(
+        var fakeClient = new FakeDriveClient(
             tree: new Dictionary<string, IReadOnlyList<DriveItem>>
             {
                 ["root"] = new DriveItem[]
@@ -122,7 +123,7 @@ public sealed class DriveDocumentSourceTests
                 ["f1"] = Content("f1", "x.pdf", Pdf, bytes, null)
             });
 
-        var source = BuildSource(fake, new[] { Pdf });
+        var source = BuildSource(fakeClient, new[] { Pdf });
 
         await foreach (var raw in source.EnumerateAsync(1))
         {
@@ -141,8 +142,8 @@ public sealed class DriveDocumentSourceTests
     [Fact]
     public async Task Propaga_ProyectoDriveMappingNotFoundException_si_no_hay_mapeo()
     {
-        var fake = new FakeDriveClient(new Dictionary<string, IReadOnlyList<DriveItem>>());
-        var source = BuildSource(fake, new[] { Pdf });
+        var fakeClient = new FakeDriveClient(new Dictionary<string, IReadOnlyList<DriveItem>>());
+        var source = BuildSource(fakeClient, new[] { Pdf });
 
         await Assert.ThrowsAsync<ProyectoDriveMappingNotFoundException>(async () =>
         {
@@ -153,7 +154,7 @@ public sealed class DriveDocumentSourceTests
     [Fact]
     public async Task Propaga_excepcion_si_falla_descarga_de_un_archivo()
     {
-        var fake = new FakeDriveClient(
+        var fakeClient = new FakeDriveClient(
             tree: new Dictionary<string, IReadOnlyList<DriveItem>>
             {
                 ["root"] = new DriveItem[]
@@ -162,7 +163,7 @@ public sealed class DriveDocumentSourceTests
                 }
             });
 
-        var source = BuildSource(fake, new[] { Pdf });
+        var source = BuildSource(fakeClient, new[] { Pdf });
 
         await Assert.ThrowsAsync<InvalidOperationException>(async () =>
         {
@@ -173,7 +174,7 @@ public sealed class DriveDocumentSourceTests
     [Fact]
     public async Task Respeta_CancellationToken()
     {
-        var fake = new FakeDriveClient(
+        var fakeClient = new FakeDriveClient(
             tree: new Dictionary<string, IReadOnlyList<DriveItem>>
             {
                 ["root"] = new DriveItem[]
@@ -188,7 +189,7 @@ public sealed class DriveDocumentSourceTests
                 ["f2"] = Content("f2", "b.pdf", Pdf, new byte[] { 2 }, null)
             });
 
-        var source = BuildSource(fake, new[] { Pdf });
+        var source = BuildSource(fakeClient, new[] { Pdf });
 
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -200,13 +201,13 @@ public sealed class DriveDocumentSourceTests
     }
 
     [Fact]
-    public void Fuente_es_GoogleDrive()
+    public void Fuente_es_Drive()
     {
         var source = BuildSource(
             new FakeDriveClient(new Dictionary<string, IReadOnlyList<DriveItem>>()),
             new[] { Pdf });
 
-        Assert.Equal(FuenteDocumento.GoogleDrive, source.Fuente);
+        Assert.Equal(FuenteDocumento.Drive, source.Fuente);
     }
 
     private static DriveDocumentSource BuildSource(IDriveClient client, IEnumerable<string> mimeTypes)
@@ -225,11 +226,8 @@ public sealed class DriveDocumentSourceTests
         };
 
         var iOpts = Options.Create(options);
-        var resolver = new OptionsBackedProyectoDriveResolver(iOpts);
-        var policy = new DriveExclusionPolicy(iOpts);
-        var listing = new DriveListingService(resolver, client, policy, iOpts);
-
-        return new DriveDocumentSource(listing, client);
+        var mcp = new FakeDriveMcpClient(iOpts, client);
+        return new DriveDocumentSource(mcp);
     }
 
     private static async Task<List<RawDocument>> CollectAsync(

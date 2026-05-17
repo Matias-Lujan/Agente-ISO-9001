@@ -21,8 +21,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\ISOAuditAgent.DocumentAnalysis\ISOAuditAgent.DocumentAnalysis.csproj" />
-    <ProjectReference Include="..\..\ISOAuditAgent.Contracts\ISOAuditAgent.Contracts.csproj" />
+    <ProjectReference Include="..\..\ISOAuditAgent.API\Agents\DocumentAnalysis\ISOAuditAgent.DocumentAnalysis.csproj" />
+    <ProjectReference Include="..\..\ISOAuditAgent.API\Contracts\ISOAuditAgent.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

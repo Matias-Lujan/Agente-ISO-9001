@@ -1,4 +1,3 @@
-using ISOAuditAgent.Contracts;
 using ISOAuditAgent.DocumentAnalysis.Parsing;
 using ISOAuditAgent.DocumentAnalysis.Tests.Parsing.Fixtures;
 
@@ -17,7 +16,7 @@ public sealed class XlsxDocumentParserTests
     }
 
     [Fact]
-    public async Task Excel_se_devuelve_como_Markdown()
+    public async Task Cada_hoja_es_seccion_TieneContenido_cuando_mas_de_una_fila()
     {
         var bytes = DocumentFixtures.BuildXlsx(new Dictionary<string, IReadOnlyList<IReadOnlyList<string>>>
         {
@@ -35,15 +34,14 @@ public sealed class XlsxDocumentParserTests
         var result = await parser.ParseAsync(stream, "kpis.xlsx");
 
         Assert.Equal(FormatoContenido.Markdown, result.Formato);
-        Assert.Contains("## Indicadores", result.TextoNormalizado);
-        Assert.Contains("| Indicador | Meta | Resultado |", result.TextoNormalizado);
-        Assert.Contains("|---|---|---|", result.TextoNormalizado);
-        Assert.Contains("| Satisfacción cliente | 90 | 92 |", result.TextoNormalizado);
-        Assert.Contains("| Tiempo respuesta | 48hs | 36hs |", result.TextoNormalizado);
+        Assert.Null(result.TextoNormalizado);
+        var s = Assert.Single(result.Secciones);
+        Assert.Equal("indicadores", s.Titulo, StringComparer.OrdinalIgnoreCase);
+        Assert.True(s.TieneContenido);
     }
 
     [Fact]
-    public async Task Multiples_hojas_generan_secciones_separadas_por_encabezado()
+    public async Task Multiples_hojas_generan_una_seccion_por_hoja()
     {
         var bytes = DocumentFixtures.BuildXlsx(new Dictionary<string, IReadOnlyList<IReadOnlyList<string>>>
         {
@@ -63,40 +61,19 @@ public sealed class XlsxDocumentParserTests
 
         var result = await parser.ParseAsync(stream, "x.xlsx");
 
-        Assert.Contains("## Resumen", result.TextoNormalizado);
-        Assert.Contains("## Detalle", result.TextoNormalizado);
-        Assert.Contains("| Fecha | Auditor |", result.TextoNormalizado);
-        Assert.Contains("| 2026-04-01 | JP |", result.TextoNormalizado);
+        Assert.Equal(2, result.Secciones.Count);
+        Assert.Equal("resumen", result.Secciones[0].Titulo, StringComparer.OrdinalIgnoreCase);
+        Assert.False(result.Secciones[0].TieneContenido);
+        Assert.Equal("detalle", result.Secciones[1].Titulo, StringComparer.OrdinalIgnoreCase);
+        Assert.True(result.Secciones[1].TieneContenido);
     }
 
     [Fact]
-    public async Task ContenidoTextual_y_HashContenido_no_son_vacios_para_fixture_representativo()
+    public async Task Hoja_con_solo_encabezado_marca_TieneContenido_falso()
     {
         var bytes = DocumentFixtures.BuildXlsx(new Dictionary<string, IReadOnlyList<IReadOnlyList<string>>>
         {
             ["Hoja1"] = new List<IReadOnlyList<string>>
-            {
-                new[] { "a", "b" },
-                new[] { "1", "2" }
-            }
-        });
-
-        using var stream = DocumentFixtures.ToStream(bytes);
-        var parser = new XlsxDocumentParser();
-
-        var result = await parser.ParseAsync(stream, "x.xlsx");
-        var hash = ContentHasher.ComputeSha256OfBytes(bytes);
-
-        Assert.False(string.IsNullOrWhiteSpace(result.TextoNormalizado));
-        Assert.False(string.IsNullOrWhiteSpace(hash));
-    }
-
-    [Fact]
-    public async Task Escapa_pipes_en_celdas_para_no_romper_la_tabla_Markdown()
-    {
-        var bytes = DocumentFixtures.BuildXlsx(new Dictionary<string, IReadOnlyList<IReadOnlyList<string>>>
-        {
-            ["x"] = new List<IReadOnlyList<string>>
             {
                 new[] { "a|b", "c" }
             }
@@ -107,7 +84,7 @@ public sealed class XlsxDocumentParserTests
 
         var result = await parser.ParseAsync(stream, "x.xlsx");
 
-        Assert.Contains(@"a\|b", result.TextoNormalizado);
+        Assert.False(Assert.Single(result.Secciones).TieneContenido);
     }
 
     [Fact]

@@ -3,8 +3,10 @@ using DocumentFormat.OpenXml.Packaging;
 using DocxBody = DocumentFormat.OpenXml.Wordprocessing.Body;
 using DocxDocument = DocumentFormat.OpenXml.Wordprocessing.Document;
 using DocxParagraph = DocumentFormat.OpenXml.Wordprocessing.Paragraph;
+using DocxParagraphProperties = DocumentFormat.OpenXml.Wordprocessing.ParagraphProperties;
 using DocxRun = DocumentFormat.OpenXml.Wordprocessing.Run;
 using DocxText = DocumentFormat.OpenXml.Wordprocessing.Text;
+using ParagraphStyleId = DocumentFormat.OpenXml.Wordprocessing.ParagraphStyleId;
 using XlsCell = DocumentFormat.OpenXml.Spreadsheet.Cell;
 using XlsCellValue = DocumentFormat.OpenXml.Spreadsheet.CellValue;
 using XlsCellValues = DocumentFormat.OpenXml.Spreadsheet.CellValues;
@@ -57,6 +59,38 @@ internal static class DocumentFixtures
             {
                 body.Append(new DocxParagraph(new DocxRun(new DocxText(p))));
             }
+            main.Document = new DocxDocument(body);
+            main.Document.Save();
+        }
+
+        return ms.ToArray();
+    }
+
+    /// <summary>
+    /// DOCX con <c>w:pStyle</c> opcional por párrafo (p. ej. <c>Heading1</c>).
+    /// </summary>
+    public static byte[] BuildDocxWithStyledParagraphs(
+        IReadOnlyList<(string? styleId, string text)> blocks)
+    {
+        using var ms = new MemoryStream();
+        using (var doc = WordprocessingDocument.Create(
+                   ms, WordprocessingDocumentType.Document))
+        {
+            var main = doc.AddMainDocumentPart();
+            var body = new DocxBody();
+            foreach (var (styleId, text) in blocks)
+            {
+                var p = new DocxParagraph();
+                if (!string.IsNullOrEmpty(styleId))
+                {
+                    p.ParagraphProperties = new DocxParagraphProperties(
+                        new ParagraphStyleId { Val = styleId });
+                }
+
+                p.Append(new DocxRun(new DocxText(text)));
+                body.Append(p);
+            }
+
             main.Document = new DocxDocument(body);
             main.Document.Save();
         }

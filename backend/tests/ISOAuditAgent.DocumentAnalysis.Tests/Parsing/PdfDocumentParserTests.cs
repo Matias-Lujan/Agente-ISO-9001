@@ -1,4 +1,3 @@
-using ISOAuditAgent.Contracts;
 using ISOAuditAgent.DocumentAnalysis.Parsing;
 using ISOAuditAgent.DocumentAnalysis.Tests.Parsing.Fixtures;
 
@@ -14,7 +13,7 @@ public sealed class PdfDocumentParserTests
     }
 
     [Fact]
-    public async Task Extrae_texto_de_PDF_simple_y_devuelve_PlainText()
+    public async Task Sin_outline_devuelve_seccion_agrupada_best_effort()
     {
         var bytes = DocumentFixtures.BuildPdf(
             "Manual de Calidad",
@@ -26,12 +25,14 @@ public sealed class PdfDocumentParserTests
         var result = await parser.ParseAsync(stream, "manual.pdf");
 
         Assert.Equal(FormatoContenido.PlainText, result.Formato);
-        Assert.Contains("Manual de Calidad", result.TextoNormalizado);
-        Assert.Contains("auditoria interna ISO 9001", result.TextoNormalizado);
+        Assert.Null(result.TextoNormalizado);
+        var s = Assert.Single(result.Secciones);
+        Assert.Contains(s.Titulo, new[] { "(Contenido inicial)", "(documento completo)" });
+        Assert.True(s.TieneContenido);
     }
 
     [Fact]
-    public async Task ContenidoTextual_y_HashContenido_no_son_vacios_para_fixture_representativo()
+    public async Task Hash_de_bytes_independiente_del_resultado_de_secciones()
     {
         var bytes = DocumentFixtures.BuildPdf(
             "Politica de Calidad",
@@ -40,10 +41,9 @@ public sealed class PdfDocumentParserTests
         using var stream = DocumentFixtures.ToStream(bytes);
         var parser = new PdfDocumentParser();
 
-        var result = await parser.ParseAsync(stream, "politica.pdf");
+        await parser.ParseAsync(stream, "politica.pdf");
         var hash = ContentHasher.ComputeSha256OfBytes(bytes);
 
-        Assert.False(string.IsNullOrWhiteSpace(result.TextoNormalizado));
         Assert.False(string.IsNullOrWhiteSpace(hash));
         Assert.Equal(64, hash.Length);
     }

@@ -1,11 +1,13 @@
 using ISOAuditAgent.API.Internal;
 using ISOAuditAgent.API.Mcp.Drive;
 using ISOAuditAgent.DocumentAnalysis.Extensions;
+using ISOAuditAgent.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 
+builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddDocumentAnalysis(builder.Configuration);
 builder.Services.AddGoogleDriveMcpServer();
 
@@ -15,7 +17,7 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapDocumentSourcePreview();
-    app.MapDocumentAnalysisRun();
+    app.MapDocumentAnalysisAgentDev();
 }
 
 app.UseHttpsRedirection();

@@ -85,6 +85,9 @@ public sealed class DocumentParserRegistryTests
             Stream contenido,
             string nombreArchivo,
             CancellationToken cancellationToken = default)
-            => Task.FromResult(new DocumentParseResult("fake", FormatoContenido.PlainText));
+            => Task.FromResult(new DocumentParseResult(
+                FormatoContenido.PlainText,
+                new[] { new SeccionDetectada("fake", true) },
+                null));
     }
 }
