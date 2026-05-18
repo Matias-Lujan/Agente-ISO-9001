@@ -101,6 +101,30 @@ public sealed class DriveMcpSdkClient : IDriveMcpClient
         return GetFileContentByUrlCoreAsync(driveUrl.Trim(), cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task<DriveFolderListing> ListFilesUnderFolderAsync(
+        string folderId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(folderId);
+
+        var client = await GetOrCreateClientAsync(cancellationToken).ConfigureAwait(false);
+
+        var result = await client.CallToolAsync(
+            "list_files_under_folder",
+            new Dictionary<string, object?> { ["folderId"] = folderId },
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        ThrowIfToolError("list_files_under_folder", result);
+
+        var json = GetStructuredJsonString(result);
+        var listing = JsonSerializer.Deserialize<DriveFolderListing>(json, JsonOptions);
+        if (listing is null)
+            throw new InvalidOperationException("list_files_under_folder: respuesta MCP vacía o no reconocida.");
+
+        return listing;
+    }
+
     private async Task<DriveFileContent> GetFileContentByUrlCoreAsync(
         string driveUrl,
         CancellationToken cancellationToken)

@@ -29,4 +29,14 @@ public interface IDriveMcpClient
     Task<DriveFileContent> GetFileContentByDriveUrlAsync(
         string driveUrl,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Equivalente a la tool <c>list_files_under_folder</c>: lista archivos
+    /// bajo un folderId arbitrario (sin requerir ProyectoId). Usado para
+    /// resolver el template del artefacto en la carpeta de templates del
+    /// sistema.
+    /// </summary>
+    Task<DriveFolderListing> ListFilesUnderFolderAsync(
+        string folderId,
+        CancellationToken cancellationToken = default);
 }

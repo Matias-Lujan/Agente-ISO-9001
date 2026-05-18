@@ -44,22 +44,30 @@ public sealed class DriveListingService : IDriveListingService
             StringComparer.OrdinalIgnoreCase);
     }
 
-    public async IAsyncEnumerable<DriveFile> ListFilesUnderProjectAsync(
+    public IAsyncEnumerable<DriveFile> ListFilesUnderProjectAsync(
         int proyectoId,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
         var rootFolderId = _resolver.ResolveFolderId(proyectoId);
+        return ListFilesUnderFolderAsync(rootFolderId, cancellationToken);
+    }
+
+    public async IAsyncEnumerable<DriveFile> ListFilesUnderFolderAsync(
+        string folderId,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(folderId);
 
         var queue = new Queue<string>();
-        queue.Enqueue(rootFolderId);
+        queue.Enqueue(folderId);
 
         while (queue.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var folderId = queue.Dequeue();
+            var current = queue.Dequeue();
 
-            await foreach (var item in _client.ListChildrenAsync(folderId, cancellationToken)
+            await foreach (var item in _client.ListChildrenAsync(current, cancellationToken)
                 .ConfigureAwait(false))
             {
                 switch (item)

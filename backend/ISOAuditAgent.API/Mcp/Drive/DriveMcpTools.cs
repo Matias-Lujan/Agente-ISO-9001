@@ -108,6 +108,43 @@ public sealed class DriveMcpTools
         }
     }
 
+    [McpServerTool(Name = "list_files_under_folder")]
+    [Description(
+        "Lista recursivamente los archivos candidatos (PDF/DOCX/XLSX por defecto) " +
+        "bajo el folderId indicado de Google Drive. No requiere ProyectoId. " +
+        "Útil para resolver la carpeta de templates del sistema.")]
+    public async Task<DriveFolderListing> ListFilesUnderFolderAsync(
+        [Description("FolderId de Google Drive a recorrer recursivamente.")]
+        string folderId,
+        CancellationToken cancellationToken = default)
+    {
+        const string toolName = "list_files_under_folder";
+
+        try
+        {
+            var files = new List<DriveFile>();
+            await foreach (var file in _listing
+                .ListFilesUnderFolderAsync(folderId, cancellationToken)
+                .ConfigureAwait(false))
+            {
+                files.Add(file);
+            }
+
+            return new DriveFolderListing(folderId, files);
+        }
+        catch (McpException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error invocando MCP tool '{ToolName}' con folderId={FolderId}.",
+                toolName, folderId);
+            throw ex.AsToolError(toolName);
+        }
+    }
+
     [McpServerTool(Name = "get_file_content_by_url")]
     [Description(
         "Descarga un archivo de Google Drive a partir de su URL de " +

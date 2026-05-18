@@ -133,6 +133,14 @@ public sealed class DriveMcpToolsErrorVisibilityTests
             await Task.CompletedTask;
             yield break;
         }
+
+        public async IAsyncEnumerable<DriveFile> ListFilesUnderFolderAsync(
+            string folderId,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
     }
 
     private sealed class ThrowingListingService : IDriveListingService
@@ -145,12 +153,26 @@ public sealed class DriveMcpToolsErrorVisibilityTests
             int proyectoId,
             CancellationToken cancellationToken = default)
             => throw _ex;
+
+        public IAsyncEnumerable<DriveFile> ListFilesUnderFolderAsync(
+            string folderId,
+            CancellationToken cancellationToken = default)
+            => throw _ex;
     }
 
     private sealed class CancellingListingService : IDriveListingService
     {
         public async IAsyncEnumerable<DriveFile> ListFilesUnderProjectAsync(
             int proyectoId,
+            [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            cancellationToken.ThrowIfCancellationRequested();
+            yield break;
+        }
+
+        public async IAsyncEnumerable<DriveFile> ListFilesUnderFolderAsync(
+            string folderId,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             await Task.Yield();

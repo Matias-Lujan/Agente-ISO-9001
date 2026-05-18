@@ -64,6 +64,23 @@ internal sealed partial class FakeDriveMcpClient : IDriveMcpClient
         return GetFileContentAsync(fileId, cancellationToken);
     }
 
+    public async Task<DriveFolderListing> ListFilesUnderFolderAsync(
+        string folderId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(folderId);
+
+        var files = new List<DriveFile>();
+        await foreach (var file in _listing
+                           .ListFilesUnderFolderAsync(folderId, cancellationToken)
+                           .ConfigureAwait(false))
+        {
+            files.Add(file);
+        }
+
+        return new DriveFolderListing(folderId, files);
+    }
+
     private static string? TryExtractFileId(string driveUrl)
     {
         var m = FileDPath().Match(driveUrl);
