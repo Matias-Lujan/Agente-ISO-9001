@@ -244,8 +244,7 @@ namespace ISOAuditAgent.API.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     justificacion_no_aplica = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    resultado = table.Column<string>(type: "varchar(30)", maxLength: 30, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    resultado = table.Column<int>(type: "int", nullable: false),
                     observaciones = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4")
                 },
@@ -354,6 +353,11 @@ namespace ISOAuditAgent.API.Migrations
                         onDelete: ReferentialAction.Restrict);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.InsertData(
+                table: "configuraciones_sistema",
+                columns: new[] { "id", "clave", "descripcion", "valor" },
+                values: new object[] { 1, "path_carpeta_templates", "Ruta de la carpeta de templates de artefactos. Configurable por entorno: reemplazar el valor por la ruta real donde el deployment aloja los templates.", "./templates" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_artefactos_esperados_etapa_id",

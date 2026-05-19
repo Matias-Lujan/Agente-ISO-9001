@@ -1,8 +1,8 @@
 namespace ISOAuditAgent.API.Models;
 
-public enum AplicaTailoring
+public enum EstadoAplicacionTailoring
 {
-    Si,
+    Aplica,
     NoAplica,
     SinDeclararEnTailoring
 }

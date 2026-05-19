@@ -98,10 +98,8 @@ namespace ISOAuditAgent.API.Migrations
                         .HasColumnType("longtext")
                         .HasColumnName("observaciones");
 
-                    b.Property<string>("Resultado")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)")
+                    b.Property<int>("Resultado")
+                        .HasColumnType("int")
                         .HasColumnName("resultado");
 
                     b.HasKey("Id");
@@ -188,6 +186,15 @@ namespace ISOAuditAgent.API.Migrations
                         .IsUnique();
 
                     b.ToTable("configuraciones_sistema");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Clave = "path_carpeta_templates",
+                            Descripcion = "Ruta de la carpeta de templates de artefactos. Configurable por entorno: reemplazar el valor por la ruta real donde el deployment aloja los templates.",
+                            Valor = "./templates"
+                        });
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.DocumentoAnalizado", b =>

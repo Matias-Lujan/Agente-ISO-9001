@@ -48,8 +48,6 @@ public class ISOAuditAgentDbContext : DbContext
             .Property(a => a.Estado).HasConversion<string>().HasMaxLength(20);
         modelBuilder.Entity<ArtefactoEvaluado>()
             .Property(ae => ae.Aplica).HasConversion<string>().HasMaxLength(30);
-        modelBuilder.Entity<ArtefactoEvaluado>()
-            .Property(ae => ae.Resultado).HasConversion<string>().HasMaxLength(30);
         modelBuilder.Entity<Hallazgo>()
             .Property(h => h.Tipo).HasConversion<string>().HasMaxLength(10);
         modelBuilder.Entity<Hallazgo>()
@@ -68,6 +66,28 @@ public class ISOAuditAgentDbContext : DbContext
             .HasIndex(c => c.Clave).IsUnique();
         modelBuilder.Entity<ProyectoUsuario>()
             .HasIndex(pu => new { pu.ProyectoId, pu.UsuarioId }).IsUnique();
+
+        // === Seed de configuración del sistema ===
+        // path_carpeta_templates: carpeta donde viven los templates de los
+        // artefactos. ResolutorContextoService la lee (vía IConfiguracionRepository)
+        // y la concatena con ArtefactoEsperado.PathTemplateRelativo para resolver
+        // la ruta absoluta de cada template. Si esta clave falta, el workflow
+        // falla temprano con ContextoAuditoriaException.
+        //
+        // Valor "./templates": default de desarrollo, ruta relativa al working
+        // directory de la API. Es CONFIGURABLE — al ser una fila de una tabla
+        // key-value, se reemplaza por la ruta real de cada entorno sin tocar
+        // código ni recompilar.
+        modelBuilder.Entity<ConfiguracionSistema>().HasData(
+            new ConfiguracionSistema
+            {
+                Id = 1,
+                Clave = "path_carpeta_templates",
+                Valor = "./templates",
+                Descripcion = "Ruta de la carpeta de templates de artefactos. "
+                            + "Configurable por entorno: reemplazar el valor por "
+                            + "la ruta real donde el deployment aloja los templates."
+            });
 
         // === Comportamiento de borrado: Restrict en todas las FKs ===
         // Evita el borrado en cascada por defecto de EF Core.
