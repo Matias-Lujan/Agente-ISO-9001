@@ -5,7 +5,7 @@ public class ArtefactoEvaluado
     public int Id { get; set; }
     public int AuditoriaId { get; set; }
     public int ArtefactoEsperadoId { get; set; }
-    public AplicaTailoring Aplica { get; set; }
+    public EstadoAplicacionTailoring Aplica { get; set; }
     public string? JustificacionNoAplica { get; set; }
     public ResultadoEvaluacion Resultado { get; set; }
     public string? Observaciones { get; set; }
