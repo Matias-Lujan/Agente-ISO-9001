@@ -1,7 +1,7 @@
 using ISOAuditAgent.DocumentAnalysis.Configuration;
 using ISOAuditAgent.DocumentAnalysis.Drive;
 using ISOAuditAgent.DocumentAnalysis.Extensions;
-using ISOAuditAgent.DocumentAnalysis.Mcp;
+using ISOAuditAgent.DocumentAnalysis.Mcp.Drive;
 using ISOAuditAgent.DocumentAnalysis.Parsing;
 using ISOAuditAgent.DocumentAnalysis.Sources;
 using ISOAuditAgent.DocumentAnalysis.Tailoring;

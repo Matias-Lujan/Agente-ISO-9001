@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
-namespace ISOAuditAgent.DocumentAnalysis.Mcp;
+namespace ISOAuditAgent.DocumentAnalysis.Mcp.Drive;
 
 /// <summary>
 /// Implementación de <see cref="IDriveMcpClient"/> usando el SDK oficial MCP

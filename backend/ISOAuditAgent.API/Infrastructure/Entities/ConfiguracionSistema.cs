@@ -30,4 +30,12 @@ public static class ConfiguracionSistemaClaves
     /// para localizar cada template específico.
     /// </summary>
     public const string DriveCarpetaTemplatesId = "drive_carpeta_templates_id";
+
+    /// <summary>
+    /// WorkspaceId de Clockify donde viven los proyectos de BDT (Fase F.5.2).
+    /// Es global a todo el sistema porque cada cuenta Clockify tiene un solo
+    /// workspace operativo. Se concatena con <c>proyecto.clockify_project_id</c>
+    /// para construir el path REST.
+    /// </summary>
+    public const string ClockifyWorkspaceId = "clockify_workspace_id";
 }

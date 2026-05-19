@@ -1,6 +1,6 @@
 using ISOAuditAgent.Contracts;
 using ISOAuditAgent.DocumentAnalysis.Drive;
-using ISOAuditAgent.DocumentAnalysis.Mcp;
+using ISOAuditAgent.DocumentAnalysis.Mcp.Drive;
 
 namespace ISOAuditAgent.DocumentAnalysis.Sources;
 

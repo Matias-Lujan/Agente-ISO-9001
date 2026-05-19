@@ -1,6 +1,6 @@
 using ISOAuditAgent.DocumentAnalysis.Drive;
 
-namespace ISOAuditAgent.DocumentAnalysis.Mcp;
+namespace ISOAuditAgent.DocumentAnalysis.Mcp.Drive;
 
 /// <summary>
 /// Cliente MCP del servidor Drive local: expone las mismas capacidades que

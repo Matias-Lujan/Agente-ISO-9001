@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using ISOAuditAgent.DocumentAnalysis.Mcp;
+using ISOAuditAgent.DocumentAnalysis.Mcp.Drive;
 using ModelContextProtocol.Client;
 
 namespace ISOAuditAgent.DocumentAnalysis.Configuration;

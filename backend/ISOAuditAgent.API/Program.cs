@@ -1,5 +1,7 @@
 using ISOAuditAgent.API.Internal;
+using ISOAuditAgent.API.Mcp.Clockify;
 using ISOAuditAgent.API.Mcp.Drive;
+using ISOAuditAgent.API.Mcp.Trello;
 using ISOAuditAgent.DocumentAnalysis.Extensions;
 using ISOAuditAgent.Infrastructure.Extensions;
 
@@ -10,6 +12,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddDocumentAnalysis(builder.Configuration);
 builder.Services.AddGoogleDriveMcpServer();
+builder.Services.AddTrelloMcpTools(builder.Configuration);
+builder.Services.AddClockifyMcpTools(builder.Configuration);
 
 var app = builder.Build();
 
