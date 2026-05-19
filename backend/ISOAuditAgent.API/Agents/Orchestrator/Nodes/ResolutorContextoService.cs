@@ -38,7 +38,7 @@ public sealed class ContextoAuditoriaException : Exception
 /// Nodo ResolutorContexto. Se registra como executor del workflow MAF.
 /// Recibe sus dependencias por DI (repositorios de lectura).
 /// </summary>
-public sealed class ResolutorContexto
+public sealed class ResolutorContextoService
 {
     private const string ClavePathTemplates = "path_carpeta_templates";
 
@@ -46,7 +46,7 @@ public sealed class ResolutorContexto
     private readonly IProcedimientoRepository _procedimientoRepo;
     private readonly IConfiguracionRepository _configuracionRepo;
 
-    public ResolutorContexto(
+    public ResolutorContextoService(
         IProyectoRepository proyectoRepo,
         IProcedimientoRepository procedimientoRepo,
         IConfiguracionRepository configuracionRepo)
