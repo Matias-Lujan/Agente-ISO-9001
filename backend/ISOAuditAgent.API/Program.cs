@@ -1,28 +1,33 @@
-using ISOAuditAgent.API.Data;
-using Microsoft.EntityFrameworkCore;
+using ISOAuditAgent.API.Internal;
+using ISOAuditAgent.API.Mcp.Clockify;
+using ISOAuditAgent.API.Mcp.Drive;
+using ISOAuditAgent.API.Mcp.Trello;
+using ISOAuditAgent.DocumentAnalysis.Extensions;
+using ISOAuditAgent.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// --- Registro del DbContext con el provider de MySQL ---
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-builder.Services.AddDbContext<ISOAuditAgentDbContext>(options =>
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
-// -------------------------------------------------------
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddDocumentAnalysis(builder.Configuration);
+builder.Services.AddGoogleDriveMcpServer();
+builder.Services.AddTrelloMcpTools(builder.Configuration);
+builder.Services.AddClockifyMcpTools(builder.Configuration);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapDocumentSourcePreview();
+    app.MapDocumentAnalysisAgentDev();
 }
 
 app.UseHttpsRedirection();
+
+// Servidor MCP de Google Drive bajo /mcp/drive (§7.5 de la especificación).
+app.MapMcp("/mcp/drive");
 
 var summaries = new[]
 {
@@ -31,7 +36,7 @@ var summaries = new[]
 
 app.MapGet("/weatherforecast", () =>
 {
-    var forecast = Enumerable.Range(1, 5).Select(index =>
+    var forecast =  Enumerable.Range(1, 5).Select(index =>
         new WeatherForecast
         (
             DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
