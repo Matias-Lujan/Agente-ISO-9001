@@ -38,3 +38,4 @@ backend/**/data/**/index/
 !docs/migracion-estructura-backend-api.md
 docs/*
 !docs/migracion-estructura-backend-api.md
+.claude/

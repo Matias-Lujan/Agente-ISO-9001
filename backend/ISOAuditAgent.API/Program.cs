@@ -1,5 +1,6 @@
 using ISOAuditAgent.API.Agents.ComplianceValidation;
 using ISOAuditAgent.API.Agents.ConsistencyVerification;
+using ISOAuditAgent.API.Agents.FindingsClassification.Extensions;
 using ISOAuditAgent.API.Integrations.MCP;
 using ISOAuditAgent.API.Internal;
 using ISOAuditAgent.API.Mcp.Clockify;
@@ -57,6 +58,9 @@ builder.Services.AddHttpClient<IAiClient, GeminiClient>(client =>
 builder.Services.AddSingleton<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
 builder.Services.AddScoped<ConsistencyVerificationAgentService>();
 
+// ===== Agente de Clasificación de Hallazgos (FindingsClassification) =====
+builder.Services.AddFindingsClassification(builder.Configuration);
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -108,9 +112,15 @@ static string GetGeminiApiKey(IConfiguration config)
         return apiKey.Trim();
     }
 
+    apiKey = config["Gemini:ApiKey"];
+    if (!string.IsNullOrWhiteSpace(apiKey) && !IsPlaceholderValue(apiKey))
+    {
+        return apiKey.Trim();
+    }
+
     throw new InvalidOperationException(
         "La clave Gemini API no está configurada correctamente. " +
-        "Defina GEMINI_API_KEY como variable de entorno o actualice appsettings.json sin valores de plantilla."
+        "Defina GEMINI_API_KEY como variable de entorno, o configure 'GeminiApiKey' o 'Gemini:ApiKey' en appsettings."
     );
 }
 
