@@ -4,23 +4,18 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- Sdk.Web agrupa todos los *.cs bajo esta carpeta; los proyectos referenciados están anidados y deben compilarse sólo como referencias de proyecto. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);Contracts\**;Corpus\**;Agents\**;Infrastructure\**</DefaultItemExcludes>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>828fa331-7fdc-44b9-87c7-14725381f4bb</UserSecretsId>
     <!-- Sdk.Web agrupa todos los *.cs bajo esta carpeta; los proyectos referenciados están anidados y deben compilarse sólo como referencias de proyecto. -->
-    <DefaultItemExcludes>$(DefaultItemExcludes);Contracts\**;Corpus\**;Agents\**;Infrastructure\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Contracts\**;Corpus\**;Agents\DocumentAnalysis\**;Infrastructure\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Apis.Drive.v3" Version="1.74.0.4135" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.14" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.30.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.75.0-alpha" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7" />
   </ItemGroup>
 
   <ItemGroup>
