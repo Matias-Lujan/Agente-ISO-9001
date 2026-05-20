@@ -6,7 +6,6 @@ obj/
 .vs/
 *.log
 appsettings.Development.json
-appsettings.json
 
 # NuGet
 *.nupkg
@@ -29,3 +28,13 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Artefactos generados por el indexador RAG (chunks, embeddings, manifiestos).
+# La norma ISO en data/norma/ sí se versiona; lo generado bajo data/**/index/ no.
+backend/**/data/index/
+backend/**/data/**/index/
+
+*.md
+!docs/migracion-estructura-backend-api.md
+docs/*
+!docs/migracion-estructura-backend-api.md
