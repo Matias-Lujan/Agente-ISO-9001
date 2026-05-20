@@ -1,10 +1,12 @@
 using ISOAuditAgent.API.Agents.ComplianceValidation;
+using ISOAuditAgent.API.Agents.ConsistencyVerification;
 using ISOAuditAgent.API.Integrations.MCP;
 using ISOAuditAgent.API.Internal;
 using ISOAuditAgent.API.Mcp.Clockify;
 using ISOAuditAgent.API.Mcp.Drive;
 using ISOAuditAgent.API.Mcp.Trello;
 using ISOAuditAgent.API.Repositories;
+using ISOAuditAgent.API.Services;
 using ISOAuditAgent.DocumentAnalysis.Extensions;
 using ISOAuditAgent.Infrastructure.Extensions;
 using Microsoft.Extensions.Configuration;
@@ -18,7 +20,14 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 builder.Services.AddOpenApi();
-builder.Services.AddControllers();
+
+// Controllers — se enumeran los enums como string ("Exigible") en lugar de número.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddDocumentAnalysis(builder.Configuration);
@@ -38,6 +47,15 @@ builder.Services.AddKernel()
 builder.Services.AddScoped<IMcpClient, MockMcpClient>();
 builder.Services.AddScoped<IReglaValidacionRepository, MockReglaValidacionRepository>();
 builder.Services.AddScoped<IComplianceValidationAgent, ComplianceValidationAgent>();
+
+// ===== Servicios del Agente de Verificación de Consistencia =====
+builder.Services.AddHttpClient<IAiClient, GeminiClient>(client =>
+{
+    client.BaseAddress = new Uri("https://generativelanguage.googleapis.com");
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
+builder.Services.AddSingleton<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
+builder.Services.AddScoped<ConsistencyVerificationAgentService>();
 
 var app = builder.Build();
 

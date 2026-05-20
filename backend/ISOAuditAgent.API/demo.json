@@ -1,0 +1,141 @@
+{
+  "auditoriaId": 1,
+  "proyectoId": 30052,
+  "etapaId": 3,
+  "artefactos": [
+    {
+      "artefactoEsperadoId": 1,
+      "codigoArtefacto": "FR-29",
+      "nombreArtefacto": "Tailoring del Proyecto",
+      "etapaArtefactoId": 1,
+      "exigibilidad": "Exigible",
+      "obligatoriedad": "Mandatorio",
+      "estadoTailoring": "Aplica",
+      "justificacionNoAplica": null,
+      "estadoDisponibilidad": "Encontrado",
+      "urlReferencia": "https://drive.google.com/drive/folders/1JEUdi3FxB7FrAXA9pInIrkVRWAO2Vq9E",
+      "pathTemplateAbsoluto": null,
+      "documentoEncontrado": {
+        "nombreArchivo": "FR_29-05_Tailoring_de_proyecto_30_052.xlsx",
+        "fuente": "Drive",
+        "hashContenido": "a1b2c3d4"
+      },
+      "seccionesDetectadas": []
+    },
+    {
+      "artefactoEsperadoId": 2,
+      "codigoArtefacto": "FR-30",
+      "nombreArtefacto": "Especificacion de Requerimientos de Software (ERS)",
+      "etapaArtefactoId": 1,
+      "exigibilidad": "Exigible",
+      "obligatoriedad": "Mandatorio",
+      "estadoTailoring": "Aplica",
+      "justificacionNoAplica": null,
+      "estadoDisponibilidad": "Encontrado",
+      "urlReferencia": "https://docs.google.com/document/d/1NBJP3GJNGtPaO8e9LwI6dKU8EwgxPjqp",
+      "pathTemplateAbsoluto": "/templates/FR-30-ERS.docx",
+      "documentoEncontrado": {
+        "nombreArchivo": "FR_30_ERS_Proyecto_30052.docx",
+        "fuente": "Drive",
+        "hashContenido": "b2c3d4e5"
+      },
+      "seccionesDetectadas": [
+        { "titulo": "Objetivo", "tieneContenido": true },
+        { "titulo": "Alcance", "tieneContenido": true },
+        { "titulo": "Requerimientos funcionales", "tieneContenido": true },
+        { "titulo": "Requerimientos no funcionales", "tieneContenido": false }
+      ]
+    },
+    {
+      "artefactoEsperadoId": 3,
+      "codigoArtefacto": null,
+      "nombreArtefacto": "Cronograma MS Project",
+      "etapaArtefactoId": 1,
+      "exigibilidad": "Exigible",
+      "obligatoriedad": "Mandatorio",
+      "estadoTailoring": "Aplica",
+      "justificacionNoAplica": null,
+      "estadoDisponibilidad": "Encontrado",
+      "urlReferencia": "https://drive.google.com/open?id=1K1F6B-9G6Bu-3_q8M6gWZz9foPfd-Jmz",
+      "pathTemplateAbsoluto": null,
+      "documentoEncontrado": {
+        "nombreArchivo": "Cronograma_30052_v1.mmp",
+        "fuente": "MSProject",
+        "hashContenido": "c3d4e5f6"
+      },
+      "seccionesDetectadas": []
+    },
+    {
+      "artefactoEsperadoId": 4,
+      "codigoArtefacto": "FR-25",
+      "nombreArtefacto": "Formulario de Liberacion de Software",
+      "etapaArtefactoId": 3,
+      "exigibilidad": "Exigible",
+      "obligatoriedad": "Mandatorio",
+      "estadoTailoring": "Aplica",
+      "justificacionNoAplica": null,
+      "estadoDisponibilidad": "Encontrado",
+      "urlReferencia": "https://drive.google.com/drive/folders/1Tc1Rlpg6fRbu56bQtOMhT9mK16F-3oJd",
+      "pathTemplateAbsoluto": "/templates/FR-25-LiberacionSoftware.docx",
+      "documentoEncontrado": {
+        "nombreArchivo": "FR_25_Liberacion_v1.docx",
+        "fuente": "Drive",
+        "hashContenido": "d4e5f6g7"
+      },
+      "seccionesDetectadas": [
+        { "titulo": "Version del paquete", "tieneContenido": true },
+        { "titulo": "Descripcion de cambios", "tieneContenido": false },
+        { "titulo": "Ambientes de despliegue", "tieneContenido": false }
+      ]
+    },
+    {
+      "artefactoEsperadoId": 5,
+      "codigoArtefacto": null,
+      "nombreArtefacto": "Horas cargadas en Clockify",
+      "etapaArtefactoId": 1,
+      "exigibilidad": "Exigible",
+      "obligatoriedad": "Mandatorio",
+      "estadoTailoring": "Aplica",
+      "justificacionNoAplica": null,
+      "estadoDisponibilidad": "Encontrado",
+      "urlReferencia": "https://app.clockify.me/reports/summary",
+      "pathTemplateAbsoluto": null,
+      "documentoEncontrado": {
+        "nombreArchivo": "Clockify_Proyecto_30052",
+        "fuente": "Clockify",
+        "hashContenido": "e5f6g7h8"
+      },
+      "seccionesDetectadas": []
+    },
+    {
+      "artefactoEsperadoId": 6,
+      "codigoArtefacto": "FR-46",
+      "nombreArtefacto": "Manual de Instalacion",
+      "etapaArtefactoId": 3,
+      "exigibilidad": "Exigible",
+      "obligatoriedad": "EvaluarYJustificar",
+      "estadoTailoring": "NoAplica",
+      "justificacionNoAplica": "No se solicito manual de instalacion para este proyecto",
+      "estadoDisponibilidad": "NoBuscado",
+      "urlReferencia": null,
+      "pathTemplateAbsoluto": null,
+      "documentoEncontrado": null,
+      "seccionesDetectadas": []
+    },
+    {
+      "artefactoEsperadoId": 7,
+      "codigoArtefacto": "FR-48",
+      "nombreArtefacto": "Sign-Off",
+      "etapaArtefactoId": 5,
+      "exigibilidad": "PendienteEtapaFutura",
+      "obligatoriedad": "Mandatorio",
+      "estadoTailoring": "Aplica",
+      "justificacionNoAplica": null,
+      "estadoDisponibilidad": "NoBuscado",
+      "urlReferencia": null,
+      "pathTemplateAbsoluto": null,
+      "documentoEncontrado": null,
+      "seccionesDetectadas": []
+    }
+  ]
+}
