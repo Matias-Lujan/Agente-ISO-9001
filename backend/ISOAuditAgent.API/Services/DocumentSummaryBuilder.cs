@@ -1,5 +1,5 @@
 using System.Text;
-using ISOAuditAgent.API.DTOs;
+using ISOAuditAgent.API.Agents.ConsistencyVerification.Contracts;
 
 namespace ISOAuditAgent.API.Services;
 

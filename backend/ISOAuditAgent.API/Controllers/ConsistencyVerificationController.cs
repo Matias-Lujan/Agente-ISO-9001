@@ -1,5 +1,5 @@
 using ISOAuditAgent.API.Agents.ConsistencyVerification;
-using ISOAuditAgent.API.DTOs;
+using ISOAuditAgent.API.Agents.ConsistencyVerification.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ISOAuditAgent.API.Controllers;

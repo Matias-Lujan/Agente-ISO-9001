@@ -1,5 +1,6 @@
-using ISOAuditAgent.API.DTOs;
+using ISOAuditAgent.API.Agents.ConsistencyVerification.Contracts;
 using ISOAuditAgent.API.Integrations.MCP;
+using ISOAuditAgent.API.Models;
 using ISOAuditAgent.API.Services;
 
 namespace ISOAuditAgent.API.Agents.ConsistencyVerification;

@@ -1,9 +1,15 @@
-namespace ISOAuditAgent.API.DTOs;
+using ISOAuditAgent.API.Models;
+
+namespace ISOAuditAgent.API.Agents.ConsistencyVerification.Contracts;
 
 // =============================================================================
 // CONTRATO 2 — Input que llega desde DocumentAnalysis
 // DocumentAnalysis ya fue a buscar los documentos.
 // Nosotros recibimos la lista lista para analizar.
+//
+// NOTA: Estos tipos viven en un namespace propio del agente
+// (Agents.ConsistencyVerification.Contracts) para no colisionar con los DTOs
+// homónimos que ya existían en ISOAuditAgent.API.DTOs (firmas incompatibles).
 // =============================================================================
 
 /// <summary>
@@ -143,12 +149,6 @@ public sealed record HallazgoPreliminar(
     // De donde viene la regla incumplida.
     OrigenRegla OrigenRegla
 );
-
-public enum AgenteOrigen
-{
-    ComplianceValidation,
-    ConsistencyVerification   // Este es nuestro agente
-}
 
 public enum OrigenRegla
 {
