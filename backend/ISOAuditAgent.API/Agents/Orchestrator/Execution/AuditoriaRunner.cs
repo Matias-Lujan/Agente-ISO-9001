@@ -22,17 +22,14 @@
 //  pase —excepción en un nodo, WorkflowErrorEvent, fallo de persistencia— la
 //  auditoría termina en Completada o Fallida.
 //
-//  API MAF: verificar — InProcessExecution.RunStreamingAsync, WatchStreamAsync
-//  y los tipos de evento (WorkflowOutputEvent, WorkflowErrorEvent) contra el
-//  paquete 1.3.0. Coinciden con el spike y la doc revisada; el detalle fino
-//  (cómo se extrae el dato de WorkflowOutputEvent) se confirma al compilar.
+//  API MAF validada — InProcessExecution.RunStreamingAsync, WatchStreamAsync
+//  y los tipos de evento WorkflowOutputEvent / WorkflowErrorEvent funcionan
+//  con el paquete usado en runtime.
 // ============================================================================
 
 using ISOAuditAgent.API.Agents.Contracts;
 using ISOAuditAgent.API.Repositories;
 using Microsoft.Agents.AI.Workflows;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace ISOAuditAgent.API.Agents.Orchestrator;
 
@@ -132,8 +129,7 @@ public sealed class AuditoriaRunner
         IniciarAuditoriaWorkflowInput input,
         CancellationToken ct)
     {
-        // API MAF: verificar — firma de RunStreamingAsync / WatchStreamAsync
-        // contra el paquete 1.3.0.
+        // API MAF validada — ejecuta el workflow en proceso y consume el stream.
         var run = await InProcessExecution.RunStreamingAsync(workflow, input);
 
         AuditoriaResultado? resultado = null;
@@ -143,9 +139,7 @@ public sealed class AuditoriaRunner
             switch (evento)
             {
                 case WorkflowOutputEvent salida:
-                    // El nodo de salida (ConsolidadorResultado) emitió el
-                    // AuditoriaResultado. API MAF: verificar cómo se extrae el
-                    // dato del evento (.Data, .Output, cast directo...).
+                    // AuditoriaResultado. En la API MAF usada, el dato llega por evento.Data.
                     resultado = ExtraerResultado(salida);
                     break;
 
@@ -174,7 +168,7 @@ public sealed class AuditoriaRunner
 
     /// <summary>
     /// Extrae el AuditoriaResultado de un WorkflowOutputEvent.
-    /// API MAF: verificar — la propiedad exacta que lleva el dato del evento.
+    /// En la API MAF usada, el resultado del nodo de salida llega en evento.Data.
     /// </summary>
     private static AuditoriaResultado ExtraerResultado(WorkflowOutputEvent evento)
     {
@@ -190,7 +184,7 @@ public sealed class AuditoriaRunner
 
     /// <summary>
     /// Extrae la excepción de un WorkflowErrorEvent, si la expone.
-    /// API MAF: verificar — la propiedad exacta. Puede devolver null.
+    /// En la API MAF usada, el error del workflow expone evento.Exception.
     /// </summary>
     private static Exception? ExtraerExcepcion(WorkflowErrorEvent evento)
     {

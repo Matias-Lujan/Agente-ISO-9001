@@ -21,15 +21,13 @@
 //  Esta clase base fija ese esqueleto (template method). Cada nodo concreto
 //  solo implementa ConstruirPrompt y ParsearRespuesta.
 //
-//  NOTA DE API (MAF 1.3.0): la firma de RunAsync del AIAgent y la forma de
-//  pedir salida estructurada (RunAsync<T>) deben confirmarse contra el
-//  paquete instalado al integrar. Los puntos dependientes están marcados
-//  con  // API MAF: verificar
+//  NOTA DE API (MAF): el AIAgent se invoca con RunAsync(prompt,
+//  cancellationToken). La respuesta se toma como texto y cada nodo concreto
+//  la parsea a su DTO de salida.
 // ============================================================================
 
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
-using Microsoft.Extensions.AI;
 
 namespace ISOAuditAgent.API.Agents.Orchestrator;
 
@@ -61,11 +59,8 @@ public abstract class AgenteExecutorBase<TInput, TOutput>
         string prompt = ConstruirPrompt(message);
 
         // 2 + 3. Llamada al LLM.
-        //    API MAF: verificar — la firma exacta de RunAsync (string vs
-        //    ChatMessage, sobrecarga con CancellationToken). En el spike se
-        //    usó agente.RunAsync(string). Si MAF 1.3.0 expone RunAsync<T>
-        //    con salida estructurada, conviene usarlo y saltear el parseo
-        //    manual de ParsearRespuesta.
+        // La API usada acepta prompt textual y CancellationToken.
+        // La respuesta textual se parsea manualmente en ParsearRespuesta.
         var respuesta = await Agente.RunAsync(prompt, cancellationToken: ct);
         string textoRespuesta = respuesta.Text ?? string.Empty;
 

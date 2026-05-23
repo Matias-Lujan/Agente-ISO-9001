@@ -36,7 +36,6 @@ using ISOAuditAgent.API.Agents.Contracts;
 using ISOAuditAgent.API.Models;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
-
 using ISOAuditAgent.API.Agents.FindingsClassification;
 using ISOAuditAgent.API.Agents.ConsistencyVerification;
 using ISOAuditAgent.API.Agents.DocumentAnalysis;
@@ -104,15 +103,18 @@ public sealed class DocumentAnalysisNode
 {
     private readonly ITailoringSource _tailoringSource;
     private readonly IArtefactoFisicoChecker _artefactoChecker;
+    private readonly ILogger<DocumentAnalysisNode> _logger;
 
     public DocumentAnalysisNode(
         AIAgent agente,
         ITailoringSource tailoringSource,
-        IArtefactoFisicoChecker artefactoChecker)
+        IArtefactoFisicoChecker artefactoChecker,
+        ILogger<DocumentAnalysisNode> logger)
         : base("DocumentAnalysis", agente)
     {
         _tailoringSource = tailoringSource;
         _artefactoChecker = artefactoChecker;
+        _logger = logger;
     }
 
     public override async ValueTask<DocumentosExtraidos> HandleAsync(
@@ -120,6 +122,14 @@ public sealed class DocumentAnalysisNode
         IWorkflowContext context,
         CancellationToken ct = default)
     {
+        //-------------------TEST------------------
+        _logger.LogInformation(
+            "NODE DocumentAnalysis INICIO auditoria={AuditoriaId} artefactosEsperados={Count}",
+            message.AuditoriaId,
+            message.ArtefactosEsperados.Count
+            );
+        //-------------------------------------
+
         // 1. PRE-LLM async: descargar el FR-29 del Drive del proyecto.
         var driveFolderId = message.Integraciones.DriveFolderId;
         if (string.IsNullOrWhiteSpace(driveFolderId))
@@ -139,16 +149,22 @@ public sealed class DocumentAnalysisNode
 
         // 3. Llamar al LLM. La base no se usa porque HandleAsync overridea
         //    el template completo, pero el AIAgent está heredado vía Agente.
-        //    // API MAF: verificar — la firma exacta de RunAsync. Idéntica
-        //    a la del AgenteExecutorBase para mantener consistencia.
+        //    La llamada al AIAgent usa la misma API validada en AgenteExecutorBase.
         var respuesta = await Agente.RunAsync(prompt, cancellationToken: ct);
         var textoLlm = respuesta.Text ?? string.Empty;
 
-        // 4. Parsear el JSON del LLM.
+        // 3.5. Log de la respuesta cruda — D7.3, mientras estabilizamos el
+        //      formato del LLM. Si el parseo falla, el log tiene el texto
+        //      exacto que devolvió Gemini. Se quita en D7.6 si ya no aporta.
+        _logger.LogInformation(
+            "DocumentAnalysis LLM respuesta cruda ({Len} chars):\n{Texto}",
+            textoLlm.Length, textoLlm);
+
+        // 4. Parsear el JSON del LLM (tolerante a prosa / cercas / BOM).
         var llmOutput = ParsearJsonLlm(textoLlm);
 
         // 5. POST-LLM async: verificar artefactos físicamente y armar el contrato 3.
-        var artefactos = await ArtefactosBuilder
+        var artefactos = await DriveDtos
             .ConstruirAsync(message, llmOutput, _artefactoChecker, ct)
             .ConfigureAwait(false);
 
@@ -161,6 +177,14 @@ public sealed class DocumentAnalysisNode
         // 6. Defensa en profundidad: validar invariantes del contrato 3 antes
         //    de emitir el DTO al grafo.
         InvariantsValidator.Validar(resultado);
+
+        // ------------------TEST--------------------------
+        _logger.LogInformation(
+            "NODE DocumentAnalysis FIN auditoria={AuditoriaId} artefactos={Count}",
+            resultado.AuditoriaId,
+            resultado.Artefactos.Count
+            );
+        // --------------------------------------------
 
         return resultado;
     }
@@ -201,15 +225,19 @@ public sealed class DocumentAnalysisNode
     }
 
     /// <summary>
-    /// Deserializa el JSON del LLM. Falla ruidoso si el LLM no respeta el
-    /// formato (el system prompt es explícito sobre la forma del output).
+    /// Deserializa el JSON del LLM, tolerando dos casos comunes:
+    ///   1. Cercas markdown: ```json ... ``` (ya estaba).
+    ///   2. Prosa antes/después del JSON: "Acá tenés el JSON solicitado: { ... }"
+    ///      → extraemos desde el primer '{' hasta el último '}' que cierra ese
+    ///      objeto raíz.
+    ///   3. BOM / chars no-ASCII al inicio antes del '{'.
+    ///
+    /// Si después de extraer sigue sin parsear, lanza con el texto crudo
+    /// incluido en el mensaje (para diagnóstico).
     /// </summary>
     private static LlmOutput ParsearJsonLlm(string textoLlm)
     {
-        var jsonLimpio = textoLlm
-            .Replace("```json", string.Empty)
-            .Replace("```", string.Empty)
-            .Trim();
+        var jsonLimpio = ExtraerJsonObjeto(textoLlm);
 
         try
         {
@@ -236,9 +264,68 @@ public sealed class DocumentAnalysisNode
         }
         catch (System.Text.Json.JsonException ex)
         {
+            // Incluimos el JSON ya extraído + un prefijo del texto crudo para
+            // diagnosticar rápido qué devolvió el LLM.
+            var preview = textoLlm.Length > 500
+                ? textoLlm.Substring(0, 500) + "..."
+                : textoLlm;
+
             throw new InvalidOperationException(
-                $"Respuesta del LLM no es JSON válido: {ex.Message}", ex);
+                $"Respuesta del LLM no es JSON válido: {ex.Message}. " +
+                $"Texto crudo (primeros 500 chars): >>>{preview}<<<", ex);
         }
+    }
+
+    /// <summary>
+    /// Quita cercas markdown, BOM, y extrae el primer objeto JSON balanceado.
+    /// Si no encuentra '{...}', devuelve el texto original (que va a fallar
+    /// el JsonSerializer con mensaje claro).
+    /// </summary>
+    private static string ExtraerJsonObjeto(string textoLlm)
+    {
+        if (string.IsNullOrWhiteSpace(textoLlm))
+            return textoLlm;
+
+        // 1. Quitar cercas markdown si las hay.
+        var s = textoLlm
+            .Replace("```json", string.Empty)
+            .Replace("```", string.Empty)
+            .Trim();
+
+        // 2. Quitar BOM UTF-8 si quedó.
+        if (s.Length > 0 && s[0] == '\uFEFF')
+            s = s.Substring(1);
+
+        // 3. Buscar el primer '{' y el último '}' que balancean.
+        var inicio = s.IndexOf('{');
+        if (inicio < 0) return s; // No hay objeto; deja que JsonSerializer falle ruidoso.
+
+        // Recorremos contando llaves para encontrar el cierre del objeto raíz.
+        int depth = 0;
+        int fin = -1;
+        bool dentroString = false;
+        bool escape = false;
+
+        for (int i = inicio; i < s.Length; i++)
+        {
+            var c = s[i];
+
+            if (escape) { escape = false; continue; }
+            if (c == '\\' && dentroString) { escape = true; continue; }
+            if (c == '"') { dentroString = !dentroString; continue; }
+            if (dentroString) continue;
+
+            if (c == '{') depth++;
+            else if (c == '}')
+            {
+                depth--;
+                if (depth == 0) { fin = i; break; }
+            }
+        }
+
+        if (fin < 0) return s.Substring(inicio); // Sin cierre; deja fallar al deserializer con texto desde '{'.
+
+        return s.Substring(inicio, fin - inicio + 1);
     }
 
     // ConstruirPrompt y ParsearRespuesta del template method NO aplican en
@@ -283,6 +370,8 @@ public sealed class ComplianceValidationNode
 
     protected override string ConstruirPrompt(DocumentosExtraidos input)
     {
+        Console.WriteLine($"NODE ComplianceValidation INICIO auditoria={input.AuditoriaId} artefactos={input.Artefactos.Count}"); //test
+
         var paraLlm = input.Artefactos
             .Where(EsCandidatoLlm)
             .ToList();
@@ -341,10 +430,18 @@ public sealed class ComplianceValidationNode
             hallazgos.AddRange(hallazgosLlm);
         }
 
-        return new HallazgosPreliminares(
+        //return new HallazgosPreliminares(
+        //    input.AuditoriaId,
+        //    AgenteOrigen.ComplianceValidation,
+        //    hallazgos);
+        var resultado = new HallazgosPreliminares(
             input.AuditoriaId,
             AgenteOrigen.ComplianceValidation,
             hallazgos);
+
+        Console.WriteLine($"NODE ComplianceValidation FIN auditoria={resultado.AuditoriaId} hallazgos={resultado.Hallazgos.Count}");
+
+        return resultado;
     }
 
     private static bool EsCandidatoLlm(ArtefactoExtraido a) =>
@@ -369,6 +466,7 @@ public sealed class ConsistencyVerificationNode
 
     protected override string ConstruirPrompt(DocumentosExtraidos input)
     {
+        Console.WriteLine($"NODE ConsistencyVerification INICIO auditoria={input.AuditoriaId} artefactos={input.Artefactos.Count}"); //test
         // Filtrar a los artefactos analizables: Exigibles + Encontrados.
         // - PendienteEtapaFutura: no se analiza, no se ha encontrado aún.
         // - Faltante: si no está, no hay nada que verificar (es trabajo de
@@ -474,7 +572,7 @@ public sealed class ConsistencyVerificationNode
                 AgenteOrigen.ConsistencyVerification,
                 Array.Empty<HallazgoPreliminar>());
         }
-
+        Console.WriteLine($"NODE ConsistencyVerification FIN auditoria={input.AuditoriaId}");//test
         return HallazgosPreliminaresParser.Parsear(textoLlm, idsExpuestos, input.AuditoriaId);
     }
 }
@@ -493,9 +591,8 @@ public sealed class ConsistencyVerificationNode
 //  DE A UNO. El handler de HallazgosPreliminares cachea cada lote por separado,
 //  distinguiéndolos por su AgenteOrigen. La clasificación se dispara recién
 //  cuando están los TRES elementos cacheados (los 2 lotes + DocumentosExtraidos).
-//  Si el barrier resultara agrupar en lista, basta con agregar un handler
-//  IReadOnlyList<HallazgosPreliminares> — el resto del nodo no cambia.
-//  // API MAF: verificar — comportamiento exacto del barrier en 1.3.0.
+//  En runtime, los HallazgosPreliminares llegan como mensajes individuales.
+//  El nodo cachea cada lote por AgenteOrigen hasta tener ambos.
 //
 //  Distinguir los lotes por AgenteOrigen NO es "validar la estructura del
 //  grafo": es mecánica necesaria del cacheo. Sin distinguirlos no se puede
@@ -509,8 +606,8 @@ public sealed class ConsistencyVerificationNode
 //  conserva este executor C# y lo pega en ResultadoClasificacionConContexto.
 // ============================================================================
 
-// API MAF: verificar — necesario para que el source generator registre el
-// mensaje emitido manualmente con SendMessageAsync. Confirmar contra el paquete.
+// Declara que este executor emite ResultadoClasificacionConContexto.
+
 [SendsMessage(typeof(ResultadoClasificacionConContexto))]
 public sealed partial class FindingsClassificationNode : Executor
 {
@@ -530,7 +627,9 @@ public sealed partial class FindingsClassificationNode : Executor
     // --- Entrada A: contexto, por edge directo desde DocumentAnalysis -------
     [MessageHandler]
     private async ValueTask HandleContextoAsync(
-        DocumentosExtraidos message, IWorkflowContext context)
+        DocumentosExtraidos message,
+        IWorkflowContext context,
+        CancellationToken cancellationToken = default)
     {
         if (_contextoDocumentos is not null)
         {
@@ -541,13 +640,19 @@ public sealed partial class FindingsClassificationNode : Executor
 
         _contextoDocumentos = message;
         await IntentarClasificarAsync(context);
+
+        Console.WriteLine($"NODE FindingsClassification RECIBE contexto auditoria={message.AuditoriaId} artefactos={message.Artefactos.Count}");//test
     }
 
     // --- Entrada B: cada lote de hallazgos, de a uno ------------------------
     [MessageHandler]
     private async ValueTask HandleHallazgosAsync(
-        HallazgosPreliminares message, IWorkflowContext context)
+        HallazgosPreliminares message,
+        IWorkflowContext context,
+        CancellationToken cancellationToken = default)
     {
+        Console.WriteLine($"NODE FindingsClassification RECIBE hallazgos auditoria={message.AuditoriaId} origen={message.AgenteOrigen} count={message.Hallazgos.Count}");//test
+
         // Distinguir el lote por su AgenteOrigen y cachearlo en su slot.
         switch (message.AgenteOrigen)
         {
@@ -583,6 +688,7 @@ public sealed partial class FindingsClassificationNode : Executor
     // --- Disparo: clasifica cuando están los TRES elementos -----------------
     private async ValueTask IntentarClasificarAsync(IWorkflowContext context)
     {
+        Console.WriteLine($"NODE FindingsClassification ESPERA contexto={_contextoDocumentos is not null} compliance={_hallazgosCompliance is not null} consistency={_hallazgosConsistency is not null}");//test
         // Falta alguno de los tres -> esperar al próximo mensaje.
         if (_contextoDocumentos is null
             || _hallazgosCompliance is null
@@ -607,8 +713,7 @@ public sealed partial class FindingsClassificationNode : Executor
         string prompt = ConstruirPrompt(lotes);
 
         // 2 + 3. El LLM clasifica.
-        // API MAF: verificar — propagar CancellationToken si la firma del
-        // handler / del contexto lo expone.
+        // El handler actual no propaga CancellationToken hasta este punto.
         var respuesta = await _agente.RunAsync(prompt);
         string textoLlm = respuesta.Text ?? string.Empty;
 
@@ -619,6 +724,8 @@ public sealed partial class FindingsClassificationNode : Executor
         var salida = new ResultadoClasificacionConContexto(
             Clasificacion: clasificacion,
             ContextoDocumentos: _contextoDocumentos);
+
+        Console.WriteLine($"NODE FindingsClassification FIN auditoria={salida.Clasificacion.AuditoriaId} hallazgos={salida.Clasificacion.Hallazgos.Count}");//test
 
         await context.SendMessageAsync(salida, CancellationToken.None);
 
@@ -683,6 +790,26 @@ public sealed partial class FindingsClassificationNode : Executor
 
         return ClasificacionResponseParser.Parsear(textoLlm, preliminaresPlanos, auditoriaId);
     }
+
+    // ------------------------------------------------------------------------
+    //  MAF: registro explícito del protocolo para el nodo con múltiples entradas.
+    //  FindingsClassification recibe:
+    //   - DocumentosExtraidos
+    //   - HallazgosPreliminares
+    //
+    //  También declara que emite ResultadoClasificacionConContexto.
+    //  Esto evita depender del ruteo implícito por atributos.
+    // ------------------------------------------------------------------------
+    protected override ProtocolBuilder ConfigureProtocol(ProtocolBuilder protocolBuilder)
+    {
+        return protocolBuilder
+            .SendsMessage<ResultadoClasificacionConContexto>()
+            .ConfigureRoutes(routes =>
+            {
+                routes.AddHandler<DocumentosExtraidos>(HandleContextoAsync);
+                routes.AddHandler<HallazgosPreliminares>(HandleHallazgosAsync);
+            });
+    }
 }
 
 // ============================================================================
@@ -702,9 +829,11 @@ public sealed class ConsolidadorResultadoNode
         IWorkflowContext context,
         CancellationToken ct = default)
     {
+        Console.WriteLine($"NODE ConsolidadorResultado INICIO auditoria={message.Clasificacion.AuditoriaId}");//test
+
         var resultado = ConsolidadorEnsamble.Ensamblar(
             message.ContextoDocumentos, message.Clasificacion);
-
+        Console.WriteLine($"NODE ConsolidadorResultado FIN auditoria={resultado.AuditoriaId}");//test
         return ValueTask.FromResult(resultado);
     }
 }

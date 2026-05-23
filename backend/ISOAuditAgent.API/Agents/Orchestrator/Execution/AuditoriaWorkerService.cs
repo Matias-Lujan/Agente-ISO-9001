@@ -22,9 +22,6 @@
 //     OperationCanceledException.
 // ============================================================================
 
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
 namespace ISOAuditAgent.API.Agents.Orchestrator;
 
 public sealed class AuditoriaWorkerService : BackgroundService

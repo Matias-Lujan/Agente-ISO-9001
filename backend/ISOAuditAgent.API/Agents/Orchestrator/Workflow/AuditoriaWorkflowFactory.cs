@@ -33,10 +33,9 @@
 //  sus aristas, sin depender de cómo el builder resuelve la identidad de los
 //  nodos (por ID string o por identidad de objeto).
 //
-//  API MAF: verificar — la firma de AddFanInBarrierEdge se usa con argumentos
-//  posicionales (sources, target) por una ambigüedad de overloads con named
-//  arguments. Confirmar en el IntelliSense que el overload elegido es el de
-//  fan-in barrier (varias fuentes -> un destino con sincronización), no otro.
+//  API MAF validada — AddFanInBarrierEdge se usa con argumentos posicionales
+//  (sources, target) para evitar ambigüedad de overloads con named arguments.
+//  El overload usado sincroniza varias fuentes hacia un destino.
 // ============================================================================
 
 using Microsoft.Agents.AI.Workflows;

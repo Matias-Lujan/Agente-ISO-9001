@@ -20,6 +20,18 @@
     <PackageReference Include="Microsoft.Agents.AI.Workflows" Version="1.3.0" />
     <PackageReference Include="ModelContextProtocol" Version="1.2.0" />
     <PackageReference Include="Microsoft.Extensions.AI" Version="10.5.1" />
+    <!-- D3.1: cliente oficial de Google Drive + hosting MCP sobre ASP.NET Core -->
+    <PackageReference Include="Google.Apis.Drive.v3" Version="1.69.0.3742" />
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.2.0" />
+    <!-- D3.3: parsers de documentos (DOCX/XLSX/PDF) -->
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.1.1" />
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+    <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
+    <!-- D4: provider Gemini sobre IChatClient (Microsoft.Extensions.AI).
+         La abstracción es IChatClient; este paquete es solo la implementación
+         concreta. Si aparece un cliente oficial Google, se sustituye el paquete
+         sin tocar código de los nodos. -->
+    <PackageReference Include="Mscc.GenerativeAI.Microsoft" Version="3.1.0" />
   </ItemGroup>
 
 </Project>

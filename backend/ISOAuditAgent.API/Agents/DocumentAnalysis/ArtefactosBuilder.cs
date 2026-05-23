@@ -43,7 +43,7 @@ using ISOAuditAgent.API.Models;
 
 namespace ISOAuditAgent.API.Agents.DocumentAnalysis;
 
-internal static class ArtefactosBuilder
+internal static class DriveDtos
 {
     public static async ValueTask<IReadOnlyList<ArtefactoExtraido>> ConstruirAsync(
         ContextoAuditoria contexto,
