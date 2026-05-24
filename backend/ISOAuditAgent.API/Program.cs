@@ -97,6 +97,10 @@ builder.Services.AddScoped<AuditoriaService>();
 builder.Services.AddScoped<IProcedimientoRepository, ProcedimientoRepository>();
 builder.Services.AddScoped<ProcedimientoService>();
 
+// Modulo 2.5 — Informes
+builder.Services.AddScoped<IInformeRepository, InformeRepository>();
+builder.Services.AddScoped<InformeService>();
+
 // Sub-agente de consistencia
 builder.Services.AddScoped<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
 builder.Services.AddScoped<ConsistencyVerificationAgentService>();
