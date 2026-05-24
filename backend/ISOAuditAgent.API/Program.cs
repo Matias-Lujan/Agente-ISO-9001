@@ -89,6 +89,10 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<IProyectoRepository, ProyectoRepository>();
 builder.Services.AddScoped<ProyectoService>();
 
+// Modulo 2.3 — Auditorias
+builder.Services.AddScoped<IAuditoriaRepository, AuditoriaRepository>();
+builder.Services.AddScoped<AuditoriaService>();
+
 // Sub-agente de consistencia
 builder.Services.AddScoped<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
 builder.Services.AddScoped<ConsistencyVerificationAgentService>();
