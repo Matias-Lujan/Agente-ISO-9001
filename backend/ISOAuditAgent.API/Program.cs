@@ -105,6 +105,9 @@ builder.Services.AddScoped<InformeService>();
 builder.Services.AddScoped<IReglaValidacionRepository, ReglaValidacionRepository>();
 builder.Services.AddScoped<ReglaValidacionService>();
 
+// ResolutorContexto — Nodo 1 del workflow
+builder.Services.AddScoped<ResolutorContextoService>();
+
 // Sub-agente de consistencia
 builder.Services.AddScoped<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
 builder.Services.AddScoped<ConsistencyVerificationAgentService>();
