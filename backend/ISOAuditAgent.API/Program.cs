@@ -93,6 +93,10 @@ builder.Services.AddScoped<ProyectoService>();
 builder.Services.AddScoped<IAuditoriaRepository, AuditoriaRepository>();
 builder.Services.AddScoped<AuditoriaService>();
 
+// Modulo 2.4 — Procedimientos y artefactos
+builder.Services.AddScoped<IProcedimientoRepository, ProcedimientoRepository>();
+builder.Services.AddScoped<ProcedimientoService>();
+
 // Sub-agente de consistencia
 builder.Services.AddScoped<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
 builder.Services.AddScoped<ConsistencyVerificationAgentService>();
