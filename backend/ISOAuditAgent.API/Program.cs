@@ -101,6 +101,10 @@ builder.Services.AddScoped<ProcedimientoService>();
 builder.Services.AddScoped<IInformeRepository, InformeRepository>();
 builder.Services.AddScoped<InformeService>();
 
+// RF-04 — Reglas de validacion
+builder.Services.AddScoped<IReglaValidacionRepository, ReglaValidacionRepository>();
+builder.Services.AddScoped<ReglaValidacionService>();
+
 // Sub-agente de consistencia
 builder.Services.AddScoped<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
 builder.Services.AddScoped<ConsistencyVerificationAgentService>();
