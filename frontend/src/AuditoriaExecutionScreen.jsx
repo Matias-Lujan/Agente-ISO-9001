@@ -126,16 +126,16 @@ const AuditoriaExecutionScreen = () => {
 
     try {
       // POST a /api/auditorias para iniciar la auditoría
-      const response = await fetch(`${API_BASE_URL}/auditorias`, {
+      const response = await fetch(`http://localhost:5180/api/auditorias`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          auditoriaId: 0,
-          proyectoId: parseInt(proyectoSeleccionado),
-          etapaId: parseInt(etapaSeleccionada)
-        })
+        body: `{
+  "proyectoId": 1,
+  "etapaId": 1,
+  "usuarioId": 1
+}`
       });
 
       if (!response.ok) {
