@@ -22,8 +22,9 @@ namespace ISOAuditAgent.API.Agents.DocumentAnalysis.Drive;
 public interface IDriveMcpClient
 {
     /// <summary>
-    /// Lista los archivos directos (sin recursión, sin subcarpetas) bajo el
-    /// folderId indicado. Espejo de la tool MCP list_files_under_folder.
+    /// Lista recursivamente todos los archivos bajo el folderId indicado
+    /// (lista plana con path relativo al raíz). Espejo de la tool MCP
+    /// list_files_under_folder.
     /// </summary>
     Task<DriveFolderListing> ListFilesUnderFolderAsync(
         string folderId, CancellationToken ct = default);

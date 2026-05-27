@@ -14,19 +14,22 @@ namespace ISOAuditAgent.API.Agents.DocumentAnalysis.Drive;
 
 /// <summary>
 /// Un archivo encontrado en Drive. NombreArchivo + Id + MimeType es lo que el
-/// agente necesita para decidir si descargarlo y cómo parsearlo. WebViewLink
-/// se conserva porque el FR-29 puede referenciar archivos por esa URL.
+/// agente necesita para decidir si descargarlo y cómo parsearlo. Path es la
+/// ruta relativa respecto al folderId raíz del listado (ej.
+/// "Seguimiento/FR 29-05 Tailoring (30.052).xlsx"). WebViewLink se conserva
+/// porque el FR-29 puede referenciar archivos por esa URL.
 /// </summary>
 public sealed record DriveFile(
     string Id,
     string Name,
     string MimeType,
     string? WebViewLink,
-    long? Size);
+    long? Size,
+    string Path);
 
 /// <summary>
-/// Resultado de listar un folder de Drive. El FolderId se devuelve para que el
-/// caller pueda chequear que el server haya listado lo que pidió.
+/// Resultado de listar recursivamente un folder de Drive. Files es una lista
+/// plana de archivos (sin carpetas) con path relativo al FolderId raíz.
 /// </summary>
 public sealed record DriveFolderListing(
     string FolderId,

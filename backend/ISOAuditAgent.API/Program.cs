@@ -110,9 +110,8 @@ app.MapGet("/api/_smoke/db", async (IServiceProvider sp, CancellationToken ct) =
         : Results.Ok(new { clave = "path_carpeta_templates", valor });
 });
 
-// /api/_smoke/drive-list?folderId=... — D3.2: usa IDriveMcpClient en vez de
-// armar el cliente MCP inline. Valida exactamente lo mismo que D3.1 pero
-// vía la abstracción que después consume el agente.
+// /api/_smoke/drive-list?folderId=... — listado recursivo plano vía MCP.
+// Cada archivo incluye path relativo al folder raíz (ej. "Seguimiento/foo.xlsx").
 app.MapGet("/api/_smoke/drive-list",
     async (string folderId, IDriveMcpClient drive, CancellationToken ct) =>
     {
@@ -120,7 +119,20 @@ app.MapGet("/api/_smoke/drive-list",
             return Results.BadRequest("Falta el query param 'folderId'.");
 
         var listing = await drive.ListFilesUnderFolderAsync(folderId, ct);
-        return Results.Ok(listing);
+        return Results.Ok(new
+        {
+            folderId = listing.FolderId,
+            fileCount = listing.Files.Count,
+            files = listing.Files.Select(f => new
+            {
+                f.Id,
+                f.Name,
+                f.MimeType,
+                f.WebViewLink,
+                f.Size,
+                f.Path
+            })
+        });
     });
 
 // /api/_smoke/drive-download?fileId=... — D3.2: descarga un archivo por id,
