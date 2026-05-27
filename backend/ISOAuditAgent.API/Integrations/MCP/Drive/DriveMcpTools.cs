@@ -36,9 +36,10 @@ public sealed class DriveMcpTools
 
     [McpServerTool(Name = "list_files_under_folder")]
     [Description(
-        "Lista los archivos directos (no recursivo, sin subcarpetas) bajo el " +
-        "folderId de Google Drive indicado. Devuelve id, name, mimeType, " +
-        "webViewLink y size de cada archivo.")]
+        "Lista recursivamente todos los archivos bajo el folderId de Google " +
+        "Drive indicado (hasta 10 niveles de subcarpetas). Devuelve una lista " +
+        "plana solo de archivos (sin carpetas), cada uno con id, name, " +
+        "mimeType, webViewLink, size y path relativo al folder raíz.")]
     public async Task<DriveFolderListing> ListFilesUnderFolderAsync(
         [Description("FolderId de Google Drive a listar.")]
         string folderId,
@@ -47,6 +48,9 @@ public sealed class DriveMcpTools
         try
         {
             var files = await _client.ListFilesInFolderAsync(folderId, ct);
+            _logger.LogInformation(
+                "MCP list_files_under_folder: folderId={FolderId}, {Count} archivos.",
+                folderId, files.Count);
             return new DriveFolderListing(folderId, files);
         }
         catch (Exception ex)
