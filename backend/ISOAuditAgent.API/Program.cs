@@ -18,6 +18,22 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+// --- CORS: permite al frontend de Vite (5173) llamar a la API ---
+const string FrontendCorsPolicy = "FrontendDev";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+    {
+        policy
+            .WithOrigins(
+                "http://localhost:5173",
+                "http://127.0.0.1:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+// ----------------------------------------------------------------
+
 // --- Registro del DbContext con el provider de MySQL ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -74,6 +90,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// --- CORS: debe ir antes de cualquier Map* ---
+app.UseCors(FrontendCorsPolicy);
+// ---------------------------------------------
 
 // --- D3.1: Montaje del server MCP de Drive en /mcp/drive ---
 app.MapMcp("/mcp/drive");
