@@ -101,12 +101,12 @@ builder.Services.AddScoped<ProcedimientoService>();
 builder.Services.AddScoped<IInformeRepository, InformeRepository>();
 builder.Services.AddScoped<InformeService>();
 
-// RF-04 — Reglas de validacion
-builder.Services.AddScoped<IReglaValidacionRepository, ReglaValidacionRepository>();
-builder.Services.AddScoped<ReglaValidacionService>();
+// RF-04 — Reglas de validacion (PENDIENTE — salen del tailoring, no de BD)
+//builder.Services.AddScoped<IReglaValidacionRepository, ReglaValidacionRepository>();
+//builder.Services.AddScoped<ReglaValidacionService>();
 
 // ResolutorContexto — Nodo 1 del workflow
-builder.Services.AddScoped<ResolutorContextoService>();
+//builder.Services.AddScoped<ResolutorContextoService>();
 
 // Sub-agente de consistencia
 builder.Services.AddScoped<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
