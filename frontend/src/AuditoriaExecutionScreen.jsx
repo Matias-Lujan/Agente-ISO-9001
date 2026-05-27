@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './AuditoriaExecutionScreen.css';
 
 const AuditoriaExecutionScreen = () => {
@@ -11,6 +12,9 @@ const AuditoriaExecutionScreen = () => {
   const [resultados, setResultados] = useState(null);
   const [error, setError] = useState(null);
   const [auditoriaId, setAuditoriaId] = useState(null);
+  
+  // Hook de navegación
+  const navigate = useNavigate();
   
   // URL base del backend (ajusta según tu configuración)
   const API_BASE_URL = 'http://localhost:5180/api';
@@ -175,12 +179,14 @@ const AuditoriaExecutionScreen = () => {
           setError(data.mensaje || 'La auditoría falló.');
           setStatus('form');
           setAuditoriaId(null);
-        } else if (data.estado === 'Completada') {
-          // Detener polling y mostrar resultados
+        } else if (data.estado === 'Completada' || data.estado === 'Finalizada') {
+          // Detener polling y navegar al dashboard
           if (intervalId) clearInterval(intervalId);
-          setResultados(data);
-          setStatus('results');
+          // Extraer el ID de la respuesta o usar el que tenemos en estado
+          const auditId = data.id || auditoriaId;
           setAuditoriaId(null);
+          // Redirigir al dashboard con el ID de la auditoría
+          navigate(`/dashboard/${auditId}`);
         }
       } catch (err) {
         if (isMounted) {
