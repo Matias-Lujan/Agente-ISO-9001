@@ -8,6 +8,10 @@ import react from '@vitejs/plugin-react';
 // (proxy o directa) funciona.
 export default defineConfig({
   plugins: [react()],
+  // Sirve los archivos de `assets/` desde la raíz tanto en dev como en build.
+  // Reemplaza el default `public/` para mantener los estáticos en la carpeta
+  // que el equipo ya está usando.
+  publicDir: 'assets',
   server: {
     port: 5173,
     proxy: {

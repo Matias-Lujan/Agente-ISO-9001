@@ -15,7 +15,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sb-logo">
-        <img src="https://bdtglobal.com/img/logo15horizontal-min.png" alt="bdtglobal" />
+        <img src="/logo15horizontal-min.png" alt="bdtglobal" />
       </div>
 
       <div className="sb-user">
