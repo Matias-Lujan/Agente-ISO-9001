@@ -36,6 +36,7 @@
 // ============================================================================
 
 using ISOAuditAgent.API.Agents.DocumentAnalysis;
+using ISOAuditAgent.API.Services;
 using Microsoft.Agents.AI;
 
 namespace ISOAuditAgent.API.Agents.Orchestrator;
@@ -60,17 +61,21 @@ public static class OrchestratorServiceCollectionExtensions
             sp.GetRequiredKeyedService<AIAgent>("DocumentAnalysis"),
             sp.GetRequiredService<ITailoringSource>(),
             sp.GetRequiredService<IArtefactoFisicoChecker>(),
+            sp.GetRequiredService<IAuditoriaProgresoTracker>(),
             sp.GetRequiredService<ILogger<DocumentAnalysisNode>>()));
 
-        // LLM puro: solo el AIAgent keyed.
+        // LLM puro: solo el AIAgent keyed + el tracker de progreso.
         services.AddScoped<ComplianceValidationNode>(sp => new ComplianceValidationNode(
-            sp.GetRequiredKeyedService<AIAgent>("ComplianceValidation")));
+            sp.GetRequiredKeyedService<AIAgent>("ComplianceValidation"),
+            sp.GetRequiredService<IAuditoriaProgresoTracker>()));
 
         services.AddScoped<ConsistencyVerificationNode>(sp => new ConsistencyVerificationNode(
-            sp.GetRequiredKeyedService<AIAgent>("ConsistencyVerification")));
+            sp.GetRequiredKeyedService<AIAgent>("ConsistencyVerification"),
+            sp.GetRequiredService<IAuditoriaProgresoTracker>()));
 
         services.AddScoped<FindingsClassificationNode>(sp => new FindingsClassificationNode(
-            sp.GetRequiredKeyedService<AIAgent>("FindingsClassification")));
+            sp.GetRequiredKeyedService<AIAgent>("FindingsClassification"),
+            sp.GetRequiredService<IAuditoriaProgresoTracker>()));
 
         // Determinista, sin dependencias.
         services.AddScoped<ConsolidadorResultadoNode>();

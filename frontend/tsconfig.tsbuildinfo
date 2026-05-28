@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/api/auditorias.ts","./src/api/client.ts","./src/api/procedimientos.ts","./src/api/proyectos.ts","./src/components/ejecucionauditoria.tsx","./src/components/sidebar.tsx","./src/screens/nuevaauditoria.tsx","./src/styles/shared.ts","./src/utils/useinjectstyle.ts"],"version":"5.7.3"}

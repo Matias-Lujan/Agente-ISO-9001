@@ -29,6 +29,7 @@
 
 using ISOAuditAgent.API.Agents.Contracts;
 using ISOAuditAgent.API.Repositories;
+using ISOAuditAgent.API.Services;
 using Microsoft.Agents.AI.Workflows;
 
 namespace ISOAuditAgent.API.Agents.Orchestrator;
@@ -62,6 +63,14 @@ public sealed class AuditoriaRunner
         using IServiceScope scope = _scopeFactory.CreateScope();
         var sp = scope.ServiceProvider;
 
+        // Inicializar las filas de progreso ANTES de arrancar el workflow para
+        // que el endpoint GET /api/auditorias/{id}/progreso ya tenga algo que
+        // devolver desde el primer polling del frontend (todos los nodos en
+        // estado Pendiente). El tracker es defensivo: si falla no tumba la
+        // auditoría.
+        var tracker = sp.GetRequiredService<IAuditoriaProgresoTracker>();
+        await tracker.InicializarPendientesAsync(auditoriaId, ct);
+
         try
         {
             await EjecutarEnScopeAsync(auditoriaId, sp, ct);
@@ -74,6 +83,12 @@ public sealed class AuditoriaRunner
             _logger.LogError(ex,
                 "Auditoría {AuditoriaId} falló. Se marca como Fallida.",
                 auditoriaId);
+
+            // El nodo que estaba EnCurso al momento de la excepción debería
+            // haberse marcado a sí mismo como Fallido (en su catch). Esta es
+            // red de seguridad por si el catch del nodo no llegó a correr
+            // (ej. excepción fuera del try interno o cancelación abrupta).
+            await tracker.MarcarTodosEnCursoComoFallidosAsync(auditoriaId, CancellationToken.None);
 
             await MarcarFallidaSeguroAsync(auditoriaId, sp, ct);
         }

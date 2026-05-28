@@ -22,13 +22,14 @@ public class ISOAuditAgentDbContext : DbContext
     public DbSet<DocumentoAnalizado> DocumentosAnalizados => Set<DocumentoAnalizado>();
     public DbSet<Informe> Informes => Set<Informe>();
     public DbSet<ConfiguracionSistema> ConfiguracionesSistema => Set<ConfiguracionSistema>();
+    public DbSet<AuditoriaProgreso> AuditoriaProgresos => Set<AuditoriaProgreso>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // === Convención global: snake_case para tablas y columnas ===
+        // === Convenciï¿½n global: snake_case para tablas y columnas ===
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
         {
             entity.SetTableName(ToSnakeCase(entity.GetTableName()!));
@@ -39,7 +40,7 @@ public class ISOAuditAgentDbContext : DbContext
             }
         }
 
-        // === Enums guardados como texto (en lugar de número) ===
+        // === Enums guardados como texto (en lugar de nï¿½mero) ===
         modelBuilder.Entity<Usuario>()
             .Property(u => u.Rol).HasConversion<string>().HasMaxLength(20);
         modelBuilder.Entity<Proyecto>()
@@ -56,8 +57,14 @@ public class ISOAuditAgentDbContext : DbContext
             .Property(d => d.Fuente).HasConversion<string>().HasMaxLength(20);
         modelBuilder.Entity<Informe>()
             .Property(i => i.Tipo).HasConversion<string>().HasMaxLength(10);
+        modelBuilder.Entity<AuditoriaProgreso>()
+            .Property(p => p.Nodo).HasConversion<string>().HasMaxLength(40);
+        modelBuilder.Entity<AuditoriaProgreso>()
+            .Property(p => p.Estado).HasConversion<string>().HasMaxLength(20);
+        modelBuilder.Entity<AuditoriaProgreso>()
+            .HasIndex(p => new { p.AuditoriaId, p.Nodo }).IsUnique();
 
-        // === Índices únicos ===
+        // === ï¿½ndices ï¿½nicos ===
         modelBuilder.Entity<Usuario>()
             .HasIndex(u => u.Email).IsUnique();
         modelBuilder.Entity<Procedimiento>()
@@ -67,17 +74,17 @@ public class ISOAuditAgentDbContext : DbContext
         modelBuilder.Entity<ProyectoUsuario>()
             .HasIndex(pu => new { pu.ProyectoId, pu.UsuarioId }).IsUnique();
 
-        // === Seed de configuración del sistema ===
+        // === Seed de configuraciï¿½n del sistema ===
         // path_carpeta_templates: carpeta donde viven los templates de los
-        // artefactos. ResolutorContextoService la lee (vía IConfiguracionRepository)
+        // artefactos. ResolutorContextoService la lee (vï¿½a IConfiguracionRepository)
         // y la concatena con ArtefactoEsperado.PathTemplateRelativo para resolver
         // la ruta absoluta de cada template. Si esta clave falta, el workflow
         // falla temprano con ContextoAuditoriaException.
         //
         // Valor "./templates": default de desarrollo, ruta relativa al working
-        // directory de la API. Es CONFIGURABLE — al ser una fila de una tabla
+        // directory de la API. Es CONFIGURABLE ï¿½ al ser una fila de una tabla
         // key-value, se reemplaza por la ruta real de cada entorno sin tocar
-        // código ni recompilar.
+        // cï¿½digo ni recompilar.
         modelBuilder.Entity<ConfiguracionSistema>().HasData(
             new ConfiguracionSistema
             {
