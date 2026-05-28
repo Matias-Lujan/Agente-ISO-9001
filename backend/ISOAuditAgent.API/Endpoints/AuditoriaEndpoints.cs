@@ -116,6 +116,29 @@ public static class AuditoriaEndpoints
             });
         });
 
+        // --- GET /api/auditorias/{id}/progreso -------------------------------
+        // Devuelve el progreso por nodo del workflow. Lo polea el frontend
+        // mientras la auditoría está EnCurso para mostrar qué agente está
+        // corriendo, cuáles terminaron y cuáles están en espera.
+        app.MapGet("/api/auditorias/{id:int}/progreso", async (
+            int id,
+            IAuditoriaProgresoRepository progresoRepo,
+            CancellationToken ct) =>
+        {
+            if (id <= 0)
+                return Results.BadRequest("id debe ser > 0.");
+
+            var filas = await progresoRepo.ObtenerPorAuditoriaAsync(id, ct);
+
+            return Results.Ok(filas.Select(p => new
+            {
+                nodo = p.Nodo.ToString(),
+                estado = p.Estado.ToString(),
+                fechaInicioUtc = p.FechaInicioUtc,
+                fechaFinUtc = p.FechaFinUtc
+            }));
+        });
+
         return app;
     }
 }

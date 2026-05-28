@@ -44,6 +44,12 @@ public interface IProyectoRepository
     /// nullables — el proyecto puede no usar todas las herramientas).
     /// </summary>
     Task<Proyecto?> ObtenerPorIdOrNullAsync(int proyectoId, CancellationToken ct);
+
+    /// <summary>
+    /// Lista los proyectos activos para poblar el selector de "Proyecto a auditar"
+    /// del frontend. Ordena por nombre. No incluye proyectos con activo=false.
+    /// </summary>
+    Task<IReadOnlyList<Proyecto>> ObtenerActivosAsync(CancellationToken ct);
 }
 
 /// <summary>
@@ -193,4 +199,25 @@ public interface IDocumentoAnalizadoRepository
 public interface IUnitOfWork
 {
     Task EjecutarEnTransaccionAsync(Func<CancellationToken, Task> operacion, CancellationToken ct);
+}
+
+// ----------------------------------------------------------------------------
+//  PROGRESO DEL WORKFLOW — lectura para el frontend
+// ----------------------------------------------------------------------------
+
+/// <summary>
+/// Acceso de lectura a la tabla auditoria_progreso. La escritura la hace
+/// IAuditoriaProgresoTracker (servicio que vive fuera del DbContext scoped del
+/// runner para no contaminar la transacción de persistencia del resultado).
+/// </summary>
+public interface IAuditoriaProgresoRepository
+{
+    /// <summary>
+    /// Devuelve el progreso de los 4 nodos de una auditoría, ordenado por la
+    /// secuencia natural del workflow (Document → Compliance → Consistency →
+    /// Findings). Lista vacía si la auditoría no tiene filas (caso anómalo:
+    /// el runner debería haberlas inicializado al arrancar).
+    /// </summary>
+    Task<IReadOnlyList<AuditoriaProgreso>> ObtenerPorAuditoriaAsync(
+        int auditoriaId, CancellationToken ct);
 }
