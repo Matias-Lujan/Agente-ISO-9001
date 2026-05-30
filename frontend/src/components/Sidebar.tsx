@@ -1,10 +1,13 @@
-// src/components/Sidebar.tsx
+
 // ============================================================================
-//  Cambios respecto a la version original del repo:
-//   - El bloque .sb-user ahora muestra el usuario logueado (no "Sin sesion").
-//   - Se agrega un boton para cerrar sesion debajo del nombre.
+//  Sidebar fija a la izquierda.
 //
-//  El resto (NavLinks, items disabled) queda intacto.
+//  Cambios:
+//   - El bloque .sb-user muestra el usuario logueado (no "Sin sesion")
+//     y un boton para cerrar sesion.
+//   - "Hallazgos" esta HABILITADO como NavLink (igual que "Nueva auditoria").
+//   - Dashboard / Proyectos / Informes siguen deshabilitados hasta que se
+//     desarrollen esas pantallas.
 // ============================================================================
 
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -14,14 +17,16 @@ export default function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { usuario, cerrarSesion } = useAuth();
-  const isAuditActive = location.pathname.startsWith('/nueva-auditoria');
+
+  const isAuditActive     = location.pathname.startsWith('/nueva-auditoria');
+  const isHallazgosActive = location.pathname.startsWith('/hallazgos');
 
   const handleLogout = () => {
     cerrarSesion();
     navigate('/login', { replace: true });
   };
 
-  // Iniciales para el avatar (primera letra del nombre)
+  // Inicial del avatar (primera letra del nombre)
   const inicial = usuario?.nombre?.trim().charAt(0).toUpperCase() ?? '—';
 
   return (
@@ -30,11 +35,14 @@ export default function Sidebar() {
         <img src="https://bdtglobal.com/img/logo15horizontal-min.png" alt="bdtglobal" />
       </div>
 
-      {/* Bloque de usuario — ahora con datos reales del logueado */}
+      {/* Bloque de usuario logueado */}
       <div className="sb-user">
         <div className="sb-avatar">{inicial}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="sb-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div
+            className="sb-name"
+            style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+          >
             {usuario?.nombre ?? 'Sin sesión'}
           </div>
           <div className="sb-role">{usuario?.rol ?? ''}</div>
@@ -52,6 +60,7 @@ export default function Sidebar() {
               fontSize: 11,
               cursor: 'pointer',
             }}
+            type="button"
           >
             ⎋
           </button>
@@ -94,12 +103,20 @@ export default function Sidebar() {
         Informes
       </div>
 
-      <div className="nav-item disabled" title="Próximamente">
+      {/* HABILITADO — pantalla nueva */}
+      <NavLink
+        to="/hallazgos"
+        className={`nav-item clickable${isHallazgosActive ? ' active' : ''}`}
+      >
         <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
-          <path d="M8 2l1.8 3.6L14 6.5l-3 2.9.7 4.1L8 11.4l-3.7 2.1.7-4.1L2 6.5l4.2-.9L8 2z" stroke="currentColor" strokeWidth="1.2" />
+          <path
+            d="M8 2l1.8 3.6L14 6.5l-3 2.9.7 4.1L8 11.4l-3.7 2.1.7-4.1L2 6.5l4.2-.9L8 2z"
+            stroke="currentColor"
+            strokeWidth="1.2"
+          />
         </svg>
         Hallazgos
-      </div>
+      </NavLink>
     </aside>
   );
 }

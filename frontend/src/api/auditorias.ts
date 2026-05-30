@@ -1,4 +1,4 @@
-// src/api/auditorias.ts
+
 // ============================================================================
 //  Endpoints del workflow de auditorias.
 //  El usuarioId YA NO se manda en el body — el backend lo extrae del JWT

@@ -1,4 +1,4 @@
-// src/api/client.ts
+
 // ============================================================================
 //  Wrapper fino sobre fetch. Centraliza:
 //   - Base URL relativa (`/api/...`) — el dev server de Vite hace proxy al

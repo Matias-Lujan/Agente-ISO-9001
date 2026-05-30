@@ -1,19 +1,19 @@
-// src/App.tsx
+
 // ============================================================================
-//  Shell de la app con autenticacion.
+//  Router principal.
 //
-//  Diferencias con el App.tsx original:
-//   - AuthProvider envolviendo todo.
-//   - Ruta /login PUBLICA (no usa el shell con sidebar — ocupa toda la pantalla).
-//   - Ruta /nueva-auditoria PROTEGIDA por ProtectedRoute.
-//
-//  El shell (sidebar + main) solo se renderiza dentro de las rutas protegidas.
-//  Asi el login no tiene sidebar al costado.
+//  Rutas:
+//   - /login              Publica (sin sidebar)
+//   - /nueva-auditoria    Protegida (con sidebar)
+//   - /hallazgos          Protegida (con sidebar)  ← NUEVA
+//   - *                   Redirige a /nueva-auditoria
 // ============================================================================
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import Sidebar from './components/Sidebar';
 import NuevaAuditoria from './screens/NuevaAuditoria';
+import Hallazgos from './screens/Hallazgos';
 import { useInjectStyle } from './utils/useInjectStyle';
 import { sharedCss } from './styles/shared';
 import { AuthProvider } from './login/AuthContext';
@@ -21,7 +21,7 @@ import ProtectedRoute from './login/ProtectedRoute';
 import Login from './login/Login';
 
 // Shell con sidebar — para las rutas protegidas
-function ShellLayout({ children }: { children: React.ReactNode }) {
+function ShellLayout({ children }: { children: ReactNode }) {
   return (
     <div className="shell">
       <Sidebar />
@@ -37,10 +37,10 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Ruta publica: login (sin sidebar) */}
+          {/* Ruta publica */}
           <Route path="/login" element={<Login />} />
 
-          {/* Rutas protegidas: requieren sesion, muestran sidebar */}
+          {/* Rutas protegidas */}
           <Route
             path="/nueva-auditoria"
             element={
@@ -51,9 +51,18 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/hallazgos"
+            element={
+              <ProtectedRoute>
+                <ShellLayout>
+                  <Hallazgos />
+                </ShellLayout>
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Catch-all: cualquier otra ruta va a /nueva-auditoria.
-              Si no esta logueado, ProtectedRoute lo manda a /login. */}
+          {/* Catch-all */}
           <Route path="*" element={<Navigate to="/nueva-auditoria" replace />} />
         </Routes>
       </BrowserRouter>
