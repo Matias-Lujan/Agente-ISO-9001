@@ -5,7 +5,8 @@
 //  Rutas:
 //   - /login              Publica (sin sidebar)
 //   - /nueva-auditoria    Protegida (con sidebar)
-//   - /hallazgos          Protegida (con sidebar)  ← NUEVA
+//   - /hallazgos          Protegida (con sidebar)
+//   - /configuracion      Protegida (con sidebar)  ← 
 //   - *                   Redirige a /nueva-auditoria
 // ============================================================================
 
@@ -14,6 +15,7 @@ import type { ReactNode } from 'react';
 import Sidebar from './components/Sidebar';
 import NuevaAuditoria from './screens/NuevaAuditoria';
 import Hallazgos from './screens/Hallazgos';
+import Configuracion from './screens/Configuracion';
 import { useInjectStyle } from './utils/useInjectStyle';
 import { sharedCss } from './styles/shared';
 import { AuthProvider } from './login/AuthContext';
@@ -57,6 +59,16 @@ export default function App() {
               <ProtectedRoute>
                 <ShellLayout>
                   <Hallazgos />
+                </ShellLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/configuracion"
+            element={
+              <ProtectedRoute>
+                <ShellLayout>
+                  <Configuracion />
                 </ShellLayout>
               </ProtectedRoute>
             }

@@ -1,13 +1,6 @@
 
 // ============================================================================
 //  Sidebar fija a la izquierda.
-//
-//  Cambios:
-//   - El bloque .sb-user muestra el usuario logueado (no "Sin sesion")
-//     y un boton para cerrar sesion.
-//   - "Hallazgos" esta HABILITADO como NavLink (igual que "Nueva auditoria").
-//   - Dashboard / Proyectos / Informes siguen deshabilitados hasta que se
-//     desarrollen esas pantallas.
 // ============================================================================
 
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
@@ -20,6 +13,7 @@ export default function Sidebar() {
 
   const isAuditActive     = location.pathname.startsWith('/nueva-auditoria');
   const isHallazgosActive = location.pathname.startsWith('/hallazgos');
+  const isConfigActive    = location.pathname.startsWith('/configuracion');
 
   const handleLogout = () => {
     cerrarSesion();
@@ -103,7 +97,6 @@ export default function Sidebar() {
         Informes
       </div>
 
-      {/* HABILITADO — pantalla nueva */}
       <NavLink
         to="/hallazgos"
         className={`nav-item clickable${isHallazgosActive ? ' active' : ''}`}
@@ -116,6 +109,24 @@ export default function Sidebar() {
           />
         </svg>
         Hallazgos
+      </NavLink>
+
+      {/* CONFIGURACION — al fondo, separado del resto */}
+      <NavLink
+        to="/configuracion"
+        className={`nav-item clickable${isConfigActive ? ' active' : ''}`}
+        style={{ marginTop: 'auto' }}
+      >
+        <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.2" />
+          <path
+            d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M11.4 3.2l-1.4 1.4M4.6 11.4l-1.4 1.4"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+          />
+        </svg>
+        Configuración
       </NavLink>
     </aside>
   );
