@@ -1,11 +1,12 @@
 using System.Text;
 using ISOAuditAgent.API.Agents.ConsistencyVerification;
+using ISOAuditAgent.API.Data;
 using ISOAuditAgent.API.Integrations.MCP;
 using ISOAuditAgent.API.Repositories;
 using ISOAuditAgent.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Supabase;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,20 +23,15 @@ builder.Services.AddControllers()
     });
 
 // =============================================================================
-// 2. SUPABASE
-// Registramos el cliente de Supabase para que se pueda inyectar
-// en cualquier clase que lo necesite (como UsuarioRepository)
+// 2. BASE DE DATOS — MySQL con Entity Framework
+// Reemplaza Supabase. La cadena de conexion vive en appsettings.Development.json
+// bajo la clave "ConnectionStrings:DefaultConnection"
 // =============================================================================
-var supabaseUrl = builder.Configuration["Supabase:Url"]
-    ?? throw new InvalidOperationException("Supabase:Url no configurada");
-var supabaseKey = builder.Configuration["Supabase:SecretKey"]
-    ?? throw new InvalidOperationException("Supabase:SecretKey no configurada");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionString 'DefaultConnection' no configurada");
 
-var supabaseClient = new Client(supabaseUrl, supabaseKey);
-await supabaseClient.InitializeAsync();
-
-// Registramos el cliente como Singleton — una sola instancia para toda la app
-builder.Services.AddSingleton(supabaseClient);
+builder.Services.AddDbContext<ISOAuditAgentDbContext>(options =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
 // =============================================================================
 // 3. AUTENTICACION JWT
@@ -100,13 +96,6 @@ builder.Services.AddScoped<ProcedimientoService>();
 // Modulo 2.5 — Informes
 builder.Services.AddScoped<IInformeRepository, InformeRepository>();
 builder.Services.AddScoped<InformeService>();
-
-// RF-04 — Reglas de validacion (PENDIENTE — salen del tailoring, no de BD)
-//builder.Services.AddScoped<IReglaValidacionRepository, ReglaValidacionRepository>();
-//builder.Services.AddScoped<ReglaValidacionService>();
-
-// ResolutorContexto — Nodo 1 del workflow
-//builder.Services.AddScoped<ResolutorContextoService>();
 
 // Sub-agente de consistencia
 builder.Services.AddScoped<IDocumentSummaryBuilder, DocumentSummaryBuilder>();

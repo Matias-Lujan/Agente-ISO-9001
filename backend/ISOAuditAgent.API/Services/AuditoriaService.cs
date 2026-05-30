@@ -6,14 +6,8 @@ namespace ISOAuditAgent.API.Services;
 
 /// <summary>
 /// Servicio de gestion de auditorias.
-///
-/// Se encarga de:
-/// 1. Crear auditorias nuevas
-/// 2. Consultar auditorias existentes
-/// 3. Actualizar el estado cuando el workflow de agentes termina
-///
-/// No sabe nada de base de datos — le delega eso al IAuditoriaRepository.
-/// No sabe nada de HTTP — eso lo maneja el Controller.
+/// Actualizado para usar los enums de los modelos de Matias:
+/// EstadoAuditoria en lugar de strings "en_curso", "completada", etc.
 /// </summary>
 public class AuditoriaService
 {
@@ -34,50 +28,29 @@ public class AuditoriaService
         _logger        = logger;
     }
 
-    // ── CONSULTAS ─────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Devuelve todas las auditorias.
-    /// Solo el Administrador puede ver todas.
-    /// </summary>
     public async Task<IReadOnlyList<AuditoriaResponse>> ObtenerTodasAsync()
     {
         var auditorias = await _auditoriaRepo.ObtenerTodasAsync();
         return await MapearConDetallesAsync(auditorias);
     }
 
-    /// <summary>
-    /// Devuelve las auditorias de un proyecto especifico.
-    /// </summary>
     public async Task<IReadOnlyList<AuditoriaResponse>> ObtenerPorProyectoAsync(int proyectoId)
     {
         var auditorias = await _auditoriaRepo.ObtenerPorProyectoAsync(proyectoId);
         return await MapearConDetallesAsync(auditorias);
     }
 
-    /// <summary>
-    /// Devuelve una auditoria por su ID.
-    /// </summary>
     public async Task<AuditoriaResponse?> ObtenerPorIdAsync(int id)
     {
         var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(id);
         if (auditoria == null) return null;
-
         return await MapearConDetallesAsync(auditoria);
     }
 
-    // ── CREAR Y EJECUTAR ──────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Crea una auditoria nueva con estado "en_curso".
-    /// Verifica que el proyecto exista antes de crearla.
-    /// </summary>
     public async Task<AuditoriaResponse> CrearAsync(CrearAuditoriaRequest request, int usuarioId)
     {
-        // Verificar que el proyecto exista
-        var proyecto = await _proyectoRepo.ObtenerPorIdAsync(request.ProyectoId);
-        if (proyecto == null)
-            throw new InvalidOperationException($"Proyecto con ID {request.ProyectoId} no encontrado");
+        var proyecto = await _proyectoRepo.ObtenerPorIdAsync(request.ProyectoId)
+            ?? throw new InvalidOperationException($"Proyecto con ID {request.ProyectoId} no encontrado");
 
         var auditoria = new Auditoria
         {
@@ -85,9 +58,8 @@ public class AuditoriaService
             UsuarioId      = usuarioId,
             EtapaId        = request.EtapaId,
             FechaInicioUtc = DateTime.UtcNow,
-            HorasEstimadas = proyecto.HorasEstimadas,
-            Estado         = EstadosAuditoria.EnCurso,
-            Activo         = true
+            // Usamos el enum EstadoAuditoria en lugar del string "en_curso"
+            Estado         = EstadoAuditoria.EnCurso
         };
 
         var creada = await _auditoriaRepo.CrearAsync(auditoria);
@@ -99,11 +71,7 @@ public class AuditoriaService
         return await MapearConDetallesAsync(creada);
     }
 
-    /// <summary>
-    /// Actualiza el estado de una auditoria cuando el workflow termina.
-    /// Se llama desde el orquestador cuando los agentes terminan.
-    /// </summary>
-    public async Task<AuditoriaResponse?> ActualizarEstadoAsync(int id, string estado)
+    public async Task<AuditoriaResponse?> ActualizarEstadoAsync(int id, EstadoAuditoria estado)
     {
         var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(id);
         if (auditoria == null) return null;
@@ -120,8 +88,6 @@ public class AuditoriaService
         return await MapearConDetallesAsync(actualizada);
     }
 
-    // ── Helpers privados ──────────────────────────────────────────────────────
-
     private async Task<IReadOnlyList<AuditoriaResponse>> MapearConDetallesAsync(
         IReadOnlyList<Auditoria> auditorias)
     {
@@ -133,7 +99,6 @@ public class AuditoriaService
 
     private async Task<AuditoriaResponse> MapearConDetallesAsync(Auditoria a)
     {
-        // Obtenemos el nombre del proyecto y del auditor para mostrarlos
         var proyecto = await _proyectoRepo.ObtenerPorIdAsync(a.ProyectoId);
         var usuario  = await _usuarioRepo.ObtenerPorIdAsync(a.UsuarioId);
 
@@ -146,8 +111,7 @@ public class AuditoriaService
             a.EtapaId,
             a.FechaInicioUtc,
             a.FechaFinalizacionUtc,
-            a.HorasEstimadas,
-            a.Estado,
-            a.Activo);
+            // El estado ahora es un enum — lo convertimos a string para el DTO
+            a.Estado.ToString());
     }
 }
