@@ -1,31 +1,20 @@
 ﻿// ============================================================================
 //  AuditoriaEndpoints — Endpoints REST reales del workflow (D6)
 // ----------------------------------------------------------------------------
-//  Dos endpoints mínimos del MVP:
+//  Endpoints del MVP:
 //
-//   POST /api/auditorias       Crea auditoría EnCurso, encola, responde 202.
-//   GET  /api/auditorias/{id}  Devuelve metadata + estado (para polling).
+//   POST /api/auditorias                Crea auditoria EnCurso, encola, 202.
+//   GET  /api/auditorias/{id}           Devuelve metadata + estado (polling).
+//   GET  /api/auditorias/{id}/progreso  Progreso por nodo del workflow.
 //
-//  ALCANCE D6:
-//   - Sin autenticación / JWT.
-//   - Sin autorización por roles.
-//   - GET devuelve SOLO metadata (sin contadores ni listas).
-//   - Otros endpoints del ERS (/proyectos, /hallazgos, /informes, /usuarios)
-//     son D6+ o post-MVP.
-//
-//  TEMPORAL — Autenticación:
-//   El ERS pide autenticación con JWT. En D6 el UsuarioId llega por body.
-//   Cuando se agregue JWT (etapa posterior), UsuarioId sale del User claim
-//   y el campo del body se elimina. Dejo esta nota explícita acá para que
-//   quien retome el código sepa que el body actual es transitorio.
-//
-//  NO AGREGAR ACÁ:
-//   - Validación FK previa contra BD (la hace MySQL al commit).
-//   - Atomicidad commit+encolar (el Channel write no puede fallar salvo
-//     que el host se apague, riesgo aceptado).
-//   - Mapeo de hallazgos / informes (eso requiere otros repos / endpoints).
+//  AUTENTICACION:
+//   - Todos los endpoints requieren JWT valido (RequireAuthorization()).
+//   - El UsuarioId del POST sale del claim NameIdentifier del JWT.
+//     Eso significa que NO viene mas en el body: el usuario "que crea" la
+//     auditoria es siempre el que esta logueado.
 // ============================================================================
 
+using System.Security.Claims;
 using ISOAuditAgent.API.Agents.Orchestrator;
 using ISOAuditAgent.API.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -41,18 +30,26 @@ public static class AuditoriaEndpoints
         // --- POST /api/auditorias --------------------------------------------
         app.MapPost("/api/auditorias", async (
             CrearAuditoriaRequest request,
+            ClaimsPrincipal user,
             IAuditoriaRepository auditoriaRepo,
             IUnitOfWork uow,
             IAuditoriaQueue cola,
             CancellationToken ct) =>
         {
-            // 1. Validación de input — los 3 IDs deben ser > 0.
+            // 1. Validacion de input — los 2 IDs deben ser > 0.
+            //    usuarioId ya NO esta en el body: sale del JWT.
             if (request.ProyectoId <= 0)
                 return Results.BadRequest("proyectoId debe ser > 0.");
             if (request.EtapaId <= 0)
                 return Results.BadRequest("etapaId debe ser > 0.");
-            if (request.UsuarioId <= 0)
-                return Results.BadRequest("usuarioId debe ser > 0.");
+
+            // 2. Extraer usuarioId del JWT (claim NameIdentifier).
+            //    Si llegamos aca es porque [RequireAuthorization] ya valido
+            //    el token. Pero el claim podria faltar si alguien firma un
+            //    JWT sin NameIdentifier (no nuestro caso, pero defensa).
+            var idClaim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(idClaim, out var usuarioId) || usuarioId <= 0)
+                return Results.Unauthorized();
 
             int auditoriaId = 0;
 
@@ -62,7 +59,7 @@ public static class AuditoriaEndpoints
                 {
                     auditoriaId = await auditoriaRepo.CrearEnCursoAsync(
                         request.ProyectoId,
-                        request.UsuarioId,
+                        usuarioId,
                         request.EtapaId,
                         innerCt);
                 }, ct);
@@ -70,15 +67,14 @@ public static class AuditoriaEndpoints
             catch (DbUpdateException ex)
             {
                 return Results.BadRequest(
-                    "No se pudo crear la auditoría. Verificá que proyectoId, " +
-                    $"etapaId y usuarioId existan en la BD. Detalle: {ex.InnerException?.Message ?? ex.Message}");
+                    "No se pudo crear la auditoria. Verifica que proyectoId y " +
+                    $"etapaId existan en la BD. Detalle: {ex.InnerException?.Message ?? ex.Message}");
             }
 
-            // 4. Encolar (DESPUÉS del commit, para no encolar IDs no persistidos).
-            //    El Channel write es ilimitado — no falla salvo apagado del host.
+            // 3. Encolar (DESPUES del commit, para no encolar IDs no persistidos).
             await cola.EncolarAsync(auditoriaId, ct);
 
-            // 5. 202 Accepted con el ID + estado inicial.
+            // 4. 202 Accepted con el ID + estado inicial.
             return Results.Accepted(
                 uri: $"/api/auditorias/{auditoriaId}",
                 value: new
@@ -86,7 +82,8 @@ public static class AuditoriaEndpoints
                     auditoriaId,
                     estado = "EnCurso"
                 });
-        });
+        })
+        .RequireAuthorization();
 
         // --- GET /api/auditorias/{id} ----------------------------------------
         app.MapGet("/api/auditorias/{id:int}", async (
@@ -99,27 +96,22 @@ public static class AuditoriaEndpoints
 
             var auditoria = await auditoriaRepo.ObtenerPorIdOrNullAsync(id, ct);
             if (auditoria is null)
-                return Results.NotFound($"Auditoría {id} no encontrada.");
+                return Results.NotFound($"Auditoria {id} no encontrada.");
 
-            // DTO de respuesta — no exponemos la entity EF directamente.
-            // Las navegaciones (Proyecto, Usuario, Etapa, ArtefactosEvaluados,
-            // etc.) NO se serializan: en D6 solo devolvemos metadata.
             return Results.Ok(new
             {
                 id = auditoria.Id,
                 proyectoId = auditoria.ProyectoId,
                 etapaId = auditoria.EtapaId,
                 usuarioId = auditoria.UsuarioId,
-                estado = auditoria.Estado.ToString(),  // "EnCurso" / "Completada" / "Fallida"
+                estado = auditoria.Estado.ToString(),
                 fechaInicioUtc = auditoria.FechaInicioUtc,
                 fechaFinalizacionUtc = auditoria.FechaFinalizacionUtc
             });
-        });
+        })
+        .RequireAuthorization();
 
         // --- GET /api/auditorias/{id}/progreso -------------------------------
-        // Devuelve el progreso por nodo del workflow. Lo polea el frontend
-        // mientras la auditoría está EnCurso para mostrar qué agente está
-        // corriendo, cuáles terminaron y cuáles están en espera.
         app.MapGet("/api/auditorias/{id:int}/progreso", async (
             int id,
             IAuditoriaProgresoRepository progresoRepo,
@@ -137,7 +129,8 @@ public static class AuditoriaEndpoints
                 fechaInicioUtc = p.FechaInicioUtc,
                 fechaFinUtc = p.FechaFinUtc
             }));
-        });
+        })
+        .RequireAuthorization();
 
         return app;
     }
@@ -145,9 +138,8 @@ public static class AuditoriaEndpoints
 
 /// <summary>
 /// Request body del POST /api/auditorias.
-/// usuarioId es TEMPORAL — sale del JWT cuando se agregue autenticación.
+/// usuarioId ya no viene en el body — sale del JWT del usuario logueado.
 /// </summary>
 public sealed record CrearAuditoriaRequest(
     int ProyectoId,
-    int EtapaId,
-    int UsuarioId);
+    int EtapaId);

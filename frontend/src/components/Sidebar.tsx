@@ -1,16 +1,28 @@
-import { NavLink, useLocation } from 'react-router-dom';
+// src/components/Sidebar.tsx
+// ============================================================================
+//  Cambios respecto a la version original del repo:
+//   - El bloque .sb-user ahora muestra el usuario logueado (no "Sin sesion").
+//   - Se agrega un boton para cerrar sesion debajo del nombre.
+//
+//  El resto (NavLinks, items disabled) queda intacto.
+// ============================================================================
 
-// Sidebar fija a la izquierda. Sigue la maqueta del prototipo
-// (untitled/src/components/NewAudit.tsx). Diferencias con el prototipo:
-//   - El bloque de usuario muestra un placeholder ("Sin sesión") hasta que
-//     haya login. El nombre hardcodeado "Matías Luján" se sacó.
-//   - De las 5 opciones de navegación SOLO "Nueva auditoría" es clickeable.
-//     Las otras 4 (Dashboard, Proyectos, Informes, Hallazgos) se muestran con
-//     opacidad reducida para indicar que están deshabilitadas — se cablearán
-//     cuando se desarrollen esas pantallas.
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../login/AuthContext';
+
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { usuario, cerrarSesion } = useAuth();
   const isAuditActive = location.pathname.startsWith('/nueva-auditoria');
+
+  const handleLogout = () => {
+    cerrarSesion();
+    navigate('/login', { replace: true });
+  };
+
+  // Iniciales para el avatar (primera letra del nombre)
+  const inicial = usuario?.nombre?.trim().charAt(0).toUpperCase() ?? '—';
 
   return (
     <aside className="sidebar">
@@ -18,9 +30,32 @@ export default function Sidebar() {
         <img src="https://bdtglobal.com/img/logo15horizontal-min.png" alt="bdtglobal" />
       </div>
 
+      {/* Bloque de usuario — ahora con datos reales del logueado */}
       <div className="sb-user">
-        <div className="sb-avatar">—</div>
-        <div className="sb-user-placeholder">Sin sesión</div>
+        <div className="sb-avatar">{inicial}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="sb-name" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {usuario?.nombre ?? 'Sin sesión'}
+          </div>
+          <div className="sb-role">{usuario?.rol ?? ''}</div>
+        </div>
+        {usuario && (
+          <button
+            onClick={handleLogout}
+            title="Cerrar sesión"
+            style={{
+              background: 'transparent',
+              border: '0.5px solid rgba(255,255,255,0.2)',
+              color: 'rgba(255,255,255,0.7)',
+              borderRadius: 6,
+              padding: '4px 6px',
+              fontSize: 11,
+              cursor: 'pointer',
+            }}
+          >
+            ⎋
+          </button>
+        )}
       </div>
 
       <div className="nav-item disabled" title="Próximamente">

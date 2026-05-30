@@ -1,4 +1,11 @@
-import { api, DEFAULT_USUARIO_ID } from './client';
+// src/api/auditorias.ts
+// ============================================================================
+//  Endpoints del workflow de auditorias.
+//  El usuarioId YA NO se manda en el body — el backend lo extrae del JWT
+//  (claim NameIdentifier) del header Authorization.
+// ============================================================================
+
+import { api } from './client';
 
 export type EstadoAuditoria = 'EnCurso' | 'Completada' | 'Fallida';
 
@@ -39,7 +46,6 @@ export function crearAuditoria(
   return api.post<CrearAuditoriaResponse>('/api/auditorias', {
     proyectoId,
     etapaId,
-    usuarioId: DEFAULT_USUARIO_ID,
   });
 }
 

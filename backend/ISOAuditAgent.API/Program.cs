@@ -11,6 +11,9 @@ using ISOAuditAgent.API.Integrations.LLM;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using ISOAuditAgent.API.Endpoints;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -57,6 +60,33 @@ builder.Services.AddScoped<IHallazgoRepository, HallazgoRepository>();
 builder.Services.AddScoped<IDocumentoAnalizadoRepository, DocumentoAnalizadoRepository>();
 builder.Services.AddScoped<IAuditoriaProgresoRepository, AuditoriaProgresoRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// ── Autenticacion ────────────────────────────────────────────────────────────
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+
+var jwtKey = builder.Configuration["Jwt:SecretKey"]
+    ?? throw new InvalidOperationException(
+        "Jwt:SecretKey no configurada. Ejecuta: " +
+        "dotnet user-secrets set \"Jwt:SecretKey\" \"<clave-32-chars-min>\"");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ValidateIssuer           = true,
+            ValidIssuer              = builder.Configuration["Jwt:Issuer"] ?? "ISOAuditAgent",
+            ValidateAudience         = true,
+            ValidAudience            = builder.Configuration["Jwt:Audience"] ?? "ISOAuditAgent",
+            ValidateLifetime         = true,
+            ClockSkew                = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddAuthorization();
 // -----------------------------------------------
 
 // --- Tracker del progreso del workflow ---
@@ -105,6 +135,9 @@ app.UseHttpsRedirection();
 // --- CORS: aplicar la política antes de mapear endpoints ---
 app.UseCors(CorsPolicyFrontend);
 // -----------------------------------------------------------
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // --- D3.1: Montaje del server MCP de Drive en /mcp/drive ---
 app.MapMcp("/mcp/drive");
@@ -588,6 +621,8 @@ app.MapAuditoriaEndpoints();
 // --- Endpoints de metadata para el frontend (proyectos / etapas) ---
 app.MapMetadataEndpoints();
 // -------------------------------------------------------------------
+
+app.MapAuthEndpoints();
 
 
 var summaries = new[]

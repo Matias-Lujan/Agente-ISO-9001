@@ -1,15 +1,14 @@
 // ============================================================================
 //  MetadataEndpoints — Endpoints de lectura para el frontend
 // ----------------------------------------------------------------------------
-//  Endpoints chiquitos que el frontend necesita para poblar los selectores de
-//  la pantalla "Nueva auditoría":
+//  Endpoints que el frontend usa para poblar selectores de "Nueva auditoria":
 //
 //   GET /api/proyectos                       Lista de proyectos activos.
 //   GET /api/procedimientos/{id}/etapas      Etapas del procedimiento dado.
 //
-//  El cliente pide proyectos primero, y al elegir uno hace el segundo request
-//  con procedimientoId del proyecto seleccionado. Esto mantiene la coherencia
-//  del modelo de datos: una Etapa pertenece a un Procedimiento, no es global.
+//  AUTENTICACION:
+//   Ambos endpoints requieren JWT — no exponemos la lista de proyectos a
+//   visitantes anonimos.
 // ============================================================================
 
 using ISOAuditAgent.API.Repositories;
@@ -35,7 +34,8 @@ public static class MetadataEndpoints
                 nombre = p.Nombre,
                 procedimientoId = p.ProcedimientoId
             }));
-        });
+        })
+        .RequireAuthorization();
 
         // --- GET /api/procedimientos/{id}/etapas -----------------------------
         app.MapGet("/api/procedimientos/{procedimientoId:int}/etapas", async (
@@ -53,8 +53,10 @@ public static class MetadataEndpoints
                 id = e.Id,
                 nombre = e.Nombre,
                 orden = e.Orden
-            }));
-        });
+            }))
+            ;
+        })
+        .RequireAuthorization();
 
         return app;
     }
