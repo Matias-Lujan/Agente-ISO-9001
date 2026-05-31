@@ -56,3 +56,11 @@ public record ModificarUsuarioRequest(
     string? Rol,
     bool? Activo
 );
+
+/// <summary>
+/// Lo que el Administrador manda cuando quiere resetear la contrasena de
+/// otro usuario. No pide la pass actual porque el admin no la conoce.
+/// </summary>
+public record ResetearPasswordRequest(
+    string PasswordNueva
+);

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using ISOAuditAgent.API.Agents.ConsistencyVerification;
 using ISOAuditAgent.API.Data;
 using ISOAuditAgent.API.Integrations.MCP;
@@ -7,6 +7,7 @@ using ISOAuditAgent.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,8 +24,24 @@ builder.Services.AddControllers()
     });
 
 // =============================================================================
-// 2. BASE DE DATOS — MySQL con Entity Framework
-// Reemplaza Supabase. La cadena de conexion vive en appsettings.Development.json
+// 2. CORS — Permitir que el frontend Vite (puerto 5173) hable con la API
+// Sin esto, el browser bloquea las requests del frontend.
+// =============================================================================
+const string CorsPolicyFrontend = "FrontendDev";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyFrontend, policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+// =============================================================================
+// 3. BASE DE DATOS — MySQL con Entity Framework
+// La cadena de conexion vive en appsettings.Development.json
 // bajo la clave "ConnectionStrings:DefaultConnection"
 // =============================================================================
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
@@ -34,7 +51,7 @@ builder.Services.AddDbContext<ISOAuditAgentDbContext>(options =>
     options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 
 // =============================================================================
-// 3. AUTENTICACION JWT
+// 4. AUTENTICACION JWT
 // Le decimos a .NET como validar los tokens JWT que llegan en cada request.
 // Si el token es invalido o vencio, el request es rechazado automaticamente.
 // =============================================================================
@@ -46,39 +63,30 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            // Validar que el token fue firmado con nuestra clave secreta
             ValidateIssuerSigningKey = true,
             IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
 
-            // Validar que el token fue creado por nosotros
             ValidateIssuer   = true,
             ValidIssuer      = builder.Configuration["Jwt:Issuer"],
 
-            // Validar que el token es para nuestra aplicacion
             ValidateAudience = true,
             ValidAudience    = builder.Configuration["Jwt:Audience"],
 
-            // Validar que el token no este vencido
             ValidateLifetime = true,
-
-            // Sin margen de tolerancia en la expiracion
             ClockSkew = TimeSpan.Zero
         };
     });
 
-// Necesario para que funcione [Authorize(Roles = "Administrador")]
 builder.Services.AddAuthorization();
 
 // =============================================================================
-// 4. SERVICIOS Y REPOSITORIOS
-// Registramos todas las clases que se van a inyectar automaticamente.
-// Scoped = se crea una instancia por cada request HTTP.
+// 5. SERVICIOS Y REPOSITORIOS
 // =============================================================================
 
-// Repositorios — acceso a la base de datos
+// Repositorios
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 
-// Servicios — logica de negocio
+// Servicios
 builder.Services.AddScoped<AuthService>();
 
 // Modulo 2.2 — Proyectos
@@ -105,7 +113,7 @@ builder.Services.AddScoped<ConsistencyVerificationAgentService>();
 builder.Services.AddHttpClient<IAiClient, GeminiClient>();
 
 // =============================================================================
-// 5. OPENAPI (documentacion automatica de los endpoints)
+// 6. OPENAPI
 // =============================================================================
 builder.Services.AddOpenApi();
 
@@ -119,9 +127,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+// IMPORTANTE: CORS debe ir ANTES de Authentication/Authorization
+app.UseCors(CorsPolicyFrontend);
+
 // El orden importa — primero autenticacion, luego autorizacion
-app.UseAuthentication(); // Verifica el token JWT
-app.UseAuthorization();  // Verifica los roles y permisos
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 
