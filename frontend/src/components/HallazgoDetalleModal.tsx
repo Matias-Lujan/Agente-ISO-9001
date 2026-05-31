@@ -3,7 +3,6 @@
 //  Modal de detalle de un hallazgo.
 //  Se abre con ESC para cerrar, click fuera para cerrar, click en X tambien.
 // ============================================================================
-import React from 'react';
 import { useEffect } from 'react';
 import {
   type Hallazgo,

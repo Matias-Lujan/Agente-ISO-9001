@@ -1,5 +1,7 @@
+using ISOAuditAgent.API.Agents.Orchestrator;
 using ISOAuditAgent.API.DTOs;
 using ISOAuditAgent.API.Models;
+using ISOAuditAgent.API.Repositories;
 using ISOAuditAgent.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,11 +14,19 @@ namespace ISOAuditAgent.API.Controllers;
 public class AuditoriaController : ControllerBase
 {
     private readonly AuditoriaService _auditoriaService;
+    private readonly IAuditoriaQueue _cola;
+    private readonly IAuditoriaProgresoRepository _progresoRepo;
     private readonly ILogger<AuditoriaController> _logger;
 
-    public AuditoriaController(AuditoriaService auditoriaService, ILogger<AuditoriaController> logger)
+    public AuditoriaController(
+        AuditoriaService auditoriaService,
+        IAuditoriaQueue cola,
+        IAuditoriaProgresoRepository progresoRepo,
+        ILogger<AuditoriaController> logger)
     {
         _auditoriaService = auditoriaService;
+        _cola             = cola;
+        _progresoRepo     = progresoRepo;
         _logger           = logger;
     }
 
@@ -44,6 +54,21 @@ public class AuditoriaController : ControllerBase
         return Ok(auditoria);
     }
 
+    [HttpGet("{id}/progreso")]
+    public async Task<IActionResult> ObtenerProgreso(int id, CancellationToken ct)
+    {
+        // Lee el progreso real por nodo que escribe el AuditoriaProgresoTracker.
+        // Lista vacía si el worker todavía no inicializó las filas (el frontend
+        // lo interpreta como los 4 nodos "Pendiente").
+        var filas = await _progresoRepo.ObtenerPorAuditoriaAsync(id, ct);
+        var progreso = filas.Select(p => new ProgresoNodoResponse(
+            p.Nodo.ToString(),
+            p.Estado.ToString(),
+            p.FechaInicioUtc,
+            p.FechaFinUtc));
+        return Ok(progreso);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Crear([FromBody] CrearAuditoriaRequest request)
     {
@@ -57,6 +82,10 @@ public class AuditoriaController : ControllerBase
         try
         {
             var auditoria = await _auditoriaService.CrearAsync(request, usuarioId);
+
+            // Encolar para que el worker en background ejecute el workflow de agentes.
+            await _cola.EncolarAsync(auditoria.Id);
+
             return CreatedAtAction(nameof(ObtenerPorId), new { id = auditoria.Id }, auditoria);
         }
         catch (InvalidOperationException ex)

@@ -77,4 +77,56 @@ public class AuditoriaRepository : IAuditoriaRepository
         await _db.SaveChangesAsync();
         return auditoria;
     }
+
+    // ── Usados por el workflow del orchestrator (portado de dev) ──────────────
+
+    public async Task<int> CrearEnCursoAsync(
+        int proyectoId, int usuarioId, int etapaId, CancellationToken ct)
+    {
+        var auditoria = new Auditoria
+        {
+            ProyectoId           = proyectoId,
+            UsuarioId            = usuarioId,
+            EtapaId              = etapaId,
+            FechaInicioUtc       = DateTime.UtcNow,
+            FechaFinalizacionUtc = null,
+            Estado               = EstadoAuditoria.EnCurso,
+            Activo               = true,
+        };
+
+        _db.Auditorias.Add(auditoria);
+        await _db.SaveChangesAsync(ct);
+        return auditoria.Id;
+    }
+
+    public Task<Auditoria?> ObtenerPorIdOrNullAsync(int auditoriaId, CancellationToken ct)
+    {
+        return _db.Auditorias
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == auditoriaId, ct);
+    }
+
+    public async Task MarcarCompletadaAsync(int auditoriaId, CancellationToken ct)
+    {
+        var auditoria = await _db.Auditorias
+            .FirstOrDefaultAsync(a => a.Id == auditoriaId, ct)
+            ?? throw new InvalidOperationException(
+                $"No se puede marcar como Completada la auditoría {auditoriaId}: no existe.");
+
+        auditoria.Estado               = EstadoAuditoria.Completada;
+        auditoria.FechaFinalizacionUtc = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task MarcarFallidaAsync(int auditoriaId, CancellationToken ct)
+    {
+        var auditoria = await _db.Auditorias
+            .FirstOrDefaultAsync(a => a.Id == auditoriaId, ct)
+            ?? throw new InvalidOperationException(
+                $"No se puede marcar como Fallida la auditoría {auditoriaId}: no existe.");
+
+        auditoria.Estado               = EstadoAuditoria.Fallida;
+        auditoria.FechaFinalizacionUtc = DateTime.UtcNow;
+        await _db.SaveChangesAsync(ct);
+    }
 }

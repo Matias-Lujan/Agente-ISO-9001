@@ -2,7 +2,6 @@
 //  Campo de formulario reutilizable con label, manejo de errores y
 //  toggle para mostrar/ocultar contrasena.
 // ============================================================================
-import React from 'react';
 import { useState, type ChangeEvent, type FocusEvent } from 'react';
 
 interface Props {

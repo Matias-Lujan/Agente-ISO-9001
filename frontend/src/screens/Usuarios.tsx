@@ -14,7 +14,6 @@
 //   - Modal de resetear contrasena
 //   - Auto-bloqueo: botones deshabilitados si la fila es el admin logueado
 // ============================================================================
-import React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useInjectStyle } from '../utils/useInjectStyle';
 import { usuariosCss } from '../styles/usuarios';

@@ -16,3 +16,15 @@ public record AuditoriaResponse(
     DateTime? FechaFinalizacionUtc,
     string Estado
 );
+
+/// <summary>
+/// Progreso de un nodo del workflow para el polling del frontend.
+/// Nodo: DocumentAnalysis | ComplianceValidation | ConsistencyVerification | FindingsClassification
+/// Estado: Pendiente | EnCurso | Completado | Fallido
+/// </summary>
+public record ProgresoNodoResponse(
+    string Nodo,
+    string Estado,
+    DateTime? FechaInicioUtc,
+    DateTime? FechaFinUtc
+);

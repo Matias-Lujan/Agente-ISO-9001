@@ -72,6 +72,43 @@ public class AuditoriaService
         return await MapearConDetallesAsync(creada);
     }
 
+    /// <summary>
+    /// Devuelve el progreso por nodo del workflow para el polling del frontend.
+    ///
+    /// PLACEHOLDER: hoy no existe un motor de workflow que registre el avance
+    /// nodo por nodo (cola + worker + orchestrator + agentes). Hasta que exista,
+    /// derivamos el estado de los 4 nodos del estado global de la auditoría:
+    ///   - EnCurso   → todos Pendiente
+    ///   - Completada → todos Completado
+    ///   - Fallida   → todos Fallido
+    /// Cuando se implemente el workflow real, esto se reemplaza por una lectura
+    /// de la tabla/repositorio de progreso por nodo.
+    /// </summary>
+    public async Task<IReadOnlyList<ProgresoNodoResponse>?> ObtenerProgresoAsync(int id)
+    {
+        var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(id);
+        if (auditoria == null) return null;
+
+        var (estadoNodo, inicio, fin) = auditoria.Estado switch
+        {
+            EstadoAuditoria.Completada => ("Completado", (DateTime?)auditoria.FechaInicioUtc, auditoria.FechaFinalizacionUtc),
+            EstadoAuditoria.Fallida    => ("Fallido",    (DateTime?)auditoria.FechaInicioUtc, auditoria.FechaFinalizacionUtc),
+            _                          => ("Pendiente",  (DateTime?)null,                     (DateTime?)null),
+        };
+
+        var nodos = new[]
+        {
+            "DocumentAnalysis",
+            "ComplianceValidation",
+            "ConsistencyVerification",
+            "FindingsClassification",
+        };
+
+        return nodos
+            .Select(n => new ProgresoNodoResponse(n, estadoNodo, inicio, fin))
+            .ToList();
+    }
+
     public async Task<AuditoriaResponse?> ActualizarEstadoAsync(int id, EstadoAuditoria estado)
     {
         var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(id);

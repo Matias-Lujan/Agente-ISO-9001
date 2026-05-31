@@ -12,7 +12,6 @@
 //     - El switch "Activo" se deshabilita
 //     - El select de rol se deshabilita
 // ============================================================================
-import React from 'react';
 import { crearUsuario, modificarUsuario, type UsuarioResponse, type Rol } from '../login/authApi';
 import { useEffect, useState, type FormEvent } from 'react';
 import '../styles/usuarios'

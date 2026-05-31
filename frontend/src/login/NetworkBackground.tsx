@@ -4,7 +4,6 @@
 //  colores, densidad y velocidad. Usa ResizeObserver para precision por
 //  contenedor (no window resize).
 // ============================================================================
-import React from 'react';
 import { useEffect, useRef, type CSSProperties } from 'react';
 
 export interface NetworkConfig {

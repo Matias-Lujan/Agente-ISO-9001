@@ -122,4 +122,22 @@ public class ProyectoRepository : IProyectoRepository
             return [];
         }
     }
+
+    // ── Usados por el workflow del orchestrator (portado de dev) ──────────────
+
+    public Task<Proyecto?> ObtenerPorIdOrNullAsync(int proyectoId, CancellationToken ct)
+    {
+        return _db.Proyectos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == proyectoId, ct);
+    }
+
+    public async Task<IReadOnlyList<Proyecto>> ObtenerActivosAsync(CancellationToken ct)
+    {
+        return await _db.Proyectos
+            .AsNoTracking()
+            .Where(p => p.Activo)
+            .OrderBy(p => p.Nombre)
+            .ToListAsync(ct);
+    }
 }

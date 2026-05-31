@@ -23,6 +23,7 @@ public class ISOAuditAgentDbContext : DbContext
     public DbSet<Auditoria> Auditorias => Set<Auditoria>();
     public DbSet<ArtefactoEvaluado> ArtefactosEvaluados => Set<ArtefactoEvaluado>();
     public DbSet<Hallazgo> Hallazgos => Set<Hallazgo>();
+    public DbSet<AuditoriaProgreso> AuditoriaProgresos => Set<AuditoriaProgreso>();
     public DbSet<DocumentoAnalizado> DocumentosAnalizados => Set<DocumentoAnalizado>();
     public DbSet<Informe> Informes => Set<Informe>();
     public DbSet<ConfiguracionSistema> ConfiguracionesSistema => Set<ConfiguracionSistema>();
@@ -69,6 +70,15 @@ public class ISOAuditAgentDbContext : DbContext
         modelBuilder.Entity<Informe>()
             .Property(i => i.Tipo)
             .HasConversion<string>();
+
+        // ── Progreso del workflow (portado de dev) ────────────────────────────
+        modelBuilder.Entity<AuditoriaProgreso>()
+            .Property(p => p.Nodo).HasConversion<string>();
+        modelBuilder.Entity<AuditoriaProgreso>()
+            .Property(p => p.Estado).HasConversion<string>();
+        modelBuilder.Entity<AuditoriaProgreso>()
+            .HasIndex(p => new { p.AuditoriaId, p.Nodo }).IsUnique();
+        modelBuilder.Entity<AuditoriaProgreso>().ToTable("auditoria_progreso");
 
         // ── Nombres de tablas en plural ───────────────────────────────────────
         modelBuilder.Entity<Usuario>().ToTable("usuarios");

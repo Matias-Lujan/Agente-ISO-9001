@@ -13,7 +13,7 @@
 //  La logica del login (validacion, llamado al backend, JWT) sigue viviendo
 //  en AuthContext — esta pantalla solo dispara iniciarSesion() y reacciona.
 // ============================================================================
-import React, { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useInjectStyle } from '../utils/useInjectStyle';
 import { useAuth } from './AuthContext';

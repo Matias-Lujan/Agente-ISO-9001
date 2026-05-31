@@ -18,4 +18,10 @@ public interface IHallazgoRepository
     /// Busca un hallazgo por su ID.
     /// </summary>
     Task<Hallazgo?> ObtenerPorIdAsync(int id);
+
+    /// <summary>
+    /// Inserta un lote de hallazgos (usado por el workflow del orchestrator,
+    /// dentro de la transacción del UnitOfWork). Portado de dev.
+    /// </summary>
+    Task AgregarRangoAsync(IEnumerable<Hallazgo> hallazgos, CancellationToken ct);
 }

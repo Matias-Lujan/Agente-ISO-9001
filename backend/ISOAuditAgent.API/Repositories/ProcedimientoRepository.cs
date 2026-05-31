@@ -120,4 +120,26 @@ public class ProcedimientoRepository : IProcedimientoRepository
         await _db.SaveChangesAsync();
         return artefacto;
     }
+
+    // ── Usados por el workflow del orchestrator (portado de dev) ──────────────
+
+    public async Task<IReadOnlyList<Etapa>> ObtenerEtapasAsync(int procedimientoId, CancellationToken ct)
+    {
+        return await _db.Etapas
+            .AsNoTracking()
+            .Where(e => e.ProcedimientoId == procedimientoId)
+            .OrderBy(e => e.Orden)
+            .ToListAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<ArtefactoEsperado>> ObtenerArtefactosEsperadosAsync(
+        int procedimientoId, CancellationToken ct)
+    {
+        // Include obligatorio: ResolutorContextoService usa ae.Etapa.Orden.
+        return await _db.ArtefactosEsperados
+            .AsNoTracking()
+            .Include(ae => ae.Etapa)
+            .Where(ae => ae.Etapa.ProcedimientoId == procedimientoId)
+            .ToListAsync(ct);
+    }
 }

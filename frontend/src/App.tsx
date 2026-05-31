@@ -4,16 +4,17 @@
 //
 //  Rutas:
 //   - /login              Publica (sin sidebar)
+//   - /dashboard          Protegida (con sidebar) — cualquier rol autenticado
 //   - /nueva-auditoria    Protegida (con sidebar) — cualquier rol autenticado
 //   - /hallazgos          Protegida — cualquier rol autenticado
 //   - /configuracion      Protegida — cualquier rol autenticado
 //   - /usuarios           Protegida — SOLO Administrador (ABM)
 //   - *                   Redirige a /nueva-auditoria
 // ============================================================================
-import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import Sidebar from './components/Sidebar';
+import AuditoriaDashboardScreen from './screens/AuditoriaDashboardScreen';
 import NuevaAuditoria from './screens/NuevaAuditoria';
 import Hallazgos from './screens/Hallazgos';
 import Configuracion from './screens/Configuracion';
@@ -46,6 +47,16 @@ export default function App() {
           <Route path="/login" element={<Login />} />
 
           {/* Rutas protegidas — cualquier rol autenticado */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <ShellLayout>
+                  <AuditoriaDashboardScreen />
+                </ShellLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/nueva-auditoria"
             element={

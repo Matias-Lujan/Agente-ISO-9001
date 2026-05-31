@@ -137,6 +137,39 @@ namespace ISOAuditAgent.API.Migrations
                     b.ToTable("auditorias", (string)null);
                 });
 
+            modelBuilder.Entity("ISOAuditAgent.API.Models.AuditoriaProgreso", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AuditoriaId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<DateTime?>("FechaFinUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime?>("FechaInicioUtc")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("Nodo")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuditoriaId", "Nodo")
+                        .IsUnique();
+
+                    b.ToTable("auditoria_progreso", (string)null);
+                });
+
             modelBuilder.Entity("ISOAuditAgent.API.Models.ConfiguracionSistema", b =>
                 {
                     b.Property<int>("Id")
@@ -486,6 +519,17 @@ namespace ISOAuditAgent.API.Migrations
                     b.Navigation("Proyecto");
 
                     b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("ISOAuditAgent.API.Models.AuditoriaProgreso", b =>
+                {
+                    b.HasOne("ISOAuditAgent.API.Models.Auditoria", "Auditoria")
+                        .WithMany()
+                        .HasForeignKey("AuditoriaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Auditoria");
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.DocumentoAnalizado", b =>

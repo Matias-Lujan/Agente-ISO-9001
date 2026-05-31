@@ -9,7 +9,6 @@
 //   - "Configuracion" HABILITADO al fondo (margin-top:auto).
 //   - Dashboard / Proyectos / Informes siguen deshabilitados.
 // ============================================================================
-import React from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../login/AuthContext';
 
@@ -18,6 +17,7 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const { usuario, cerrarSesion } = useAuth();
 
+  const isDashboardActive = location.pathname.startsWith('/dashboard');
   const isAuditActive     = location.pathname.startsWith('/nueva-auditoria');
   const isHallazgosActive = location.pathname.startsWith('/hallazgos');
   const isUsuariosActive  = location.pathname.startsWith('/usuarios');
@@ -36,7 +36,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sb-logo">
-        <img src="https://bdtglobal.com/img/logo15horizontal-min.png" alt="bdtglobal" />
+        <img src="/logo15horizontal-min.png" alt="bdtglobal" />
       </div>
 
       {/* Bloque de usuario logueado */}
@@ -71,7 +71,10 @@ export default function Sidebar() {
         )}
       </div>
 
-      <div className="nav-item disabled" title="Próximamente">
+      <NavLink
+        to="/dashboard"
+        className={`nav-item clickable${isDashboardActive ? ' active' : ''}`}
+      >
         <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
           <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
           <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
@@ -79,7 +82,7 @@ export default function Sidebar() {
           <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
         </svg>
         Dashboard
-      </div>
+      </NavLink>
 
       <div className="nav-item disabled" title="Próximamente">
         <svg className="nav-icon" viewBox="0 0 16 16" fill="none">

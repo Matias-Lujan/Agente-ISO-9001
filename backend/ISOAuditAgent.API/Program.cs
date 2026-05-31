@@ -1,12 +1,16 @@
 ﻿using System.Text;
 using ISOAuditAgent.API.Agents.ConsistencyVerification;
+using ISOAuditAgent.API.Agents.Orchestrator;
 using ISOAuditAgent.API.Data;
+using ISOAuditAgent.API.Integrations.LLM;
 using ISOAuditAgent.API.Integrations.MCP;
+using ISOAuditAgent.API.Integrations.MCP.Drive;
 using ISOAuditAgent.API.Repositories;
 using ISOAuditAgent.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using ModelContextProtocol.AspNetCore;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -101,16 +105,48 @@ builder.Services.AddScoped<AuditoriaService>();
 builder.Services.AddScoped<IProcedimientoRepository, ProcedimientoRepository>();
 builder.Services.AddScoped<ProcedimientoService>();
 
+// Modulo 2.5 — Hallazgos (solo lectura — los insertan los agentes)
+builder.Services.AddScoped<IHallazgoRepository, HallazgoRepository>();
+builder.Services.AddScoped<HallazgoService>();
+
 // Modulo 2.5 — Informes
 builder.Services.AddScoped<IInformeRepository, InformeRepository>();
 builder.Services.AddScoped<InformeService>();
 
-// Sub-agente de consistencia
-builder.Services.AddScoped<IDocumentSummaryBuilder, DocumentSummaryBuilder>();
+// Sub-agente de consistencia (implementación HTTP simple de esta rama).
+// DocumentSummaryBuilder calificado: dev trajo otra clase con el mismo nombre
+// en ISOAuditAgent.API.Agents.ConsistencyVerification.
+builder.Services.AddScoped<IDocumentSummaryBuilder, ISOAuditAgent.API.Services.DocumentSummaryBuilder>();
 builder.Services.AddScoped<ConsistencyVerificationAgentService>();
 
-// Cliente de IA (Gemini)
+// Cliente de IA (Gemini) — HTTP simple, usado por el sub-agente de consistencia
 builder.Services.AddHttpClient<IAiClient, GeminiClient>();
+
+// =============================================================================
+// 5.b WORKFLOW DEL ORCHESTRATOR (portado de dev)
+// =============================================================================
+
+// Repositorios del workflow (los compartidos ya se registraron arriba)
+builder.Services.AddScoped<IConfiguracionRepository, ConfiguracionRepository>();
+builder.Services.AddScoped<IArtefactoEvaluadoRepository, ArtefactoEvaluadoRepository>();
+builder.Services.AddScoped<IDocumentoAnalizadoRepository, DocumentoAnalizadoRepository>();
+builder.Services.AddScoped<IAuditoriaProgresoRepository, AuditoriaProgresoRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Tracker de progreso (Singleton: crea su propio scope/DbContext por operación)
+builder.Services.AddSingleton<IAuditoriaProgresoTracker, AuditoriaProgresoTracker>();
+
+// Server MCP de Google Drive + cliente (config "GoogleDrive" y "Mcp:Drive")
+builder.Services.AddGoogleDriveMcpServer(builder.Configuration);
+
+// Gemini (IChatClient) + 4 AIAgent keyed (config "Gemini")
+builder.Services.AddGeminiAndAgents(builder.Configuration);
+
+// Servicio determinista del nodo inicial (dev lo registra aparte del orchestrator)
+builder.Services.AddScoped<ResolutorContextoService>();
+
+// Nodos + cola + runner + worker en background
+builder.Services.AddAuditoriaOrchestrator();
 
 // =============================================================================
 // 6. OPENAPI
@@ -133,6 +169,9 @@ app.UseCors(CorsPolicyFrontend);
 // El orden importa — primero autenticacion, luego autorizacion
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Server MCP de Google Drive montado en /mcp/drive
+app.MapMcp("/mcp/drive");
 
 app.MapControllers();
 

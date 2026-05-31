@@ -52,4 +52,12 @@ public class HallazgoRepository : IHallazgoRepository
             return null;
         }
     }
+
+    // Usado por el workflow del orchestrator (portado de dev). Se asume
+    // ejecución dentro de la transacción del IUnitOfWork.
+    public async Task AgregarRangoAsync(IEnumerable<Hallazgo> hallazgos, CancellationToken ct)
+    {
+        _db.Hallazgos.AddRange(hallazgos);
+        await _db.SaveChangesAsync(ct);
+    }
 }

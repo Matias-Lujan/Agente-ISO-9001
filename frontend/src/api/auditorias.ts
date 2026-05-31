@@ -39,14 +39,17 @@ export interface ProgresoNodo {
   fechaFinUtc: string | null;
 }
 
-export function crearAuditoria(
+export async function crearAuditoria(
   proyectoId: number,
   etapaId: number
 ): Promise<CrearAuditoriaResponse> {
-  return api.post<CrearAuditoriaResponse>('/api/auditorias', {
-    proyectoId,
-    etapaId,
-  });
+  // El backend (POST /api/auditorias) devuelve AuditoriaResponse { id, ..., estado },
+  // NO { auditoriaId }. Mapeamos id → auditoriaId para mantener el contrato del front.
+  const r = await api.post<{ id: number; estado: EstadoAuditoria }>(
+    '/api/auditorias',
+    { proyectoId, etapaId }
+  );
+  return { auditoriaId: r.id, estado: r.estado };
 }
 
 export function obtenerAuditoria(id: number): Promise<AuditoriaResumen> {

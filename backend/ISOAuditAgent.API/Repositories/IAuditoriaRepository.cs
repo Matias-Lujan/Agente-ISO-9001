@@ -34,4 +34,27 @@ public interface IAuditoriaRepository
     /// Se usa cuando el workflow de agentes termina (completada o fallida).
     /// </summary>
     Task<Auditoria> ActualizarAsync(Auditoria auditoria);
+
+    // ── Usados por el workflow del orchestrator (portado de dev) ──────────────
+
+    /// <summary>
+    /// Crea una auditoría en estado EnCurso y devuelve el id generado.
+    /// La llama el POST /api/auditorias antes de encolar el trabajo.
+    /// </summary>
+    Task<int> CrearEnCursoAsync(int proyectoId, int usuarioId, int etapaId, CancellationToken ct);
+
+    /// <summary>
+    /// Trae la auditoría por id (polling del frontend + worker). Null si no existe.
+    /// </summary>
+    Task<Auditoria?> ObtenerPorIdOrNullAsync(int auditoriaId, CancellationToken ct);
+
+    /// <summary>
+    /// Marca la auditoría como Completada y setea la fecha de finalización.
+    /// </summary>
+    Task MarcarCompletadaAsync(int auditoriaId, CancellationToken ct);
+
+    /// <summary>
+    /// Marca la auditoría como Fallida y setea la fecha de finalización.
+    /// </summary>
+    Task MarcarFallidaAsync(int auditoriaId, CancellationToken ct);
 }

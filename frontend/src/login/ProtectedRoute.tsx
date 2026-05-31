@@ -12,7 +12,6 @@
 //  Si esta autenticado pero NO tiene el rol requerido:
 //   → redirige a /nueva-auditoria (ruta segura por defecto)
 // ============================================================================
-import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import type { ReactNode } from 'react';

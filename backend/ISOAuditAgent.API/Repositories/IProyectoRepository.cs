@@ -50,4 +50,16 @@ public interface IProyectoRepository
     /// Devuelve los usuarios asignados a un proyecto.
     /// </summary>
     Task<IReadOnlyList<int>> ObtenerResponsablesAsync(int proyectoId);
+
+    // ── Usados por el workflow del orchestrator (portado de dev) ──────────────
+
+    /// <summary>
+    /// Trae el proyecto por id (con integraciones Drive/Trello/Clockify). Null si no existe.
+    /// </summary>
+    Task<Proyecto?> ObtenerPorIdOrNullAsync(int proyectoId, CancellationToken ct);
+
+    /// <summary>
+    /// Lista los proyectos activos, ordenados por nombre.
+    /// </summary>
+    Task<IReadOnlyList<Proyecto>> ObtenerActivosAsync(CancellationToken ct);
 }

@@ -3,7 +3,6 @@
 //  Modal para que el Administrador resetee la contrasena de otro usuario.
 //  No pide la pass anterior (el admin no la conoce).
 // ============================================================================
-import React from 'react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { resetearPassword, type UsuarioResponse } from '../login/authApi';
 

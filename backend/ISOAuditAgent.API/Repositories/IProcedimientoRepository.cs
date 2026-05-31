@@ -53,4 +53,18 @@ public interface IProcedimientoRepository
     /// Actualiza un artefacto esperado existente.
     /// </summary>
     Task<ArtefactoEsperado> ActualizarArtefactoAsync(ArtefactoEsperado artefacto);
+
+    // ── Usados por el workflow del orchestrator (portado de dev) ──────────────
+
+    /// <summary>
+    /// Trae todas las etapas de un procedimiento, ordenadas por 'orden'.
+    /// </summary>
+    Task<IReadOnlyList<Etapa>> ObtenerEtapasAsync(int procedimientoId, CancellationToken ct);
+
+    /// <summary>
+    /// Trae TODOS los ArtefactoEsperado del procedimiento con su Etapa cargada
+    /// (Include obligatorio: ResolutorContextoService usa Etapa.Orden).
+    /// </summary>
+    Task<IReadOnlyList<ArtefactoEsperado>> ObtenerArtefactosEsperadosAsync(
+        int procedimientoId, CancellationToken ct);
 }
