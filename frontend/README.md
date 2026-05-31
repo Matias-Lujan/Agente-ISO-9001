@@ -505,7 +505,7 @@ Para poder mostrar las pantallas **funcionando visualmente** sin esperar a que e
 - Listar proyectos y etapas
 - Progreso del workflow
 
-**Lo que está mockeado y se va a conectar más adelante:**
+**Lo que fakta conectar:**
 - Lista de hallazgos
 - Modelo del agente IA configurado
 - Estado de las integraciones (Drive/Trello/Clockify)
@@ -513,68 +513,7 @@ Para poder mostrar las pantallas **funcionando visualmente** sin esperar a que e
 
 ---
 
-## Hot reload y troubleshooting
-
-### Cambios no aparecen
-
-- Vite hace hot reload automático
-- Si no, `Cmd + Shift + R` (Mac) o `Ctrl + Shift + R` (Windows) — refresh forzado
-- Si sigue sin andar, parar el dev server (`Ctrl + C`) y volver a correr `npm run dev`
-
-### Errores de TypeScript
-
-```bash
-npm run lint
-```
-
-Esto corre `tsc --noEmit` y te muestra todos los errores de tipos sin compilar.
-
-### Errores de CORS
-
-Si ves `CORS error` en la consola del browser, el problema NO es del frontend — es que el backend no tiene CORS habilitado para `http://localhost:5173`. Verificá `Program.cs`:
-
-```csharp
-const string CorsPolicyFrontend = "FrontendDev";
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(CorsPolicyFrontend, policy =>
-    {
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
-
-// ... y más abajo:
-app.UseCors(CorsPolicyFrontend);
-```
-
-### Errores 401 después de loguearse
-
-Verificá:
-1. Que el backend esté corriendo (`dotnet run`)
-2. Que la clave JWT esté configurada como user-secret: `dotnet user-secrets list`
-3. Que el usuario exista en la BD y esté `activo = 1`
-4. Que la contraseña BCrypt corresponda — si no, regenerar el hash
-
-### "Cannot find module 'jspdf'"
-
-Falta instalar:
-```bash
-cd frontend
-npm install jspdf
-```
-
-### El sidebar muestra "Sin sesión" después de loguearse
-
-Significa que el `AuthContext` no se está re-rendereando. Probá:
-1. `Cmd + Shift + R`
-2. Verificá en DevTools → Application → Session Storage que existan `token` y `usuario`
-3. Si están, el problema es del componente — revisá que `Sidebar.tsx` esté usando `useAuth()`
-
----
-
-## Próximos pasos sugeridos
+## Próximos pasos 
 
 ### Backend pendiente
 
@@ -591,14 +530,6 @@ Significa que el `AuthContext` no se está re-rendereando. Probá:
 - Notificaciones funcionales (toggles + persistencia)
 - Cuando exista `POST /api/auth/cambiar-password`: agregar formulario en Configuración → Mi perfil
 
-### Mejoras técnicas
-
-- Tests unitarios con Vitest
-- Tests E2E con Playwright
-- Cache de respuestas con React Query / SWR (hoy se vuelve a pedir todo en cada navegación)
-- Skeleton loaders en lugar del simple "Cargando…"
-- Dark mode (los tokens ya están casi listos)
-- i18n (textos hardcodeados en español)
 
 ---
 
@@ -674,6 +605,3 @@ Proyecto académico — BDT Global.
 
 **Branches activos:**
 - `dev` — rama principal de desarrollo
-- `frontend_login` — rama actual del feature de login + pantallas protegidas
-
-**Para reportar bugs o sugerencias:** abrir issue en el repo de GitHub.
