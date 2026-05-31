@@ -60,7 +60,8 @@ public class InformeService
             FechaGeneracion = DateTime.UtcNow,
             // Usamos el enum TipoInforme en lugar del string "automatico"
             Tipo            = TipoInforme.Auto,
-            Contenido       = contenido
+            Contenido       = contenido,
+            Activo          = true
         };
 
         var creado = await _informeRepo.CrearAsync(informe);
@@ -85,7 +86,8 @@ public class InformeService
             AuditoriaId     = request.AuditoriaId,
             FechaGeneracion = DateTime.UtcNow,
             Tipo            = TipoInforme.Manual,
-            Contenido       = contenido
+            Contenido       = contenido,
+            Activo = true
         };
 
         var creado = await _informeRepo.CrearAsync(informe);

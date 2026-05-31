@@ -7,7 +7,8 @@ public class Informe
     public DateTime FechaGeneracion { get; set; }
     public TipoInforme Tipo { get; set; }
     public string Contenido { get; set; } = null!;
- 
+    
+    public bool Activo { get; set; } = true;
     public Auditoria Auditoria { get; set; } = null!;
 }
  

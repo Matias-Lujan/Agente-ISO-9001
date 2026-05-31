@@ -9,6 +9,8 @@ public class Auditoria
     public DateTime FechaInicioUtc { get; set; }
     public DateTime? FechaFinalizacionUtc { get; set; }
     public EstadoAuditoria Estado { get; set; }
+
+    public bool Activo { get; set; } = true;
  
     public Proyecto Proyecto { get; set; } = null!;
     public Usuario Usuario { get; set; } = null!;

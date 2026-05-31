@@ -59,7 +59,8 @@ public class AuditoriaService
             EtapaId        = request.EtapaId,
             FechaInicioUtc = DateTime.UtcNow,
             // Usamos el enum EstadoAuditoria en lugar del string "en_curso"
-            Estado         = EstadoAuditoria.EnCurso
+            Estado         = EstadoAuditoria.EnCurso,
+            Activo = true,
         };
 
         var creada = await _auditoriaRepo.CrearAsync(auditoria);
