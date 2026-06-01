@@ -132,9 +132,11 @@ internal static class ClasificacionResponseParser
                     ArtefactoEsperadoId: hallazgoOriginal.ArtefactoEsperadoId,
                     Tipo: ResolverTipo(tipoStr, hallazgoOriginal.OrigenRegla),
                     Descripcion: hallazgoOriginal.Descripcion,
-                    Justificacion: string.IsNullOrWhiteSpace(justificacionLlm)
+                    Justificacion: hallazgoOriginal.OrigenRegla == OrigenRegla.Procedimiento
                         ? hallazgoOriginal.Justificacion
-                        : justificacionLlm,
+                        : string.IsNullOrWhiteSpace(justificacionLlm)
+                            ? hallazgoOriginal.Justificacion
+                            : justificacionLlm,
                     AgenteOrigen: agenteOrigen);
             }
 

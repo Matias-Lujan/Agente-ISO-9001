@@ -1,22 +1,22 @@
 // ============================================================================
-//  Contrato 2 — Salida de ResolutorContexto (contratos_agentes.md v2.2)
+//  Contrato 2 ï¿½ Salida de ResolutorContexto (contratos_agentes.md v2.2)
 // ----------------------------------------------------------------------------
 //  DTO que produce el nodo determinista ResolutorContexto y consume el agente
 //  DocumentAnalysis. Reemplaza la arista directa que en v2.1 iba de
 //  IniciarAuditoriaWorkflowInput a DocumentAnalysis.
 //
-//  Razón de ser: DocumentAnalysis es un agente LLM. No debe tocar la BD ni
-//  ejecutar cálculos deterministas (comparar orden de etapas, combinar tipo
+//  Razï¿½n de ser: DocumentAnalysis es un agente LLM. No debe tocar la BD ni
+//  ejecutar cï¿½lculos deterministas (comparar orden de etapas, combinar tipo
 //  de proyecto con flags de obligatoriedad, concatenar rutas). Todo eso lo
 //  precalcula ResolutorContexto y lo entrega ya resuelto en este DTO.
 //
 //  Coherente con el principio del proyecto: el plumbing del workflow es
-//  código determinista, no razonamiento de LLM.
+//  cï¿½digo determinista, no razonamiento de LLM.
 //
-//  Los enums ExigibilidadArtefacto y ObligatoriedadArtefacto se definen acá,
+//  Los enums ExigibilidadArtefacto y ObligatoriedadArtefacto se definen acï¿½,
 //  una sola vez, en el namespace de contratos. Son enums PROPIOS del workflow
 //  (no se comparten con las entidades EF); el contrato 3 (ArtefactoExtraido)
-//  los referencia desde acá sin redefinirlos.
+//  los referencia desde acï¿½ sin redefinirlos.
 // ============================================================================
 
 namespace ISOAuditAgent.API.Agents.Contracts;
@@ -26,13 +26,15 @@ namespace ISOAuditAgent.API.Agents.Contracts;
 // ----------------------------------------------------------------------------
 
 /// <summary>
-/// Contexto completo de una auditoría, listo para que DocumentAnalysis trabaje
+/// Contexto completo de una auditorï¿½a, listo para que DocumentAnalysis trabaje
 /// sin consultar la BD. Lo produce ResolutorContexto.
 /// </summary>
 public sealed record ContextoAuditoria(
     int AuditoriaId,
     int ProyectoId,
     int EtapaId,
+    string ProcedimientoCodigo,
+    string ProcedimientoNombre,
     IntegracionesProyecto Integraciones,
     IReadOnlyList<ArtefactoEsperadoContexto> ArtefactosEsperados
 );
@@ -40,7 +42,7 @@ public sealed record ContextoAuditoria(
 /// <summary>
 /// IDs de las integraciones externas del proyecto. Cada uno es nullable: un
 /// proyecto puede no usar todas las herramientas (modelo_bd.md, tabla
-/// Proyecto). DocumentAnalysis usa estos IDs para resolver a qué fuente MCP
+/// Proyecto). DocumentAnalysis usa estos IDs para resolver a quï¿½ fuente MCP
 /// ir a buscar cada artefacto.
 /// </summary>
 public sealed record IntegracionesProyecto(
@@ -50,7 +52,7 @@ public sealed record IntegracionesProyecto(
 );
 
 /// <summary>
-/// Un artefacto que el procedimiento espera, con todos los cálculos
+/// Un artefacto que el procedimiento espera, con todos los cï¿½lculos
 /// deterministas YA resueltos por ResolutorContexto.
 /// </summary>
 public sealed record ArtefactoEsperadoContexto(
@@ -59,7 +61,7 @@ public sealed record ArtefactoEsperadoContexto(
     string NombreArtefacto,          // "ERS", "Cronograma", "Casos de Prueba"
     int EtapaArtefactoId,            // etapa a la que pertenece este artefacto
 
-    // --- Cálculos precalculados por ResolutorContexto ---
+    // --- Cï¿½lculos precalculados por ResolutorContexto ---
 
     /// <summary>
     /// Exigible vs PendienteEtapaFutura. Resuelto comparando el 'orden' de la
@@ -86,12 +88,12 @@ public sealed record ArtefactoEsperadoContexto(
 );
 
 // ----------------------------------------------------------------------------
-//  Enums propios del workflow — definidos una sola vez, acá
+//  Enums propios del workflow ï¿½ definidos una sola vez, acï¿½
 // ----------------------------------------------------------------------------
 
 /// <summary>
 /// Indica si un artefacto declarado en el procedimiento es exigible en la
-/// auditoría actual o si pertenece a una etapa futura del proyecto.
+/// auditorï¿½a actual o si pertenece a una etapa futura del proyecto.
 /// </summary>
 public enum ExigibilidadArtefacto
 {
