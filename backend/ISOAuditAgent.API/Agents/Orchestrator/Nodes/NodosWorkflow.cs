@@ -34,6 +34,7 @@
 
 using ISOAuditAgent.API.Agents.Contracts;
 using ISOAuditAgent.API.Models;
+using ISOAuditAgent.API.Services;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using ISOAuditAgent.API.Agents.FindingsClassification;
@@ -103,17 +104,20 @@ public sealed class DocumentAnalysisNode
 {
     private readonly ITailoringSource _tailoringSource;
     private readonly IArtefactoFisicoChecker _artefactoChecker;
+    private readonly IAuditoriaProgresoTracker _tracker;
     private readonly ILogger<DocumentAnalysisNode> _logger;
 
     public DocumentAnalysisNode(
         AIAgent agente,
         ITailoringSource tailoringSource,
         IArtefactoFisicoChecker artefactoChecker,
+        IAuditoriaProgresoTracker tracker,
         ILogger<DocumentAnalysisNode> logger)
         : base("DocumentAnalysis", agente)
     {
         _tailoringSource = tailoringSource;
         _artefactoChecker = artefactoChecker;
+        _tracker = tracker;
         _logger = logger;
     }
 
@@ -130,6 +134,29 @@ public sealed class DocumentAnalysisNode
             );
         //-------------------------------------
 
+        await _tracker.MarcarEnCursoAsync(
+            message.AuditoriaId, NodoWorkflow.DocumentAnalysis, ct);
+
+        try
+        {
+            var resultado = await EjecutarAsync(message, ct);
+
+            await _tracker.MarcarCompletadoAsync(
+                message.AuditoriaId, NodoWorkflow.DocumentAnalysis, ct);
+
+            return resultado;
+        }
+        catch
+        {
+            await _tracker.MarcarFallidoAsync(
+                message.AuditoriaId, NodoWorkflow.DocumentAnalysis, CancellationToken.None);
+            throw;
+        }
+    }
+
+    private async Task<DocumentosExtraidos> EjecutarAsync(
+        ContextoAuditoria message, CancellationToken ct)
+    {
         // 1. PRE-LLM async: descargar el FR-29 del Drive del proyecto.
         var driveFolderId = message.Integraciones.DriveFolderId;
         if (string.IsNullOrWhiteSpace(driveFolderId))
@@ -367,8 +394,34 @@ public sealed class DocumentAnalysisNode
 public sealed class ComplianceValidationNode
     : AgenteExecutorBase<DocumentosExtraidos, HallazgosPreliminares>
 {
-    public ComplianceValidationNode(AIAgent agente)
-        : base("ComplianceValidation", agente) { }
+    private readonly IAuditoriaProgresoTracker _tracker;
+
+    public ComplianceValidationNode(AIAgent agente, IAuditoriaProgresoTracker tracker)
+        : base("ComplianceValidation", agente)
+    {
+        _tracker = tracker;
+    }
+
+    public override async ValueTask<HallazgosPreliminares> HandleAsync(
+        DocumentosExtraidos message, IWorkflowContext context, CancellationToken ct = default)
+    {
+        await _tracker.MarcarEnCursoAsync(
+            message.AuditoriaId, NodoWorkflow.ComplianceValidation, ct);
+
+        try
+        {
+            var resultado = await base.HandleAsync(message, context, ct);
+            await _tracker.MarcarCompletadoAsync(
+                message.AuditoriaId, NodoWorkflow.ComplianceValidation, ct);
+            return resultado;
+        }
+        catch
+        {
+            await _tracker.MarcarFallidoAsync(
+                message.AuditoriaId, NodoWorkflow.ComplianceValidation, CancellationToken.None);
+            throw;
+        }
+    }
 
     protected override string ConstruirPrompt(DocumentosExtraidos input)
     {
@@ -463,8 +516,34 @@ public sealed class ComplianceValidationNode
 public sealed class ConsistencyVerificationNode
     : AgenteExecutorBase<DocumentosExtraidos, HallazgosPreliminares>
 {
-    public ConsistencyVerificationNode(AIAgent agente)
-        : base("ConsistencyVerification", agente) { }
+    private readonly IAuditoriaProgresoTracker _tracker;
+
+    public ConsistencyVerificationNode(AIAgent agente, IAuditoriaProgresoTracker tracker)
+        : base("ConsistencyVerification", agente)
+    {
+        _tracker = tracker;
+    }
+
+    public override async ValueTask<HallazgosPreliminares> HandleAsync(
+        DocumentosExtraidos message, IWorkflowContext context, CancellationToken ct = default)
+    {
+        await _tracker.MarcarEnCursoAsync(
+            message.AuditoriaId, NodoWorkflow.ConsistencyVerification, ct);
+
+        try
+        {
+            var resultado = await base.HandleAsync(message, context, ct);
+            await _tracker.MarcarCompletadoAsync(
+                message.AuditoriaId, NodoWorkflow.ConsistencyVerification, ct);
+            return resultado;
+        }
+        catch
+        {
+            await _tracker.MarcarFallidoAsync(
+                message.AuditoriaId, NodoWorkflow.ConsistencyVerification, CancellationToken.None);
+            throw;
+        }
+    }
 
     protected override string ConstruirPrompt(DocumentosExtraidos input)
     {
@@ -614,16 +693,18 @@ public sealed class ConsistencyVerificationNode
 public sealed partial class FindingsClassificationNode : Executor
 {
     private readonly AIAgent _agente;
+    private readonly IAuditoriaProgresoTracker _tracker;
 
     // Los tres elementos a cachear antes de poder clasificar.
     private DocumentosExtraidos? _contextoDocumentos;
     private HallazgosPreliminares? _hallazgosCompliance;
     private HallazgosPreliminares? _hallazgosConsistency;
 
-    public FindingsClassificationNode(AIAgent agente)
+    public FindingsClassificationNode(AIAgent agente, IAuditoriaProgresoTracker tracker)
         : base("FindingsClassification")
     {
         _agente = agente;
+        _tracker = tracker;
     }
 
     // --- Entrada A: contexto, por edge directo desde DocumentAnalysis -------
@@ -711,30 +792,47 @@ public sealed partial class FindingsClassificationNode : Executor
 
         var lotes = new[] { _hallazgosCompliance, _hallazgosConsistency };
 
-        // 1. Prompt de clasificación.
-        string prompt = ConstruirPrompt(lotes);
+        await _tracker.MarcarEnCursoAsync(
+            idContexto, NodoWorkflow.FindingsClassification, CancellationToken.None);
 
-        // 2 + 3. El LLM clasifica.
-        // El handler actual no propaga CancellationToken hasta este punto.
-        var respuesta = await _agente.RunAsync(prompt);
-        string textoLlm = respuesta.Text ?? string.Empty;
+        try
+        {
+            // 1. Prompt de clasificación.
+            string prompt = ConstruirPrompt(lotes);
 
-        // 4. Parsear la clasificación.
-        HallazgosClasificados clasificacion = ParsearRespuesta(lotes, textoLlm);
+            // 2 + 3. El LLM clasifica.
+            // El handler actual no propaga CancellationToken hasta este punto.
+            var respuesta = await _agente.RunAsync(prompt);
+            string textoLlm = respuesta.Text ?? string.Empty;
 
-        // 5. Combinar con el contexto conservado (no pasó por el LLM).
-        var salida = new ResultadoClasificacionConContexto(
-            Clasificacion: clasificacion,
-            ContextoDocumentos: _contextoDocumentos);
+            // 4. Parsear la clasificación.
+            HallazgosClasificados clasificacion = ParsearRespuesta(lotes, textoLlm);
 
-        Console.WriteLine($"NODE FindingsClassification FIN auditoria={salida.Clasificacion.AuditoriaId} hallazgos={salida.Clasificacion.Hallazgos.Count}");//test
+            // 5. Combinar con el contexto conservado (no pasó por el LLM).
+            var salida = new ResultadoClasificacionConContexto(
+                Clasificacion: clasificacion,
+                ContextoDocumentos: _contextoDocumentos);
 
-        await context.SendMessageAsync(salida, CancellationToken.None);
+            Console.WriteLine($"NODE FindingsClassification FIN auditoria={salida.Clasificacion.AuditoriaId} hallazgos={salida.Clasificacion.Hallazgos.Count}");//test
 
-        // Higiene defensiva: liberar el estado cacheado.
-        _contextoDocumentos = null;
-        _hallazgosCompliance = null;
-        _hallazgosConsistency = null;
+            await context.SendMessageAsync(salida, CancellationToken.None);
+
+            await _tracker.MarcarCompletadoAsync(
+                idContexto, NodoWorkflow.FindingsClassification, CancellationToken.None);
+        }
+        catch
+        {
+            await _tracker.MarcarFallidoAsync(
+                idContexto, NodoWorkflow.FindingsClassification, CancellationToken.None);
+            throw;
+        }
+        finally
+        {
+            // Higiene defensiva: liberar el estado cacheado.
+            _contextoDocumentos = null;
+            _hallazgosCompliance = null;
+            _hallazgosConsistency = null;
+        }
     }
 
     private string ConstruirPrompt(IReadOnlyList<HallazgosPreliminares> hallazgos)

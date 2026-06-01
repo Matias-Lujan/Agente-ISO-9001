@@ -4,6 +4,7 @@ using ISOAuditAgent.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ISOAuditAgent.API.Migrations
 {
     [DbContext(typeof(ISOAuditAgentDbContext))]
-    partial class ISOAuditAgentDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260527234012_AddAuditoriaProgreso")]
+    partial class AddAuditoriaProgreso
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -227,6 +230,15 @@ namespace ISOAuditAgent.API.Migrations
                         .IsUnique();
 
                     b.ToTable("configuraciones_sistema");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Clave = "path_carpeta_templates",
+                            Descripcion = "Ruta de la carpeta de templates de artefactos. Configurable por entorno: reemplazar el valor por la ruta real donde el deployment aloja los templates.",
+                            Valor = "./templates"
+                        });
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.DocumentoAnalizado", b =>

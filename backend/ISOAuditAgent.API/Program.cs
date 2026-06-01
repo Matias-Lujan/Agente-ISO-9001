@@ -1,6 +1,7 @@
 ﻿using ISOAuditAgent.API.Data;
 using Microsoft.EntityFrameworkCore;
 using ISOAuditAgent.API.Repositories;
+using ISOAuditAgent.API.Services;
 using ISOAuditAgent.API.Agents.Orchestrator;
 using ISOAuditAgent.API.Integrations.MCP.Drive;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Drive;
@@ -17,6 +18,24 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+// --- CORS: permitir al frontend Vite (dev) hablar con la API ---
+// El dev server de Vite corre en localhost:5173. En producción la API y el
+// frontend se sirven detrás del mismo origen, así que esta política es solo
+// para desarrollo. Si se despliega con un dominio distinto, agregar el
+// origen acá o leerlo de configuración.
+const string CorsPolicyFrontend = "FrontendDev";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyFrontend, policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+// --------------------------------------------------------------
 
 // --- Registro del DbContext con el provider de MySQL ---
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -36,8 +55,16 @@ builder.Services.AddScoped<IAuditoriaRepository, AuditoriaRepository>();
 builder.Services.AddScoped<IArtefactoEvaluadoRepository, ArtefactoEvaluadoRepository>();
 builder.Services.AddScoped<IHallazgoRepository, HallazgoRepository>();
 builder.Services.AddScoped<IDocumentoAnalizadoRepository, DocumentoAnalizadoRepository>();
+builder.Services.AddScoped<IAuditoriaProgresoRepository, AuditoriaProgresoRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 // -----------------------------------------------
+
+// --- Tracker del progreso del workflow ---
+// Singleton: usa IServiceScopeFactory para crear su propio DbContext por
+// operación, así que no captura un DbContext Scoped (sería un anti-patrón).
+// Lo consumen los 4 nodos LLM del orquestador y el AuditoriaRunner.
+builder.Services.AddSingleton<IAuditoriaProgresoTracker, AuditoriaProgresoTracker>();
+// -----------------------------------------
 
 // --- Registro de servicios deterministas del orquestador ---
 // AuditoriaPersistenceService: depende del UoW + 4 repos (todos Scoped),
@@ -74,6 +101,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// --- CORS: aplicar la política antes de mapear endpoints ---
+app.UseCors(CorsPolicyFrontend);
+// -----------------------------------------------------------
 
 // --- D3.1: Montaje del server MCP de Drive en /mcp/drive ---
 app.MapMcp("/mcp/drive");
@@ -553,6 +584,10 @@ app.MapGet("/api/_smoke/auditorias/{id:int}/resultado",
 // --- D6: Endpoints REST reales del workflow ---
 app.MapAuditoriaEndpoints();
 // ----------------------------------------------
+
+// --- Endpoints de metadata para el frontend (proyectos / etapas) ---
+app.MapMetadataEndpoints();
+// -------------------------------------------------------------------
 
 
 var summaries = new[]

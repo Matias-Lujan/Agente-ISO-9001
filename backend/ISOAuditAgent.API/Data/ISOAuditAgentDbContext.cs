@@ -22,13 +22,14 @@ public class ISOAuditAgentDbContext : DbContext
     public DbSet<DocumentoAnalizado> DocumentosAnalizados => Set<DocumentoAnalizado>();
     public DbSet<Informe> Informes => Set<Informe>();
     public DbSet<ConfiguracionSistema> ConfiguracionesSistema => Set<ConfiguracionSistema>();
+    public DbSet<AuditoriaProgreso> AuditoriaProgresos => Set<AuditoriaProgreso>();
 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
-        // === Convención global: snake_case para tablas y columnas ===
+        // === Convenciï¿½n global: snake_case para tablas y columnas ===
         foreach (var entity in modelBuilder.Model.GetEntityTypes())
         {
             entity.SetTableName(ToSnakeCase(entity.GetTableName()!));
@@ -39,7 +40,7 @@ public class ISOAuditAgentDbContext : DbContext
             }
         }
 
-        // === Enums guardados como texto (en lugar de número) ===
+        // === Enums guardados como texto (en lugar de nï¿½mero) ===
         modelBuilder.Entity<Usuario>()
             .Property(u => u.Rol).HasConversion<string>().HasMaxLength(20);
         modelBuilder.Entity<Proyecto>()
@@ -56,8 +57,14 @@ public class ISOAuditAgentDbContext : DbContext
             .Property(d => d.Fuente).HasConversion<string>().HasMaxLength(20);
         modelBuilder.Entity<Informe>()
             .Property(i => i.Tipo).HasConversion<string>().HasMaxLength(10);
+        modelBuilder.Entity<AuditoriaProgreso>()
+            .Property(p => p.Nodo).HasConversion<string>().HasMaxLength(40);
+        modelBuilder.Entity<AuditoriaProgreso>()
+            .Property(p => p.Estado).HasConversion<string>().HasMaxLength(20);
+        modelBuilder.Entity<AuditoriaProgreso>()
+            .HasIndex(p => new { p.AuditoriaId, p.Nodo }).IsUnique();
 
-        // === Índices únicos ===
+        // === ï¿½ndices ï¿½nicos ===
         modelBuilder.Entity<Usuario>()
             .HasIndex(u => u.Email).IsUnique();
         modelBuilder.Entity<Procedimiento>()

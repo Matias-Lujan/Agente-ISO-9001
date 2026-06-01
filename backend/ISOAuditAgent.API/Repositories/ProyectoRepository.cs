@@ -31,4 +31,13 @@ public sealed class ProyectoRepository : IProyectoRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == proyectoId, ct);
     }
+
+    public async Task<IReadOnlyList<Proyecto>> ObtenerActivosAsync(CancellationToken ct)
+    {
+        return await _context.Proyectos
+            .AsNoTracking()
+            .Where(p => p.Activo)
+            .OrderBy(p => p.Nombre)
+            .ToListAsync(ct);
+    }
 }
