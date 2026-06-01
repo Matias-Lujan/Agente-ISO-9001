@@ -28,16 +28,32 @@ type Tab = 'perfil' | 'notif' | 'integ' | 'agente';
 export default function Configuracion() {
   useInjectStyle(configuracionCss, 'configuracion-style');
 
-  const { usuario } = useAuth();
+  const { usuario, cambiarTema } = useAuth();
   const [tab, setTab] = useState<Tab>('perfil');
 
   const inicial = usuario?.nombre?.trim().charAt(0).toUpperCase() ?? '—';
+  const esOscuro = usuario?.tema === 'oscuro';
 
   return (
     <>
       <div className="cfg-header">
-        <h1 className="cfg-header-title">Configuración</h1>
-        <p className="cfg-header-sub">Preferencias de tu cuenta y del sistema de auditoría</p>
+        <div>
+          <h1 className="cfg-header-title">Configuración</h1>
+          <p className="cfg-header-sub">Preferencias de tu cuenta y del sistema de auditoría</p>
+        </div>
+
+        {/* Switch modo oscuro — preferencia por usuario, se persiste en la BD */}
+        <button
+          type="button"
+          className="cfg-theme"
+          role="switch"
+          aria-checked={esOscuro}
+          aria-label="Modo oscuro"
+          onClick={() => cambiarTema(esOscuro ? 'claro' : 'oscuro')}
+        >
+          <span className="cfg-theme-label">Modo oscuro</span>
+          <span className={`cfg-switch${esOscuro ? ' on' : ''}`} />
+        </button>
       </div>
 
       <div className="cfg-tabs">

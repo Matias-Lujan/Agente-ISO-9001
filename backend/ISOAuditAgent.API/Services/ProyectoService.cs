@@ -48,7 +48,7 @@ public class ProyectoService
     {
         // Parseamos el string del tipo al enum TipoProyecto
         if (!Enum.TryParse<TipoProyecto>(request.TipoProyecto, out var tipoEnum))
-            throw new ArgumentException($"Tipo de proyecto invalido: {request.TipoProyecto}. Debe ser A o B.");
+            throw new ArgumentException($"Tipo de proyecto inválido: {request.TipoProyecto}. Debe ser A o B.");
 
         var proyecto = new Proyecto
         {
@@ -93,7 +93,7 @@ public class ProyectoService
         if (request.TipoProyecto != null)
         {
             if (!Enum.TryParse<TipoProyecto>(request.TipoProyecto, out var tipoEnum))
-                throw new ArgumentException($"Tipo de proyecto invalido: {request.TipoProyecto}");
+                throw new ArgumentException($"Tipo de proyecto inválido: {request.TipoProyecto}");
             proyecto.TipoProyecto = tipoEnum;
         }
 
@@ -141,7 +141,8 @@ public class ProyectoService
                     // Convertimos el enum a string para el DTO
                     usuario.Rol.ToString(),
                     usuario.Activo,
-                    usuario.FechaCreacion));
+                    usuario.FechaCreacion,
+                    usuario.TemaPreferido.ToString().ToLowerInvariant()));
         }
 
         return responsables;

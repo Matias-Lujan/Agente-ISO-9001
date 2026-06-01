@@ -9,6 +9,7 @@ public class Usuario
     public RolUsuario Rol { get; set; }
     public bool Activo { get; set; }
     public DateTime FechaCreacion { get; set; }
+    public TemaPreferido TemaPreferido { get; set; } = TemaPreferido.Claro;
  
     public ICollection<ProyectoUsuario> ProyectoUsuarios { get; set; } = new List<ProyectoUsuario>();
     public ICollection<Auditoria> Auditorias { get; set; } = new List<Auditoria>();

@@ -100,13 +100,8 @@ export default function NuevaAuditoria() {
 
       {auditoriaId === null ? (
         <>
+          <div className="section-title">Selección de proyecto</div>
           <div className="card">
-            <div className="card-title">
-              <svg viewBox="0 0 16 16" fill="none">
-                <path d="M2 4h12M2 8h12M2 12h7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-              </svg>
-              Selección de proyecto
-            </div>
             <div className="field-row">
               <div className="field">
                 <label>Proyecto a auditar</label>
@@ -153,13 +148,8 @@ export default function NuevaAuditoria() {
             </div>
           </div>
 
+          <div className="section-title">Resumen antes de ejecutar</div>
           <div className="card">
-            <div className="card-title">
-              <svg viewBox="0 0 16 16" fill="none">
-                <path d="M13 4L6 11l-3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Resumen antes de ejecutar
-            </div>
             <div className="resumen-box">
               <div className="res-row">
                 <span className="res-key">Proyecto</span>

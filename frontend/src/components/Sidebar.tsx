@@ -3,13 +3,14 @@
 //  Sidebar fija a la izquierda.
 //
 //  Cambios:
-//   - Bloque .sb-user con datos del usuario logueado + boton logout.
+//   - El bloque .sb-user (usuario logueado) es clickeable y abre Configuración,
+//     con el mismo hover/activo que el resto de los items del sidebar.
+//   - "Cerrar sesión" va al fondo (donde antes estaba Configuración).
 //   - "Hallazgos" HABILITADO como NavLink.
 //   - "Usuarios" SOLO visible si el rol es Administrador.
-//   - "Configuracion" HABILITADO al fondo (margin-top:auto).
-//   - Dashboard / Proyectos / Informes siguen deshabilitados.
+//   - Proyectos / Informes siguen deshabilitados.
 // ============================================================================
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../login/AuthContext';
 
 export default function Sidebar() {
@@ -35,12 +36,16 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="sb-logo">
+      <Link to="/dashboard" className="sb-logo" title="Ir al dashboard">
         <img src="/logo15horizontal-min.png" alt="bdtglobal" />
-      </div>
+      </Link>
 
-      {/* Bloque de usuario logueado */}
-      <div className="sb-user">
+      {/* Bloque de usuario logueado → abre Configuración (como un item más) */}
+      <NavLink
+        to="/configuracion"
+        className={`sb-user${isConfigActive ? ' active' : ''}`}
+        title="Configuración"
+      >
         <div className="sb-avatar">{inicial}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
@@ -51,25 +56,7 @@ export default function Sidebar() {
           </div>
           <div className="sb-role">{usuario?.rol ?? ''}</div>
         </div>
-        {usuario && (
-          <button
-            onClick={handleLogout}
-            title="Cerrar sesión"
-            style={{
-              background: 'transparent',
-              border: '0.5px solid rgba(255,255,255,0.2)',
-              color: 'rgba(255,255,255,0.7)',
-              borderRadius: 6,
-              padding: '4px 6px',
-              fontSize: 11,
-              cursor: 'pointer',
-            }}
-            type="button"
-          >
-            ⎋
-          </button>
-        )}
-      </div>
+      </NavLink>
 
       <NavLink
         to="/dashboard"
@@ -138,23 +125,27 @@ export default function Sidebar() {
         </NavLink>
       )}
 
-      {/* CONFIGURACION — al fondo, separado del resto */}
-      <NavLink
-        to="/configuracion"
-        className={`nav-item clickable${isConfigActive ? ' active' : ''}`}
-        style={{ marginTop: 'auto' }}
+      {/* CERRAR SESIÓN — al fondo, separado del resto */}
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="nav-item clickable"
+        style={{
+          marginTop: 'auto',
+          background: 'transparent',
+          border: 'none',
+          width: '100%',
+          textAlign: 'left',
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+        }}
       >
         <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
-          <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.2" />
-          <path
-            d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M11.4 3.2l-1.4 1.4M4.6 11.4l-1.4 1.4"
-            stroke="currentColor"
-            strokeWidth="1.2"
-            strokeLinecap="round"
-          />
+          <path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <path d="M10 11l3-3-3-3M13 8H6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        Configuración
-      </NavLink>
+        Cerrar sesión
+      </button>
     </aside>
   );
 }

@@ -27,8 +27,14 @@ interface Props {
 }
 
 export default function ProtectedRoute({ children, requiereRol }: Props) {
-  const { estaAutenticado, usuario } = useAuth();
+  const { estaAutenticado, usuario, verificandoSesion } = useAuth();
   const location = useLocation();
+
+  // Mientras se verifica la cookie de sesion (GET /api/auth/me al montar), no
+  // decidimos nada para no rebotar al login antes de saber si hay sesion.
+  if (verificandoSesion) {
+    return <div className="loading-text">Verificando sesión…</div>;
+  }
 
   // No autenticado → al login
   if (!estaAutenticado || !usuario) {
@@ -39,7 +45,7 @@ export default function ProtectedRoute({ children, requiereRol }: Props) {
   if (requiereRol) {
     const rolesPermitidos = Array.isArray(requiereRol) ? requiereRol : [requiereRol];
     if (!rolesPermitidos.includes(usuario.rol)) {
-      return <Navigate to="/nueva-auditoria" replace />;
+      return <Navigate to="/dashboard" replace />;
     }
   }
 

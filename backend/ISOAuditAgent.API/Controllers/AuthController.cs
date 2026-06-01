@@ -54,7 +54,41 @@ public class AuthController : ControllerBase
         if (resultado == null)
             return Unauthorized(new { mensaje = "Credenciales incorrectas" });
 
-        return Ok(resultado);
+        // El JWT se guarda en una cookie HttpOnly: el JavaScript del cliente NO
+        // puede leerla (mitiga XSS) y el browser la manda sola en cada request.
+        Response.Cookies.Append("auth_token", resultado.Token, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure   = true,                 // solo por HTTPS (localhost es secure context)
+            SameSite = SameSiteMode.Strict,  // mitiga CSRF
+            Expires  = resultado.Expiracion,
+        });
+
+        // El token NO viaja en el body — vive solo en la cookie.
+        return Ok(new
+        {
+            resultado.Nombre,
+            resultado.Email,
+            resultado.Rol,
+            resultado.Expiracion,
+        });
+    }
+
+    /// <summary>
+    /// Cierra la sesion borrando la cookie del JWT. Endpoint publico:
+    /// borrar la cookie es inofensivo aunque no haya sesion.
+    /// </summary>
+    [HttpPost("logout")]
+    [AllowAnonymous]
+    public IActionResult Logout()
+    {
+        Response.Cookies.Delete("auth_token", new CookieOptions
+        {
+            HttpOnly = true,
+            Secure   = true,
+            SameSite = SameSiteMode.Strict,
+        });
+        return Ok(new { mensaje = "Sesión cerrada" });
     }
 
     // ── PERFIL DEL USUARIO AUTENTICADO ────────────────────────────────────────
@@ -78,6 +112,31 @@ public class AuthController : ControllerBase
         return Ok(perfil);
     }
 
+    /// <summary>
+    /// Actualiza la preferencia de tema (claro/oscuro) del usuario logueado.
+    /// El id sale del JWT — cada usuario solo cambia el suyo.
+    /// </summary>
+    [HttpPut("me/tema")]
+    [Authorize]
+    public async Task<IActionResult> ActualizarTema([FromBody] ActualizarTemaRequest request)
+    {
+        var idClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (idClaim == null || !int.TryParse(idClaim, out var id))
+            return Unauthorized();
+
+        try
+        {
+            var ok = await _authService.ActualizarTemaAsync(id, request.Tema);
+            if (!ok)
+                return NotFound();
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
+
     // ── GESTION DE USUARIOS (solo Administrador) ──────────────────────────────
 
     /// <summary>
@@ -88,7 +147,6 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ObtenerUsuarios()
     {
         _logger.LogInformation("Solicitud recibida en /api/auth/usuarios");
-        Console.WriteLine("Solicitud recibida en /api/auth/usuarios");
 
         var usuarios = await _authService.ObtenerTodosAsync();
         return Ok(usuarios);

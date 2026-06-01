@@ -49,7 +49,7 @@ public class InformeService
     public async Task<InformeResponse> GenerarAutomaticoAsync(int auditoriaId)
     {
         var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(auditoriaId)
-            ?? throw new InvalidOperationException($"Auditoria con ID {auditoriaId} no encontrada");
+            ?? throw new InvalidOperationException($"Auditoría con ID {auditoriaId} no encontrada");
 
         var proyecto = await _proyectoRepo.ObtenerPorIdAsync(auditoria.ProyectoId);
         var contenido = GenerarContenido(auditoria, proyecto?.Nombre ?? "Proyecto no encontrado");
@@ -72,7 +72,7 @@ public class InformeService
     public async Task<InformeResponse> GenerarManualAsync(GenerarInformeRequest request)
     {
         var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(request.AuditoriaId)
-            ?? throw new InvalidOperationException($"Auditoria con ID {request.AuditoriaId} no encontrada");
+            ?? throw new InvalidOperationException($"Auditoría con ID {request.AuditoriaId} no encontrada");
 
         // Solo se puede generar informe de auditorias completadas
         if (auditoria.Estado != EstadoAuditoria.Completada)

@@ -281,14 +281,14 @@ export default function Login() {
   useEffect(() => {
     if (estaAutenticado) {
       const state = location.state as LocationState | null;
-      const destino = state?.from?.pathname ?? '/nueva-auditoria';
+      const destino = state?.from?.pathname ?? '/dashboard';
       navigate(destino, { replace: true });
     }
   }, [estaAutenticado, navigate, location]);
 
   const handleLoginSuccess = () => {
     const state = location.state as LocationState | null;
-    const destino = state?.from?.pathname ?? '/nueva-auditoria';
+    const destino = state?.from?.pathname ?? '/dashboard';
     navigate(destino, { replace: true });
   };
 

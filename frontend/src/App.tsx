@@ -9,12 +9,12 @@
 //   - /hallazgos          Protegida — cualquier rol autenticado
 //   - /configuracion      Protegida — cualquier rol autenticado
 //   - /usuarios           Protegida — SOLO Administrador (ABM)
-//   - *                   Redirige a /nueva-auditoria
+//   - *                   Redirige a /dashboard (pantalla default)
 // ============================================================================
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import Sidebar from './components/Sidebar';
-import AuditoriaDashboardScreen from './screens/AuditoriaDashboardScreen';
+import Dashboard from './screens/Dashboard';
 import NuevaAuditoria from './screens/NuevaAuditoria';
 import Hallazgos from './screens/Hallazgos';
 import Configuracion from './screens/Configuracion';
@@ -52,7 +52,7 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <ShellLayout>
-                  <AuditoriaDashboardScreen />
+                  <Dashboard />
                 </ShellLayout>
               </ProtectedRoute>
             }
@@ -101,7 +101,7 @@ export default function App() {
           />
 
           {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/nueva-auditoria" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

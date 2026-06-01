@@ -130,12 +130,12 @@ export default function Usuarios() {
         <div>
           <h1 className="us-header-title">Usuarios</h1>
           <p className="us-header-sub">
-            Gestión de cuentas del sistema — solo Administradores
+            Gestión de cuentas del sistema — Solo Administradores
           </p>
         </div>
         <button
           type="button"
-          className="us-new-btn"
+          className="btn-pri"
           onClick={() => setModalCrear(true)}
         >
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
@@ -280,9 +280,9 @@ export default function Usuarios() {
                           className="us-action-btn"
                           onClick={() => setModalResetPass(u)}
                           disabled={procesando}
-                          title="Resetear contraseña"
+                          title="Restablecer contraseña"
                         >
-                          Resetear pass
+                          Restablecer
                         </button>
                         <button
                           type="button"

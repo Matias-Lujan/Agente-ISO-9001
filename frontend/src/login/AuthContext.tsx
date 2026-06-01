@@ -1,25 +1,35 @@
 // ============================================================================
 //  Contexto global de autenticacion.
 //
-//  Persistencia: sessionStorage. Se borra al cerrar el browser (mas seguro
-//  que localStorage para credenciales).
+//  El JWT NO se guarda en el cliente: vive en una cookie HttpOnly que setea el
+//  backend en /api/auth/login. El JS no puede leerla (mitiga XSS) y el browser
+//  la manda sola en cada request (credentials:'include' en api/client.ts).
 //
-//  ⚠️ Nota: el id NO viene en LoginResponse — se obtiene haciendo GET /api/auth/me
-//  inmediatamente despues del login. Necesitamos el id para el ABM
-//  (saber que NO podes desactivarte a vos mismo, por ejemplo).
+//  Como el frontend no tiene el token ni los datos del usuario en storage, al
+//  montar consulta GET /api/auth/me: si la cookie es valida, devuelve el perfil
+//  y quedamos autenticados; si no, 401 y quedamos deslogueados.
+//
+//  Tema (claro/oscuro): es una preferencia POR USUARIO que vive en la BD. El
+//  perfil la trae en `tema`; al cambiarla se persiste con PUT /api/auth/me/tema
+//  y se aplica con el atributo data-theme en <html>. Cada usuario recupera su
+//  preferencia al loguearse. Se cachea en localStorage solo para evitar el
+//  parpadeo claro→oscuro al recargar (no es dato sensible).
 // ============================================================================
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from 'react';
 import {
   login as apiLogin,
+  logout as apiLogout,
   obtenerPerfil,
-  type LoginResponse,
+  guardarTema,
   type Rol,
+  type Tema,
 } from './authApi';
 
 interface UsuarioSesion {
@@ -27,34 +37,56 @@ interface UsuarioSesion {
   nombre: string;
   email: string;
   rol: Rol;
-  expiracion: string;
+  tema: Tema;
 }
 
 interface AuthContextValue {
   usuario: UsuarioSesion | null;
   estaAutenticado: boolean;
-  cargando: boolean;
+  cargando: boolean;          // login en progreso
+  verificandoSesion: boolean; // chequeo inicial de la cookie al montar
   error: string;
   iniciarSesion: (email: string, password: string) => Promise<{ ok: boolean }>;
   cerrarSesion: () => void;
+  cambiarTema: (tema: Tema) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// Helper para leer la sesion inicial sin romper si JSON.parse falla
-function leerSesionInicial(): UsuarioSesion | null {
-  try {
-    const guardado = sessionStorage.getItem('usuario');
-    return guardado ? (JSON.parse(guardado) as UsuarioSesion) : null;
-  } catch {
-    return null;
-  }
+// Aplica el tema al documento (data-theme en <html>) y lo cachea para el
+// próximo arranque. CSS usa [data-theme="dark"] para el modo oscuro.
+function aplicarTema(tema: Tema) {
+  document.documentElement.setAttribute('data-theme', tema === 'oscuro' ? 'dark' : 'light');
+  try { localStorage.setItem('tema', tema); } catch { /* storage no disponible */ }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [usuario, setUsuario] = useState<UsuarioSesion | null>(leerSesionInicial);
+  const [usuario, setUsuario] = useState<UsuarioSesion | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
   const [error, setError] = useState('');
+
+  // Al montar: ¿hay sesion activa? Lo dice la cookie via GET /api/auth/me.
+  useEffect(() => {
+    let activo = true;
+    obtenerPerfil()
+      .then((p) => {
+        if (activo) setUsuario({ id: p.id, nombre: p.nombre, email: p.email, rol: p.rol, tema: p.tema });
+      })
+      .catch(() => {
+        if (activo) setUsuario(null);
+      })
+      .finally(() => {
+        if (activo) setVerificandoSesion(false);
+      });
+    return () => { activo = false; };
+  }, []);
+
+  // Aplica el tema cuando cambia (login, recarga de perfil, toggle). Sin sesión
+  // → claro (el login siempre se ve claro).
+  useEffect(() => {
+    aplicarTema(usuario?.tema ?? 'claro');
+  }, [usuario?.tema]);
 
   const iniciarSesion = useCallback(
     async (email: string, password: string): Promise<{ ok: boolean }> => {
@@ -62,32 +94,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError('');
 
       try {
-        // 1. Login — guardamos el token primero
-        const resp: LoginResponse = await apiLogin({ email, password });
-        sessionStorage.setItem('token', resp.token);
+        // 1. Login: el backend valida y setea la cookie HttpOnly con el JWT.
+        await apiLogin({ email, password });
 
-        // 2. Inmediatamente despues, GET /api/auth/me para obtener el id
-        //    (el LoginResponse no lo trae)
+        // 2. Con la cookie ya puesta, traemos el perfil completo (incluye id y tema).
         const perfil = await obtenerPerfil();
-
-        const datos: UsuarioSesion = {
-          id: perfil.id,
-          nombre: resp.nombre,
-          email: resp.email,
-          rol: resp.rol,
-          expiracion: resp.expiracion,
-        };
-        sessionStorage.setItem('usuario', JSON.stringify(datos));
-
-        setUsuario(datos);
+        setUsuario({ id: perfil.id, nombre: perfil.nombre, email: perfil.email, rol: perfil.rol, tema: perfil.tema });
         return { ok: true };
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Credenciales incorrectas';
-        // El backend devuelve "401 Unauthorized — Credenciales incorrectas"
-        // Limpiamos el prefijo del status code para una UX mas linda.
+        // El backend devuelve "401 Unauthorized — Credenciales incorrectas":
+        // limpiamos el prefijo del status code para una UX mas linda.
         setError(msg.replace(/^\d+\s+\w+\s+—\s+/, ''));
-        // Si fallo el /me despues del login, limpiar el token
-        sessionStorage.removeItem('token');
+        setUsuario(null);
         return { ok: false };
       } finally {
         setCargando(false);
@@ -97,19 +116,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const cerrarSesion = useCallback(() => {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('usuario');
+    // Borra la cookie en el server; no esperamos la respuesta para limpiar la UI.
+    apiLogout().catch(() => {});
     setUsuario(null);
     setError('');
+  }, []);
+
+  // Cambia el tema de forma optimista (UI instantánea) y lo persiste en la BD.
+  // Si la persistencia falla, revierte.
+  const cambiarTema = useCallback((nuevo: Tema) => {
+    setUsuario((prev) => (prev ? { ...prev, tema: nuevo } : prev));
+    guardarTema(nuevo).catch(() => {
+      const anterior: Tema = nuevo === 'oscuro' ? 'claro' : 'oscuro';
+      setUsuario((prev) => (prev ? { ...prev, tema: anterior } : prev));
+    });
   }, []);
 
   const value: AuthContextValue = {
     usuario,
     estaAutenticado: usuario !== null,
     cargando,
+    verificandoSesion,
     error,
     iniciarSesion,
     cerrarSesion,
+    cambiarTema,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

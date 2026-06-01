@@ -11,13 +11,15 @@ import { api } from '../api/client';
 
 export type Rol = 'Administrador' | 'Auditor' | 'Operador';
 
+export type Tema = 'claro' | 'oscuro';
+
 export interface LoginRequest {
   email: string;
   password: string;
 }
 
+// El token NO viaja en el body: vive en una cookie HttpOnly que setea el backend.
 export interface LoginResponse {
-  token: string;
   nombre: string;
   email: string;
   rol: Rol;
@@ -31,6 +33,7 @@ export interface PerfilUsuario {
   rol: Rol;
   activo: boolean;
   fechaCreacion: string;
+  tema: Tema;
 }
 
 // Para el ABM
@@ -69,6 +72,16 @@ export function login(req: LoginRequest): Promise<LoginResponse> {
 
 export function obtenerPerfil(): Promise<PerfilUsuario> {
   return api.get<PerfilUsuario>('/api/auth/me');
+}
+
+// Cierra la sesion: el backend borra la cookie HttpOnly del JWT.
+export function logout(): Promise<void> {
+  return api.post<void>('/api/auth/logout', {});
+}
+
+// Guarda la preferencia de tema del usuario logueado (se persiste por usuario).
+export function guardarTema(tema: Tema): Promise<void> {
+  return api.put<void>('/api/auth/me/tema', { tema });
 }
 
 // ── Endpoints del ABM (solo Administrador) ───────────────────────────────────

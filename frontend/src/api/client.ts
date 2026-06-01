@@ -4,30 +4,28 @@
 //     backend en localhost:5180 (ver vite.config.ts).
 //   - Parseo de errores con el body de respuesta cuando el backend devuelve
 //     BadRequest / NotFound con texto plano o JSON.
-//   - Header Authorization automatico cuando hay token en sessionStorage.
-//   - Redireccion al /login cuando el backend devuelve 401 (token vencido).
+//   - Envío de la cookie HttpOnly del JWT en cada request (credentials:'include').
+//   - Redireccion al /login cuando el backend devuelve 401 (cookie vencida).
 //
-//  El backend identifica al usuario por el JWT del header Authorization, asi
+//  El backend identifica al usuario por el JWT de la cookie 'auth_token', asi
 //  que ningun endpoint requiere usuarioId en el body.
 // ============================================================================
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const token = sessionStorage.getItem('token');
-
   const res = await fetch(path, {
     ...init,
+    // El JWT vive en una cookie HttpOnly: credentials:'include' hace que el
+    // browser la envíe en cada request. No leemos ni guardamos el token en JS.
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
   });
 
-  // 401: token vencido o invalido. Limpiar sesion y mandar al login.
+  // 401: cookie vencida o invalida. Mandar al login.
   // No redirigir si ya estamos en /login (evita loops).
   if (res.status === 401 && !window.location.pathname.startsWith('/login')) {
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('usuario');
     window.location.href = '/login';
     throw new Error('Sesión expirada. Iniciá sesión de nuevo.');
   }

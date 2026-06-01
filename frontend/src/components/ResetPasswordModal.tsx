@@ -51,7 +51,7 @@ export default function ResetPasswordModal({ usuario, onClose, onReset }: Props)
         onReset();
       }, 900);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Error al resetear.';
+      const msg = err instanceof Error ? err.message : 'Error al restablecer.';
       setError(msg.replace(/^\d+\s+\w+\s+—\s+/, ''));
     } finally {
       setEnviando(false);
@@ -62,7 +62,7 @@ export default function ResetPasswordModal({ usuario, onClose, onReset }: Props)
     <div className="us-modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
       <div className="us-modal" onClick={(e) => e.stopPropagation()}>
         <div className="us-modal-header">
-          <h2 className="us-modal-title">Resetear contraseña</h2>
+          <h2 className="us-modal-title">Restablecer contraseña</h2>
           <button
             type="button"
             className="us-modal-close"
@@ -76,7 +76,7 @@ export default function ResetPasswordModal({ usuario, onClose, onReset }: Props)
         <form onSubmit={handleSubmit} noValidate>
           <div className="us-modal-body">
             <p style={{ fontSize: 13, color: '#5a4a8a', marginBottom: '1rem' }}>
-              Vas a resetear la contraseña de <strong>{usuario.nombre}</strong> ({usuario.email}).
+              Vas a restablecer la contraseña de <strong>{usuario.nombre}</strong> ({usuario.email}).
               La próxima vez que ingrese, deberá usar esta nueva contraseña.
             </p>
 
@@ -146,7 +146,7 @@ export default function ResetPasswordModal({ usuario, onClose, onReset }: Props)
             </button>
             <button type="submit" className="us-btn-pri" disabled={enviando || exito}>
               {enviando && <span className="us-spinner" aria-hidden="true" />}
-              {enviando ? 'Reseteando…' : 'Resetear contraseña'}
+              {enviando ? 'Restableciendo…' : 'Restablecer contraseña'}
             </button>
           </div>
         </form>

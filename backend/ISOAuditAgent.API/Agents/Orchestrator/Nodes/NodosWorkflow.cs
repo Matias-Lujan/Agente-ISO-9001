@@ -423,7 +423,6 @@ public sealed class ComplianceValidationNode
 
     protected override string ConstruirPrompt(DocumentosExtraidos input)
     {
-        Console.WriteLine($"NODE ComplianceValidation INICIO auditoria={input.AuditoriaId} artefactos={input.Artefactos.Count}"); //test
 
         var paraLlm = input.Artefactos
             .Where(EsCandidatoLlm)
@@ -492,7 +491,6 @@ public sealed class ComplianceValidationNode
             AgenteOrigen.ComplianceValidation,
             hallazgos);
 
-        Console.WriteLine($"NODE ComplianceValidation FIN auditoria={resultado.AuditoriaId} hallazgos={resultado.Hallazgos.Count}");
 
         return resultado;
     }
@@ -545,7 +543,6 @@ public sealed class ConsistencyVerificationNode
 
     protected override string ConstruirPrompt(DocumentosExtraidos input)
     {
-        Console.WriteLine($"NODE ConsistencyVerification INICIO auditoria={input.AuditoriaId} artefactos={input.Artefactos.Count}"); //test
         // Filtrar a los artefactos analizables: Exigibles + Encontrados.
         // - PendienteEtapaFutura: no se analiza, no se ha encontrado aún.
         // - Faltante: si no está, no hay nada que verificar (es trabajo de
@@ -651,7 +648,6 @@ public sealed class ConsistencyVerificationNode
                 AgenteOrigen.ConsistencyVerification,
                 Array.Empty<HallazgoPreliminar>());
         }
-        Console.WriteLine($"NODE ConsistencyVerification FIN auditoria={input.AuditoriaId}");//test
         return HallazgosPreliminaresParser.Parsear(textoLlm, idsExpuestos, input.AuditoriaId);
     }
 }
@@ -722,7 +718,6 @@ public sealed partial class FindingsClassificationNode : Executor
         _contextoDocumentos = message;
         await IntentarClasificarAsync(context);
 
-        Console.WriteLine($"NODE FindingsClassification RECIBE contexto auditoria={message.AuditoriaId} artefactos={message.Artefactos.Count}");//test
     }
 
     // --- Entrada B: cada lote de hallazgos, de a uno ------------------------
@@ -732,7 +727,6 @@ public sealed partial class FindingsClassificationNode : Executor
         IWorkflowContext context,
         CancellationToken cancellationToken = default)
     {
-        Console.WriteLine($"NODE FindingsClassification RECIBE hallazgos auditoria={message.AuditoriaId} origen={message.AgenteOrigen} count={message.Hallazgos.Count}");//test
 
         // Distinguir el lote por su AgenteOrigen y cachearlo en su slot.
         switch (message.AgenteOrigen)
@@ -769,7 +763,6 @@ public sealed partial class FindingsClassificationNode : Executor
     // --- Disparo: clasifica cuando están los TRES elementos -----------------
     private async ValueTask IntentarClasificarAsync(IWorkflowContext context)
     {
-        Console.WriteLine($"NODE FindingsClassification ESPERA contexto={_contextoDocumentos is not null} compliance={_hallazgosCompliance is not null} consistency={_hallazgosConsistency is not null}");//test
         // Falta alguno de los tres -> esperar al próximo mensaje.
         if (_contextoDocumentos is null
             || _hallazgosCompliance is null
@@ -811,7 +804,6 @@ public sealed partial class FindingsClassificationNode : Executor
                 Clasificacion: clasificacion,
                 ContextoDocumentos: _contextoDocumentos);
 
-            Console.WriteLine($"NODE FindingsClassification FIN auditoria={salida.Clasificacion.AuditoriaId} hallazgos={salida.Clasificacion.Hallazgos.Count}");//test
 
             await context.SendMessageAsync(salida, CancellationToken.None);
 
@@ -927,11 +919,9 @@ public sealed class ConsolidadorResultadoNode
         IWorkflowContext context,
         CancellationToken ct = default)
     {
-        Console.WriteLine($"NODE ConsolidadorResultado INICIO auditoria={message.Clasificacion.AuditoriaId}");//test
 
         var resultado = ConsolidadorEnsamble.Ensamblar(
             message.ContextoDocumentos, message.Clasificacion);
-        Console.WriteLine($"NODE ConsolidadorResultado FIN auditoria={resultado.AuditoriaId}");//test
         return ValueTask.FromResult(resultado);
     }
 }

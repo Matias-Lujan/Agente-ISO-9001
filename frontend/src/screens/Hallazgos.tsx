@@ -162,7 +162,7 @@ export default function Hallazgos() {
           <p className="hz-header-sub">Todos los hallazgos detectados por los agentes IA</p>
         </div>
         <button
-          className="hz-export-btn"
+          className="btn-pri"
           onClick={handleExport}
           disabled={exportando || cargando || hallazgos.length === 0}
           type="button"

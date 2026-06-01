@@ -64,11 +64,11 @@ public class AuthService
             return null;
         }
 
-        // Paso 3: verificar contrasena
+        // Paso 3: verificar contraseña
         var passwordCorrecta = BCrypt.Net.BCrypt.Verify(request.Password, usuario.PasswordHash);
         if (!passwordCorrecta)
         {
-            _logger.LogWarning("Login fallido — contrasena incorrecta: {Email}", emailNormalizado);
+            _logger.LogWarning("Login fallido — contraseña incorrecta: {Email}", emailNormalizado);
             return null;
         }
 
@@ -117,14 +117,14 @@ public class AuthService
 
         // Validacion: password
         if (string.IsNullOrWhiteSpace(request.Password))
-            throw new ArgumentException("La contrasena es obligatoria");
+            throw new ArgumentException("La contraseña es obligatoria");
 
         if (request.Password.Length < PASSWORD_MIN_LENGTH)
-            throw new ArgumentException($"La contrasena debe tener al menos {PASSWORD_MIN_LENGTH} caracteres");
+            throw new ArgumentException($"La contraseña debe tener al menos {PASSWORD_MIN_LENGTH} caracteres");
 
         // Validacion: rol
         if (!Enum.TryParse<RolUsuario>(request.Rol, out var rolEnum))
-            throw new ArgumentException($"Rol invalido: {request.Rol}. Debe ser Administrador, Operador o Auditor");
+            throw new ArgumentException($"Rol inválido: {request.Rol}. Debe ser Administrador, Operador o Auditor");
 
         // Crear usuario
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 11);
@@ -208,7 +208,7 @@ public class AuthService
         if (request.Activo != null)
         {
             if (esSiMismo && !request.Activo.Value)
-                throw new InvalidOperationException("No podes desactivar tu propia cuenta");
+                throw new InvalidOperationException("No podés desactivar tu propia cuenta");
             usuario.Activo = request.Activo.Value;
         }
 
@@ -216,10 +216,10 @@ public class AuthService
         if (request.Rol != null)
         {
             if (!Enum.TryParse<RolUsuario>(request.Rol, out var rolEnum))
-                throw new ArgumentException($"Rol invalido: {request.Rol}");
+                throw new ArgumentException($"Rol inválido: {request.Rol}");
 
             if (esSiMismo && rolEnum != usuario.Rol)
-                throw new InvalidOperationException("No podes cambiarte el rol a vos mismo");
+                throw new InvalidOperationException("No podés cambiarte el rol a vos mismo");
 
             usuario.Rol = rolEnum;
         }
@@ -234,7 +234,7 @@ public class AuthService
     }
 
     /// <summary>
-    /// El admin resetea la contrasena de otro usuario. No pide la pass anterior
+    /// El admin resetea la contraseña de otro usuario. No pide la pass anterior
     /// porque el admin no la conoce.
     /// </summary>
     public async Task<bool> ResetearPasswordAsync(int id, ResetearPasswordRequest request)
@@ -243,15 +243,35 @@ public class AuthService
         if (usuario == null) return false;
 
         if (string.IsNullOrWhiteSpace(request.PasswordNueva))
-            throw new ArgumentException("La nueva contrasena es obligatoria");
+            throw new ArgumentException("La nueva contraseña es obligatoria");
 
         if (request.PasswordNueva.Length < PASSWORD_MIN_LENGTH)
-            throw new ArgumentException($"La contrasena debe tener al menos {PASSWORD_MIN_LENGTH} caracteres");
+            throw new ArgumentException($"La contraseña debe tener al menos {PASSWORD_MIN_LENGTH} caracteres");
 
         usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.PasswordNueva, workFactor: 11);
         await _repo.ActualizarAsync(usuario);
 
         _logger.LogInformation("Password reseteada | UsuarioId={Id}", id);
+        return true;
+    }
+
+    /// <summary>
+    /// Actualiza la preferencia de tema (claro/oscuro) del usuario.
+    /// </summary>
+    /// <param name="id">ID del usuario (sale del JWT en el controller)</param>
+    /// <param name="tema">"claro" u "oscuro" (case-insensitive)</param>
+    public async Task<bool> ActualizarTemaAsync(int id, string tema)
+    {
+        if (!Enum.TryParse<TemaPreferido>(tema, ignoreCase: true, out var temaEnum))
+            throw new ArgumentException($"Tema inválido: {tema}. Debe ser 'claro' u 'oscuro'.");
+
+        var usuario = await _repo.ObtenerPorIdAsync(id);
+        if (usuario == null) return false;
+
+        usuario.TemaPreferido = temaEnum;
+        await _repo.ActualizarAsync(usuario);
+
+        _logger.LogInformation("Tema actualizado | UsuarioId={Id} | Tema={Tema}", id, temaEnum);
         return true;
     }
 
@@ -295,5 +315,6 @@ public class AuthService
         u.Email,
         u.Rol.ToString(),
         u.Activo,
-        u.FechaCreacion);
+        u.FechaCreacion,
+        u.TemaPreferido.ToString().ToLowerInvariant());
 }

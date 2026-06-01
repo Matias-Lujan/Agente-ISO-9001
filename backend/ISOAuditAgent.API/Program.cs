@@ -1,9 +1,7 @@
 ﻿using System.Text;
-using ISOAuditAgent.API.Agents.ConsistencyVerification;
 using ISOAuditAgent.API.Agents.Orchestrator;
 using ISOAuditAgent.API.Data;
 using ISOAuditAgent.API.Integrations.LLM;
-using ISOAuditAgent.API.Integrations.MCP;
 using ISOAuditAgent.API.Integrations.MCP.Drive;
 using ISOAuditAgent.API.Repositories;
 using ISOAuditAgent.API.Services;
@@ -39,7 +37,9 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins("http://localhost:5173")
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            // Necesario para que el browser envíe/reciba la cookie HttpOnly del JWT.
+            .AllowCredentials();
     });
 });
 
@@ -79,6 +79,21 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero
         };
+
+        // El JWT viaja en una cookie HttpOnly (no en sessionStorage). Si no vino
+        // el header Authorization, lo tomamos de la cookie 'auth_token'.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (string.IsNullOrEmpty(context.Token) &&
+                    context.Request.Cookies.TryGetValue("auth_token", out var cookieToken))
+                {
+                    context.Token = cookieToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -112,15 +127,6 @@ builder.Services.AddScoped<HallazgoService>();
 // Modulo 2.5 — Informes
 builder.Services.AddScoped<IInformeRepository, InformeRepository>();
 builder.Services.AddScoped<InformeService>();
-
-// Sub-agente de consistencia (implementación HTTP simple de esta rama).
-// DocumentSummaryBuilder calificado: dev trajo otra clase con el mismo nombre
-// en ISOAuditAgent.API.Agents.ConsistencyVerification.
-builder.Services.AddScoped<IDocumentSummaryBuilder, ISOAuditAgent.API.Services.DocumentSummaryBuilder>();
-builder.Services.AddScoped<ConsistencyVerificationAgentService>();
-
-// Cliente de IA (Gemini) — HTTP simple, usado por el sub-agente de consistencia
-builder.Services.AddHttpClient<IAiClient, GeminiClient>();
 
 // =============================================================================
 // 5.b WORKFLOW DEL ORCHESTRATOR (portado de dev)

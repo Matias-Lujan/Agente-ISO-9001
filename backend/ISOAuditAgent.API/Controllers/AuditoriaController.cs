@@ -50,7 +50,7 @@ public class AuditoriaController : ControllerBase
     {
         var auditoria = await _auditoriaService.ObtenerPorIdAsync(id);
         if (auditoria == null)
-            return NotFound(new { mensaje = $"Auditoria con ID {id} no encontrada" });
+            return NotFound(new { mensaje = $"Auditoría con ID {id} no encontrada" });
         return Ok(auditoria);
     }
 
@@ -100,14 +100,14 @@ public class AuditoriaController : ControllerBase
     {
         // Parseamos el string al enum EstadoAuditoria
         if (!Enum.TryParse<EstadoAuditoria>(estado, true, out var estadoEnum))
-            return BadRequest(new { mensaje = $"Estado invalido: {estado}. Debe ser Completada o Fallida" });
+            return BadRequest(new { mensaje = $"Estado inválido: {estado}. Debe ser Completada o Fallida" });
 
         if (estadoEnum == EstadoAuditoria.EnCurso)
             return BadRequest(new { mensaje = "No se puede cambiar el estado a EnCurso manualmente" });
 
         var auditoria = await _auditoriaService.ActualizarEstadoAsync(id, estadoEnum);
         if (auditoria == null)
-            return NotFound(new { mensaje = $"Auditoria con ID {id} no encontrada" });
+            return NotFound(new { mensaje = $"Auditoría con ID {id} no encontrada" });
 
         return Ok(auditoria);
     }

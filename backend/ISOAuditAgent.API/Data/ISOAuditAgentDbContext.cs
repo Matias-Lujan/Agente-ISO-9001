@@ -39,6 +39,14 @@ public class ISOAuditAgentDbContext : DbContext
             .Property(u => u.Rol)
             .HasConversion<string>();
 
+        // Preferencia de tema (claro/oscuro) guardada como texto. Default Claro
+        // para que las filas existentes y los usuarios nuevos arranquen en claro.
+        modelBuilder.Entity<Usuario>()
+            .Property(u => u.TemaPreferido)
+            .HasConversion<string>()
+            .HasMaxLength(10)
+            .HasDefaultValue(TemaPreferido.Claro);
+
         modelBuilder.Entity<Proyecto>()
             .Property(p => p.TipoProyecto)
             .HasConversion<string>();

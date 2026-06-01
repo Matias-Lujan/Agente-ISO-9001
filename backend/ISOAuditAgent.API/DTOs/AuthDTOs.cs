@@ -42,7 +42,15 @@ public record UsuarioResponse(
     string Email,
     string Rol,
     bool Activo,
-    DateTime FechaCreacion
+    DateTime FechaCreacion,
+    string Tema              // "claro" | "oscuro" — preferencia de tema del usuario
+);
+
+/// <summary>
+/// Lo que el usuario manda para cambiar su preferencia de tema.
+/// </summary>
+public record ActualizarTemaRequest(
+    string Tema              // "claro" | "oscuro"
 );
 
 /// <summary>
