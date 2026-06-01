@@ -31,6 +31,7 @@ public sealed class ProcedimientoRepository : IProcedimientoRepository
     {
         return await _context.Etapas
             .AsNoTracking()
+            .Include(e => e.Procedimiento)
             .Where(e => e.ProcedimientoId == procedimientoId)
             .OrderBy(e => e.Orden)
             .ToListAsync(ct);

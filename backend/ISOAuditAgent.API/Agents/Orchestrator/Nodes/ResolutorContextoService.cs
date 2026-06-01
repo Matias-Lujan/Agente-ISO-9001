@@ -100,6 +100,8 @@ public sealed class ResolutorContextoService
             AuditoriaId: input.AuditoriaId,
             ProyectoId: input.ProyectoId,
             EtapaId: input.EtapaId,
+            ProcedimientoCodigo: etapaAuditada.Procedimiento.Codigo,
+            ProcedimientoNombre: etapaAuditada.Procedimiento.Nombre,
             Integraciones: new IntegracionesProyecto(
                 DriveFolderId: proyecto.DriveFolderId,
                 TrelloBoardId: proyecto.TrelloBoardId,

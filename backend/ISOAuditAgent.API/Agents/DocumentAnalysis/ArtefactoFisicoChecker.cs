@@ -1,7 +1,7 @@
 // ============================================================================
 //  ArtefactoFisicoChecker — Implementación de IArtefactoFisicoChecker (D3.5)
 // ----------------------------------------------------------------------------
-//  Tres pasos de búsqueda, en orden de confiabilidad:
+//  Cuatro pasos de búsqueda, en orden de confiabilidad:
 //
 //   PASO 1 — Por URL del tailoring (FR-29). Si urlReferenciaTailoring contiene
 //            un fileId extraíble, se descarga ese archivo. Si la URL pega un
@@ -15,6 +15,13 @@
 //   PASO 3 — Por nombre del artefacto. Normaliza nombre y nombres de archivo
 //            (lowercase + sin tildes + colapso de whitespace) y busca match
 //            por subcadena.
+//
+//   PASO 4 — Por segmentos del path de carpeta (additive, último). Solo corre
+//            si PASO 1-3 fallaron. Extrae tokens significativos del nombre del
+//            artefacto (≥4 chars, sin stopwords) y los busca en los segmentos
+//            del Path relativo de cada archivo. Resuelve casos como
+//            "Cronograma del proyecto" → archivo en Seguimiento/Cronograma/
+//            cuyo nombre no contiene la palabra (ej. "30.052 - NTV - App_v1.mpp").
 //
 //  Después de encontrar el archivo:
 //    - SHA-256 con ContentHasher.Sha256Hex.
@@ -148,6 +155,32 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
             }
         }
 
+        // --- PASO 4: por path de carpeta. Additive y último: solo corre si
+        //     PASO 1-3 fallaron, así no toca lo que ya resuelve. ---
+        var tokensPath = ExtraerTokensPath(nombreArtefacto);
+        if (tokensPath.Count > 0)
+        {
+            var match = listing.Files
+                .Where(f => !string.IsNullOrEmpty(f.Path) && f.Path
+                    .Split('/', StringSplitOptions.RemoveEmptyEntries)
+                    .Any(seg =>
+                    {
+                        var segNorm = TailoringColumnMapper.NormalizeHeaderKey(seg);
+                        return tokensPath.Any(t => segNorm.Contains(t, StringComparison.Ordinal));
+                    }))
+                .OrderBy(f => f.Name, StringComparer.Ordinal)
+                .LastOrDefault(); // presencia: cualquiera sirve; ordeno por reproducibilidad
+
+            if (match is not null)
+            {
+                var content = await _drive.GetFileContentAsync(match.Id, ct);
+                _logger.LogInformation(
+                    "Artefacto {Id}: encontrado por path de carpeta '{Path}' → '{Archivo}'.",
+                    artefactoEsperadoId, match.Path, content.Name);
+                return ArmarVerificacionEncontrado(content);
+            }
+        }
+
         _logger.LogInformation(
             "Artefacto {Id} (codigo='{Codigo}', nombre='{Nombre}'): no encontrado en folder {Folder}.",
             artefactoEsperadoId, codigoArtefacto, nombreArtefacto, driveFolderId);
@@ -203,6 +236,29 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
                 content.MimeType, content.Name);
             return Array.Empty<SeccionDetectada>();
         }
+    }
+
+    private static readonly HashSet<string> StopwordsPath = new(StringComparer.Ordinal)
+    {
+        "de", "del", "la", "el", "los", "las", "y", "en",
+        "proyecto", "documento", "documentos", "registro", "registros"
+    };
+
+    /// <summary>
+    /// Tokens significativos del nombre del artefacto para matchear contra
+    /// segmentos de path. Normaliza con la misma rutina del PASO 3, descarta
+    /// stopwords/genéricas y exige longitud ≥ 4. "Cronograma del proyecto" → ["cronograma"].
+    /// </summary>
+    private static IReadOnlyList<string> ExtraerTokensPath(string nombre)
+    {
+        if (string.IsNullOrWhiteSpace(nombre)) return Array.Empty<string>();
+
+        return nombre
+            .Split(new[] { ' ', '\t', '-', '_', '/' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(TailoringColumnMapper.NormalizeHeaderKey)
+            .Where(t => t.Length >= 4 && !StopwordsPath.Contains(t))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
     }
 
     /// <summary>

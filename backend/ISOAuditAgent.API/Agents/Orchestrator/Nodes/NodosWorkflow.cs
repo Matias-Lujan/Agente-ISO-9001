@@ -199,6 +199,8 @@ public sealed class DocumentAnalysisNode
             message.AuditoriaId,
             message.ProyectoId,
             message.EtapaId,
+            message.ProcedimientoCodigo,
+            message.ProcedimientoNombre,
             artefactos);
 
         // 6. Defensa en profundidad: validar invariantes del contrato 3 antes

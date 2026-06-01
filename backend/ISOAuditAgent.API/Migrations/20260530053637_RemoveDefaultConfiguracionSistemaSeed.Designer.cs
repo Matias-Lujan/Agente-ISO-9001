@@ -4,6 +4,7 @@ using ISOAuditAgent.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ISOAuditAgent.API.Migrations
 {
     [DbContext(typeof(ISOAuditAgentDbContext))]
-    partial class ISOAuditAgentDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260530053637_RemoveDefaultConfiguracionSistemaSeed")]
+    partial class RemoveDefaultConfiguracionSistemaSeed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -155,47 +158,6 @@ namespace ISOAuditAgent.API.Migrations
                     b.HasIndex("UsuarioId");
 
                     b.ToTable("auditorias");
-                });
-
-            modelBuilder.Entity("ISOAuditAgent.API.Models.AuditoriaProgreso", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("AuditoriaId")
-                        .HasColumnType("int")
-                        .HasColumnName("auditoria_id");
-
-                    b.Property<string>("Estado")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("estado");
-
-                    b.Property<DateTime?>("FechaFinUtc")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_fin_utc");
-
-                    b.Property<DateTime?>("FechaInicioUtc")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_inicio_utc");
-
-                    b.Property<string>("Nodo")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("nodo");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AuditoriaId", "Nodo")
-                        .IsUnique();
-
-                    b.ToTable("auditoria_progresos");
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.ConfiguracionSistema", b =>
@@ -607,17 +569,6 @@ namespace ISOAuditAgent.API.Migrations
                     b.Navigation("Proyecto");
 
                     b.Navigation("Usuario");
-                });
-
-            modelBuilder.Entity("ISOAuditAgent.API.Models.AuditoriaProgreso", b =>
-                {
-                    b.HasOne("ISOAuditAgent.API.Models.Auditoria", "Auditoria")
-                        .WithMany()
-                        .HasForeignKey("AuditoriaId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Auditoria");
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.DocumentoAnalizado", b =>
