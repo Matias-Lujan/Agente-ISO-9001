@@ -1,18 +1,30 @@
 // ============================================================================
-//  XlsxTemplateParser ó Parser de .xlsx con ClosedXML (D3.3)
+//  XlsxTemplateParser ‚Äî Parser de .xlsx con ClosedXML (D3.3)
 // ----------------------------------------------------------------------------
-//  Estrategia simplificadora: cada HOJA del workbook es una secciÛn.
-//   - Titulo  = nombre de la hoja.
-//   - TieneContenido = la hoja tiene al menos una celda no vacÌa debajo
-//     de la fila 1 (asumimos que la fila 1 puede ser solo encabezados).
+//  Estrategia: una SeccionDetectada por columna de la fila de encabezados.
 //
-//  CASO NO CUBIERTO: detectar headings dentro de una misma hoja por estilo
-//  de celda. Es mucho m·s cÛdigo y propenso a falsos positivos; queda
-//  pendiente si en D3.4/D3.5 aparece un caso real que lo justifique.
+//  Para cada hoja del workbook:
+//   1. Se busca la primera fila con al menos 2 celdas no vac√≠as ‚Üí fila de
+//      encabezados (t√≠picamente fila 1, pero tolerante a hojas con metadata
+//      en las primeras filas).
+//   2. Por cada celda no vac√≠a de esa fila se emite una SeccionDetectada:
+//        Titulo         = texto de la celda de encabezado (ej. "Riesgo").
+//        TieneContenido = hay al menos una celda no vac√≠a en esa columna
+//                         debajo de la fila de encabezados.
+//   3. Si la hoja est√° vac√≠a o no tiene fila de encabezados detectable
+//      (menos de 2 celdas no vac√≠as en cualquier fila), se cae al fallback:
+//      una SeccionDetectada con Titulo = nombre de hoja y TieneContenido =
+//      hay alguna celda no vac√≠a en la hoja.
 //
-//  NOTA ó FR-29 NO usa este parser. El FR-29 (tailoring) tiene parser
-//  dedicado en D3.4 (TailoringReader), porque su estructura no es "hoja
-//  = secciÛn" sino "hoja principal con columnas especÌficas".
+//  CONSECUENCIA PARA LA COMPARACI√ìN TEMPLATE vs DOCUMENTO:
+//  El template define qu√© columnas se esperan (sus SeccionDetectadas indican
+//  los encabezados). El documento produce las mismas SeccionDetectadas con
+//  TieneContenido = tiene datos reales en esa columna. HallazgosEstructurales
+//  compara por NormalizeHeaderKey y detecta columnas ausentes o vac√≠as.
+//
+//  NOTA ‚Äî FR-29 NO usa este parser. El FR-29 (tailoring) tiene parser
+//  dedicado en TailoringReader, porque su estructura no es "hoja = secci√≥n"
+//  sino "hoja principal con columnas espec√≠ficas".
 // ============================================================================
 
 using ClosedXML.Excel;
@@ -28,7 +40,7 @@ public sealed class XlsxTemplateParser : ITemplateParser
         if (bytes.Length == 0)
         {
             throw new InvalidOperationException(
-                "XlsxTemplateParser: el archivo est· vacÌo (0 bytes).");
+                "XlsxTemplateParser: el archivo est√° vac√≠o (0 bytes).");
         }
 
         try
@@ -36,13 +48,11 @@ public sealed class XlsxTemplateParser : ITemplateParser
             using var ms = new MemoryStream(bytes, writable: false);
             using var workbook = new XLWorkbook(ms);
 
-            var resultado = new List<SeccionDetectada>(workbook.Worksheets.Count);
+            var resultado = new List<SeccionDetectada>(workbook.Worksheets.Count * 8);
 
             foreach (var hoja in workbook.Worksheets)
             {
-                resultado.Add(new SeccionDetectada(
-                    Titulo: hoja.Name,
-                    TieneContenido: HojaTieneContenido(hoja)));
+                resultado.AddRange(ParsearHoja(hoja));
             }
 
             return resultado;
@@ -59,22 +69,73 @@ public sealed class XlsxTemplateParser : ITemplateParser
     }
 
     /// <summary>
-    /// Devuelve true si hay al menos una celda no vacÌa debajo de la fila 1.
-    /// La fila 1 se asume "encabezados" ó una hoja con solo encabezados se
-    /// considera sin contenido real.
+    /// Extrae SeccionDetectadas por columna de encabezado. Si no se detecta
+    /// fila de encabezados, cae a secci√≥n-por-hoja (comportamiento anterior).
     /// </summary>
-    private static bool HojaTieneContenido(IXLWorksheet hoja)
+    private static IReadOnlyList<SeccionDetectada> ParsearHoja(IXLWorksheet hoja)
     {
-        // RangeUsed devuelve solo el rango con datos; si la hoja est· vacÌa,
-        // es null.
+        var rango = hoja.RangeUsed();
+        if (rango is null)
+            return [new SeccionDetectada(hoja.Name, false)];
+
+        int primerFila  = rango.FirstRow().RowNumber();
+        int ultimaFila  = rango.LastRow().RowNumber();
+        int primeraCol  = rango.FirstColumn().ColumnNumber();
+        int ultimaCol   = rango.LastColumn().ColumnNumber();
+
+        // Buscar fila de encabezados: primera fila con >= 2 celdas no vac√≠as.
+        int? filaEncabezado = null;
+        for (int r = primerFila; r <= ultimaFila; r++)
+        {
+            int noVacias = 0;
+            for (int c = primeraCol; c <= ultimaCol; c++)
+            {
+                if (!string.IsNullOrWhiteSpace(hoja.Cell(r, c).GetString()))
+                    noVacias++;
+            }
+            if (noVacias >= 2) { filaEncabezado = r; break; }
+        }
+
+        // Sin fila de encabezados detectable ‚Üí fallback de secci√≥n-por-hoja.
+        if (filaEncabezado is null)
+        {
+            return [new SeccionDetectada(hoja.Name, false)];
+        }
+
+        // Una SeccionDetectada por columna de encabezado.
+        var secciones = new List<SeccionDetectada>(ultimaCol - primeraCol + 1);
+
+        for (int c = primeraCol; c <= ultimaCol; c++)
+        {
+            var encabezado = hoja.Cell(filaEncabezado.Value, c).GetString().Trim();
+            if (string.IsNullOrWhiteSpace(encabezado)) continue;
+
+            // TieneContenido = al menos una celda no vac√≠a debajo del encabezado.
+            bool tieneContenido = false;
+            for (int r = filaEncabezado.Value + 1; r <= ultimaFila; r++)
+            {
+                if (!string.IsNullOrWhiteSpace(hoja.Cell(r, c).GetString()))
+                {
+                    tieneContenido = true;
+                    break;
+                }
+            }
+
+            secciones.Add(new SeccionDetectada(encabezado, tieneContenido));
+        }
+
+        // Si por alg√∫n motivo no se pudo extraer ninguna columna, fallback.
+        return secciones.Count > 0
+            ? secciones
+            : [new SeccionDetectada(hoja.Name, HojaTieneContenido(hoja, filaEncabezado.Value))];
+    }
+
+    private static bool HojaTieneContenido(IXLWorksheet hoja, int filaEncabezado)
+    {
         var rango = hoja.RangeUsed();
         if (rango is null) return false;
-
-        // Si el rango usado solo cubre la fila 1, no hay contenido.
-        if (rango.LastRow().RowNumber() < 2) return false;
-
-        // Hay al menos una celda no vacÌa en fila 2 o posterior.
         return rango.CellsUsed()
-            .Any(c => c.Address.RowNumber >= 2 && !string.IsNullOrWhiteSpace(c.GetString()));
+            .Any(c => c.Address.RowNumber > filaEncabezado
+                   && !string.IsNullOrWhiteSpace(c.GetString()));
     }
 }

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  IArtefactoFisicoChecker — DocumentAnalysis (Parte 4.C)
 // ----------------------------------------------------------------------------
 //  Abstracción que verifica la existencia física de UN artefacto: descarga el
@@ -16,7 +16,7 @@
 //   - Para Drive: descarga + parsers locales (PdfPig / OpenXML / ClosedXML)
 //     según extensión, coherente con arquitectura_software.md §3.3
 //     (IDocumentParser). Compara las secciones del documento contra las del
-//     template provisto en pathTemplateAbsoluto (también con OpenXML).
+//     template provisto en nombreTemplateArchivo (también con OpenXML).
 //   - Hash: SHA-256 hex en minúsculas, 64 caracteres. El validator del
 //     contrato 3 lo verifica.
 //   - Registrarla como Scoped en DI (Chat D §5.5).
@@ -78,7 +78,7 @@ public interface IArtefactoFisicoChecker
     /// URL declarada en el tailoring, si existe. Prioritaria sobre búsqueda
     /// por código o nombre.
     /// </param>
-    /// <param name="pathTemplateAbsoluto">
+    /// <param name="nombreTemplateArchivo">
     /// Ruta absoluta al template del artefacto (ya resuelta por
     /// ResolutorContexto). null cuando el artefacto no tiene template. La
     /// implementación la usa para extraer las secciones esperadas y
@@ -95,7 +95,7 @@ public interface IArtefactoFisicoChecker
         string? codigoArtefacto,
         string nombreArtefacto,
         string? urlReferenciaTailoring,
-        string? pathTemplateAbsoluto,
+        string? nombreTemplateArchivo,
         CancellationToken ct);
 }
 
@@ -114,4 +114,6 @@ public sealed record VerificacionFisica(
     FuenteDocumento Fuente,
     string? NombreArchivo,
     string? HashContenido,
-    IReadOnlyList<SeccionDetectada> Secciones);
+    IReadOnlyList<SeccionDetectada> Secciones,
+    IReadOnlyList<SeccionDetectada> SeccionesTemplate,
+    string? NombreTemplateArchivo);

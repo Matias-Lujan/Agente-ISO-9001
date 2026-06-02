@@ -4,6 +4,7 @@ using ISOAuditAgent.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ISOAuditAgent.API.Migrations
 {
     [DbContext(typeof(ISOAuditAgentDbContext))]
-    partial class ISOAuditAgentDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260602020530_AddFuenteVerificacion")]
+    partial class AddFuenteVerificacion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  ResolutorContexto — Nodo determinista inicial del workflow
 // ----------------------------------------------------------------------------
 //  Primer nodo del workflow MAF. NO usa LLM. Responsabilidad:
@@ -105,7 +105,8 @@ public sealed class ResolutorContextoService
             Integraciones: new IntegracionesProyecto(
                 DriveFolderId: proyecto.DriveFolderId,
                 TrelloBoardId: proyecto.TrelloBoardId,
-                ClockifyProjectId: proyecto.ClockifyProjectId),
+                ClockifyProjectId: proyecto.ClockifyProjectId,
+                TemplatesFolderId: pathCarpetaTemplates),
             ArtefactosEsperados: artefactosContexto);
     }
 
@@ -126,7 +127,8 @@ public sealed class ResolutorContextoService
             EtapaArtefactoId: ae.EtapaId,
             Exigibilidad: ResolverExigibilidad(ae.Etapa, etapaAuditada),
             Obligatoriedad: ResolverObligatoriedad(ae, tipoProyecto),
-            PathTemplateAbsoluto: ResolverPathTemplate(ae, pathCarpetaTemplates));
+            NombreTemplateArchivo: ae.PathTemplateRelativo,
+            FuenteVerificacion: ae.FuenteVerificacion);
     }
 
     /// <summary>

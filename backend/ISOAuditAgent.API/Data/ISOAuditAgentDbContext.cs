@@ -63,6 +63,8 @@ public class ISOAuditAgentDbContext : DbContext
             .Property(p => p.Estado).HasConversion<string>().HasMaxLength(20);
         modelBuilder.Entity<AuditoriaProgreso>()
             .HasIndex(p => new { p.AuditoriaId, p.Nodo }).IsUnique();
+        modelBuilder.Entity<ArtefactoEsperado>()
+            .Property(a => a.FuenteVerificacion).HasConversion<string>().HasMaxLength(20);
 
         // === �ndices �nicos ===
         modelBuilder.Entity<Usuario>()

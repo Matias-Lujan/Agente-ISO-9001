@@ -10,10 +10,11 @@ public class ArtefactoEsperado
     public bool MandatorioTipoA { get; set; }
     public bool MandatorioTipoB { get; set; }
     public string? PathTemplateRelativo { get; set; }
+    public FuenteVerificacion FuenteVerificacion { get; set; } = FuenteVerificacion.Drive;
 
-    // Navegación hacia el "uno".
+    // Navegaciï¿½n hacia el "uno".
     public Etapa Etapa { get; set; } = null!;
 
-    // Navegación hacia los "muchos".
+    // Navegaciï¿½n hacia los "muchos".
     public ICollection<ArtefactoEvaluado> ArtefactosEvaluados { get; set; } = new List<ArtefactoEvaluado>();
 }

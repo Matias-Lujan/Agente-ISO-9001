@@ -108,10 +108,16 @@ internal static class HallazgosPreliminaresParser
                 indice++;
             }
 
+            // Deduplicar antes de retornar: el LLM puede emitir el mismo hallazgo
+            // varias veces si la sección aparece repetida en el documento parseado.
+            var sinDuplicados = resultado
+                .DistinctBy(h => (h.ArtefactoEsperadoId, h.Descripcion, h.Justificacion))
+                .ToList();
+
             return new HallazgosPreliminares(
                 auditoriaId,
                 AgenteOrigen.ConsistencyVerification,
-                resultado);
+                sinDuplicados);
         }
     }
 

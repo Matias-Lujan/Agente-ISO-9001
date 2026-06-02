@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  Nodos del workflow de auditoría — 6 nodos (contratos_agentes.md v2.2)
 // ----------------------------------------------------------------------------
 //  Grafo:
@@ -40,6 +40,8 @@ using Microsoft.Agents.AI.Workflows;
 using ISOAuditAgent.API.Agents.FindingsClassification;
 using ISOAuditAgent.API.Agents.ConsistencyVerification;
 using ISOAuditAgent.API.Agents.DocumentAnalysis;
+using ISOAuditAgent.API.Agents.DocumentAnalysis.Clockify;
+using ISOAuditAgent.API.Agents.DocumentAnalysis.Trello;
 using ISOAuditAgent.API.Agents.ComplianceValidation;
 
 namespace ISOAuditAgent.API.Agents.Orchestrator;
@@ -104,6 +106,8 @@ public sealed class DocumentAnalysisNode
 {
     private readonly ITailoringSource _tailoringSource;
     private readonly IArtefactoFisicoChecker _artefactoChecker;
+    private readonly TrelloChecker _trelloChecker;
+    private readonly ClockifyChecker _clockifyChecker;
     private readonly IAuditoriaProgresoTracker _tracker;
     private readonly ILogger<DocumentAnalysisNode> _logger;
 
@@ -111,12 +115,16 @@ public sealed class DocumentAnalysisNode
         AIAgent agente,
         ITailoringSource tailoringSource,
         IArtefactoFisicoChecker artefactoChecker,
+        TrelloChecker trelloChecker,
+        ClockifyChecker clockifyChecker,
         IAuditoriaProgresoTracker tracker,
         ILogger<DocumentAnalysisNode> logger)
         : base("DocumentAnalysis", agente)
     {
         _tailoringSource = tailoringSource;
         _artefactoChecker = artefactoChecker;
+        _trelloChecker = trelloChecker;
+        _clockifyChecker = clockifyChecker;
         _tracker = tracker;
         _logger = logger;
     }
@@ -177,7 +185,9 @@ public sealed class DocumentAnalysisNode
         // 3. Llamar al LLM. La base no se usa porque HandleAsync overridea
         //    el template completo, pero el AIAgent está heredado vía Agente.
         //    La llamada al AIAgent usa la misma API validada en AgenteExecutorBase.
-        var respuesta = await Agente.RunAsync(prompt, cancellationToken: ct);
+        using var llmCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        llmCts.CancelAfter(TimeSpan.FromSeconds(30));
+        var respuesta = await Agente.RunAsync(prompt, cancellationToken: llmCts.Token);
         var textoLlm = respuesta.Text ?? string.Empty;
 
         // 3.5. Log de la respuesta cruda — D7.3, mientras estabilizamos el
@@ -190,11 +200,17 @@ public sealed class DocumentAnalysisNode
         // 4. Parsear el JSON del LLM (tolerante a prosa / cercas / BOM).
         var llmOutput = ParsearJsonLlm(textoLlm);
 
+        _logger.LogInformation(
+            "DocumentAnalysis: LLM respondió ({Len} chars). Iniciando ArtefactosBuilder para {N} artefactos.",
+            textoLlm.Length, llmOutput.Artefactos?.Count ?? 0);
         // 5. POST-LLM async: verificar artefactos físicamente y armar el contrato 3.
         var artefactos = await DriveDtos
-            .ConstruirAsync(message, llmOutput, _artefactoChecker, ct)
+            .ConstruirAsync(message, llmOutput, _artefactoChecker, _trelloChecker, _clockifyChecker, ct)
             .ConfigureAwait(false);
 
+        _logger.LogInformation(
+            "DocumentAnalysis: ArtefactosBuilder completado — {N} artefactos.",
+            artefactos.Count);
         var resultado = new DocumentosExtraidos(
             message.AuditoriaId,
             message.ProyectoId,
@@ -503,9 +519,16 @@ public sealed class ComplianceValidationNode
         a.Exigibilidad == ExigibilidadArtefacto.Exigible
         && a.EstadoAplicacionTailoring == EstadoAplicacionTailoring.Aplica
         && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado
+        && a.DocumentoEncontrado?.Fuente == FuenteDocumento.Drive  // Trello/Clockify no tienen URL↔archivo comparable
         && !string.IsNullOrWhiteSpace(a.UrlReferencia)
+        && !EsFolderUrlDrive(a.UrlReferencia!)
         && a.DocumentoEncontrado is not null
         && !string.IsNullOrWhiteSpace(a.DocumentoEncontrado.NombreArchivo);
+
+    // URL de carpeta Drive (/folders/): carpeta→archivo encontrado dentro es
+    // el patrón esperado; el LLM no puede juzgar coherencia en ese caso.
+    private static bool EsFolderUrlDrive(string url) =>
+        url.Contains("/folders/", StringComparison.OrdinalIgnoreCase);
 }
 
 // ============================================================================
@@ -571,7 +594,15 @@ public sealed class ConsistencyVerificationNode
                    "Respondé exactamente: {\"hallazgos\": []}";
         }
 
-        var resumen = DocumentSummaryBuilder.Construir(analizables);
+        // Artefactos con template: se analizan en ParsearRespuesta por HallazgosEstructurales.
+        // El LLM solo recibe artefactos SIN template para seguir detectando secciones vacías.
+        var sinTemplate = analizables.Where(a => a.SeccionesTemplate.Count == 0).ToList();
+        if (sinTemplate.Count == 0)
+        {
+            return "No hay artefactos sin template para analizar con LLM. " +
+                   "Respondé exactamente: {\"hallazgos\": []}";
+        }
+        var resumen = DocumentSummaryBuilder.Construir(sinTemplate);
 
         // El prompt se LIMITA a lo que el resumen efectivamente expone. El
         // builder muestra: nombre, código, obligatoriedad, archivo, fuente y
@@ -633,28 +664,50 @@ public sealed class ConsistencyVerificationNode
     protected override HallazgosPreliminares ParsearRespuesta(
         DocumentosExtraidos input, string textoLlm)
     {
-        // Replicar el filtrado de ConstruirPrompt: los IDs expuestos al LLM
-        // son los Exigible + Encontrado. Acopla los dos métodos pero el
-        // criterio es trivial y vivir con la duplicación es preferible a
-        // mantener estado mutable en el nodo (rompería el patrón base).
+        // Fase 5: hallazgos estructurales determinísticos para artefactos con template.
+        var conTemplate = input.Artefactos
+            .Where(a => a.Exigibilidad == ExigibilidadArtefacto.Exigible
+                     && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado
+                     && a.SeccionesTemplate.Count > 0)
+            .ToList();
+
+        var hallazgosEstructurales = HallazgosEstructurales.Generar(
+            conTemplate, input.ProcedimientoCodigo, input.ProcedimientoNombre);
+
+        // Replicar el filtrado de ConstruirPrompt: el LLM solo vio artefactos
+        // sin template (Exigible + Encontrado + SeccionesTemplate vacío).
         var idsExpuestos = input.Artefactos
             .Where(a => a.Exigibilidad == ExigibilidadArtefacto.Exigible
-                     && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado)
+                     && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado
+                     && a.SeccionesTemplate.Count == 0)
             .Select(a => a.ArtefactoEsperadoId)
             .ToHashSet();
 
-        // Caso especial cortocircuito: si no había analizables, devolver vacío
-        // sin importar lo que diga el LLM. Defensa contra LLM que emita
-        // hallazgos espurios pese al prompt explícito que le pide vacío.
+        List<HallazgoPreliminar> hallazgosLlm;
         if (idsExpuestos.Count == 0)
         {
-            return new HallazgosPreliminares(
-                input.AuditoriaId,
-                AgenteOrigen.ConsistencyVerification,
-                Array.Empty<HallazgoPreliminar>());
+            hallazgosLlm = new List<HallazgoPreliminar>();
         }
-        Console.WriteLine($"NODE ConsistencyVerification FIN auditoria={input.AuditoriaId}");//test
-        return HallazgosPreliminaresParser.Parsear(textoLlm, idsExpuestos, input.AuditoriaId);
+        else
+        {
+            Console.WriteLine($"NODE ConsistencyVerification FIN auditoria={input.AuditoriaId}");//test
+            var parsed = HallazgosPreliminaresParser.Parsear(textoLlm, idsExpuestos, input.AuditoriaId);
+            hallazgosLlm = parsed.Hallazgos.ToList();
+        }
+
+        var todos = new List<HallazgoPreliminar>(hallazgosEstructurales.Count + hallazgosLlm.Count);
+        todos.AddRange(hallazgosEstructurales);
+        todos.AddRange(hallazgosLlm);
+
+        // Dedup defensivo: misma clave que HallazgosPreliminaresParser.
+        var sinDuplicados = todos
+            .DistinctBy(h => (h.ArtefactoEsperadoId, h.Descripcion, h.Justificacion))
+            .ToList();
+
+        return new HallazgosPreliminares(
+            input.AuditoriaId,
+            AgenteOrigen.ConsistencyVerification,
+            sinDuplicados);
     }
 }
 

@@ -1,16 +1,16 @@
-// ============================================================================
-//  GeminiOptions — Configuración del provider Gemini (D4)
+ï»¿// ============================================================================
+//  GeminiOptions ï¿½ Configuraciï¿½n del provider Gemini (D4)
 // ----------------------------------------------------------------------------
-//  Bind desde la sección "Gemini" de la configuración.
+//  Bind desde la secciï¿½n "Gemini" de la configuraciï¿½n.
 //
 //  ApiKey: NUNCA commiteada. Se setea por dotnet user-secrets:
 //      dotnet user-secrets set "Gemini:ApiKey" "<tu-api-key>"
 //  En appsettings.Development.json queda solo el ModelId (y opcionalmente
-//  ApiKey vacío como marcador).
+//  ApiKey vacï¿½o como marcador).
 //
 //  ModelId: por defecto gemini-2.5-flash. Free tier de Google AI Studio
-//  alcanza para todos los nodos del MVP. Si en E2E algún nodo necesita
-//  más razonamiento, se puede agregar override por nodo en D7.
+//  alcanza para todos los nodos del MVP. Si en E2E algï¿½n nodo necesita
+//  mï¿½s razonamiento, se puede agregar override por nodo en D7.
 // ============================================================================
 
 namespace ISOAuditAgent.API.Integrations.LLM;
@@ -27,5 +27,5 @@ public sealed class GeminiOptions
     /// <summary>
     /// Modelo de Gemini a usar. Default: gemini-2.5-flash (free tier).
     /// </summary>
-    public string ModelId { get; set; } = "gemini-2.5-flash";
+    public string ModelId { get; set; } = "gemini-3.1-flash-lite";
 }
