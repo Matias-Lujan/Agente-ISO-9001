@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  AgenteExecutorBase — Patrón común de los 4 nodos-agente del workflow
 // ----------------------------------------------------------------------------
 //  Los 4 agentes especializados (DocumentAnalysis, ComplianceValidation,
@@ -61,7 +61,9 @@ public abstract class AgenteExecutorBase<TInput, TOutput>
         // 2 + 3. Llamada al LLM.
         // La API usada acepta prompt textual y CancellationToken.
         // La respuesta textual se parsea manualmente en ParsearRespuesta.
-        var respuesta = await Agente.RunAsync(prompt, cancellationToken: ct);
+        using var llmCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        llmCts.CancelAfter(TimeSpan.FromSeconds(30));
+        var respuesta = await Agente.RunAsync(prompt, cancellationToken: llmCts.Token);
         string textoRespuesta = respuesta.Text ?? string.Empty;
 
         // 4. Respuesta del LLM -> DTO de salida

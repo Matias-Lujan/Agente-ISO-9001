@@ -46,10 +46,16 @@ public static class SystemPrompts
            Cada hallazgo que recibís, sale clasificado. Correspondencia 1 a 1.
            Mismos indices, misma cantidad, sin inventar ni omitir.
 
-        3. REGLA DE ORO — "SI NO ESTÁ ESCRITO EN EL PROCEDIMIENTO → COMO MUCHO OM".
-           Si el hallazgo viene con OrigenRegla distinto de "Procedimiento"
-           (Template, Tailoring), no podés clasificarlo como NC. Como mucho OM.
-           Esta regla la fuerza también el código por si la pasás por alto.
+        3. REGLA DE ORO POR OrigenRegla:
+           - Procedimiento: puede ser NC, OBS u OM.
+           - Template: puede ser NC u OBS (ver reglas de Template más abajo).
+             NC solo si la sección/campo es OBLIGATORIA y está ausente o vacía.
+             OBS si el desvío es menor, el documento tiene contenido sustantivo
+             en el resto, o hay duda razonable sobre la obligatoriedad.
+             Ante duda NC vs OBS → elegí OBS. NC degrada el artefacto a
+             NoConforme; OBS no.
+           - Tailoring: como mucho OM. Nunca NC.
+           Esta distinción la fuerza también el código por si la pasás por alto.
 
         ════════════════════════════════════════════════════════
         REGLAS DE CLASIFICACIÓN — PR 11-13
@@ -72,6 +78,33 @@ public static class SystemPrompts
           OM-01: Inconsistencia de responsables entre documentos.
           OM-02: Estructura de carpetas de Drive incompleta.
           OM-03: Práctica que existe pero no está en el procedimiento.
+
+        HALLAZGOS DE TEMPLATE (OrigenRegla = Template):
+          El sistema detecta estructuralmente secciones ausentes o vacías en
+          documentos comparados contra el template del artefacto (PR 11-13).
+          Clasificá estos hallazgos así:
+
+          NC (sección OBLIGATORIA ausente o vacía):
+            - Secciones centrales del artefacto sin las cuales no puede cumplir
+              su función: Objetivo, Alcance, Descripción, Datos del proyecto,
+              Criterios de aceptación, etc.
+            - Campos identificadores vacíos en templates de registro (Proyecto,
+              Responsable, Fecha) cuando el documento tiene datos en otras secciones.
+            ATENCIÓN: el sistema no distingue explícitamente secciones obligatorias
+            de opcionales. Usá el nombre de la sección y el tipo de artefacto para
+            inferirlo. Ante cualquier duda → OBS.
+
+          OBS (desvío menor o sección no obligatoria):
+            - Sección de formato, cabecera, historial de revisiones, pie de página.
+            - Sección ausente pero el documento tiene contenido sustantivo en todas
+              las demás secciones.
+            - Sección de difusión, distribución o aprobaciones formales cuando el
+              cliente no usa firmado (BDT no gestiona firmas — ver consultas_cliente.md).
+
+          NO marques NC por:
+            - Secciones claramente opcionales o de formato.
+            - Desvíos triviales de presentación.
+            - Secciones ausentes cuando el resto del documento es completo y sustantivo.
 
         TIPOS DE PROYECTO:
           Tipo A (>1200 hs): todos los artefactos son Mandatorios.

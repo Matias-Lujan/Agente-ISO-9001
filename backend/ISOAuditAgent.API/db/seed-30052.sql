@@ -1,4 +1,4 @@
--- seed-30052.sql
+﻿-- seed-30052.sql
 -- Carga la BD en estado "proyecto BDT 30.052 (App Productores) listo para auditar".
 --
 -- Supone BD vacía (sin filas, IDs autoincrementales reseteados). Para vaciar:
@@ -153,3 +153,12 @@ INSERT INTO proyecto_usuarios (id, proyecto_id, usuario_id) VALUES
 INSERT INTO configuraciones_sistema (id, clave, valor, descripcion) VALUES
   (1, 'path_carpeta_templates', '1OK2qSmcqJD5UkhZ0WR8KwBT-oaZR-l9S',
    'Folder ID de Google Drive donde viven los templates de los artefactos. El ResolutorContexto lo concatena con artefacto_esperado.path_template_relativo para obtener la referencia completa al archivo del template.');
+
+-- ----------------------------------------------------------------------------
+-- 8. FuenteVerificacion para artefactos Trello y Clockify
+-- ----------------------------------------------------------------------------
+-- Se aplica después de la migración AddFuenteVerificacion.
+-- Los demás artefactos tienen el default 'Drive' puesto por la migración.
+UPDATE artefactos_esperados SET fuente_verificacion = 'Trello'   WHERE id = 7;
+UPDATE artefactos_esperados SET fuente_verificacion = 'Clockify'  WHERE id = 8;
+UPDATE artefactos_esperados SET fuente_verificacion = 'Trello'   WHERE id = 9;

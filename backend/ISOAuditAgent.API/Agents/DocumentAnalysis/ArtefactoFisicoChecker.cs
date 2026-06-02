@@ -1,7 +1,8 @@
-// ============================================================================
+﻿// ============================================================================
 //  ArtefactoFisicoChecker — Implementación de IArtefactoFisicoChecker (D3.5)
 // ----------------------------------------------------------------------------
-//  Cuatro pasos de búsqueda, en orden de confiabilidad:
+//  Cuatro pasos de búsqueda del documento del proyecto, en orden de
+//  confiabilidad:
 //
 //   PASO 1 — Por URL del tailoring (FR-29). Si urlReferenciaTailoring contiene
 //            un fileId extraíble, se descarga ese archivo. Si la URL pega un
@@ -11,26 +12,33 @@
 //   PASO 2 — Por código del artefacto. Normaliza el código (lowercase + sin
 //            espacios/guiones/underscore) y busca match en el nombre normalizado
 //            de algún archivo del folder.
+//            Si el artefacto TIENE código formal y ningún archivo lo contiene →
+//            retorna NoEncontrado. No cae a PASO 3/4: un archivo sin el código
+//            en su nombre no puede ser el artefacto correcto (evita que "FR 25"
+//            matchee "PR 11-13 Liberación de Software").
 //
-//   PASO 3 — Por nombre del artefacto. Normaliza nombre y nombres de archivo
-//            (lowercase + sin tildes + colapso de whitespace) y busca match
-//            por subcadena.
+//   PASO 3 — Por nombre del artefacto. SOLO corre si el artefacto NO tiene
+//            código formal (codigoArtefacto es null o vacío). Normaliza nombre
+//            y nombres de archivo (lowercase + sin tildes + colapso de
+//            whitespace) y busca match por subcadena.
 //
-//   PASO 4 — Por segmentos del path de carpeta (additive, último). Solo corre
-//            si PASO 1-3 fallaron. Extrae tokens significativos del nombre del
-//            artefacto (≥4 chars, sin stopwords) y los busca en los segmentos
-//            del Path relativo de cada archivo. Resuelve casos como
-//            "Cronograma del proyecto" → archivo en Seguimiento/Cronograma/
-//            cuyo nombre no contiene la palabra (ej. "30.052 - NTV - App_v1.mpp").
+//   PASO 4 — Por segmentos del path de carpeta. SOLO corre si el artefacto NO
+//            tiene código formal y PASO 1-3 fallaron. Extrae tokens
+//            significativos del nombre (≥4 chars, sin stopwords) y los busca
+//            en los segmentos del Path relativo de cada archivo. Resuelve casos
+//            como "Cronograma del proyecto" → archivo en Seguimiento/Cronograma/
+//            (ej. "30.052 - NTV - App_v1.mpp").
 //
-//  Después de encontrar el archivo:
+//  Después de encontrar el documento del proyecto:
 //    - SHA-256 con ContentHasher.Sha256Hex.
 //    - Parser según MIME (DOCX/XLSX/PDF). Otro MIME → Secciones = [].
 //    - Excepción del parser → Secciones = [] (no falla la verificación; el
 //      archivo SÍ está, las secciones son del paso siguiente del pipeline).
 //
-//  pathTemplateAbsoluto IGNORADO en MVP. El parámetro existe en el contrato
-//  para futuras iteraciones con templates locales.
+//  Template: si nombreTemplateArchivo != null y integraciones.TemplatesFolderId
+//    != null, se busca el template en la carpeta de templates de Drive, se parsea
+//    y se devuelve en SeccionesTemplate. Errores de template no abortan la
+//    verificación del documento — SeccionesTemplate queda [] en ese caso.
 //
 //  Caché entre llamadas: NO. Listing del folder se hace en cada VerificarAsync
 //  donde haga falta. Para 20-30 artefactos por auditoría son milisegundos
@@ -58,7 +66,9 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
         Fuente: FuenteDocumento.Drive,
         NombreArchivo: null,
         HashContenido: null,
-        Secciones: Array.Empty<SeccionDetectada>());
+        Secciones: Array.Empty<SeccionDetectada>(),
+        SeccionesTemplate: Array.Empty<SeccionDetectada>(),
+        NombreTemplateArchivo: null);
 
     private readonly IDriveMcpClient _drive;
     private readonly ILogger<ArtefactoFisicoChecker> _logger;
@@ -77,16 +87,30 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
         string? codigoArtefacto,
         string nombreArtefacto,
         string? urlReferenciaTailoring,
-        string? pathTemplateAbsoluto, // ignorado en MVP
+        string? nombreTemplateArchivo,
         CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(integraciones);
         ArgumentException.ThrowIfNullOrWhiteSpace(nombreArtefacto);
 
+        _logger.LogInformation("VerificarAsync: artefacto {Id} ({Nombre}) template={Template}.", artefactoEsperadoId, nombreArtefacto, nombreTemplateArchivo ?? "(sin template)");
         var driveFolderId = integraciones.DriveFolderId
             ?? throw new InvalidOperationException(
                 "ArtefactoFisicoChecker requiere Integraciones.DriveFolderId. " +
                 "ArtefactosBuilder debería garantizarlo antes de invocar.");
+
+        // Helper local: a partir del documento encontrado, busca y parsea el
+        // template, luego ensambla el VerificacionFisica final.
+        async ValueTask<VerificacionFisica> ArmarResultadoAsync(DriveFileContent doc)
+        {
+            var (seccionesTemplate, nombreTemplateEncontrado) =
+                await FetchTemplateAsync(
+                    integraciones.TemplatesFolderId,
+                    nombreTemplateArchivo,
+                    ct);
+
+            return ArmarVerificacionEncontrado(doc, seccionesTemplate, nombreTemplateEncontrado);
+        }
 
         // --- PASO 1: URL del tailoring ---
         var fileIdDesdeUrl = DriveUrlHelper.TryExtractFileId(urlReferenciaTailoring);
@@ -98,7 +122,7 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
                 _logger.LogInformation(
                     "Artefacto {Id}: encontrado por URL del tailoring → '{Nombre}'.",
                     artefactoEsperadoId, content.Name);
-                return ArmarVerificacionEncontrado(content);
+                return await ArmarResultadoAsync(content);
             }
             catch (Exception ex)
             {
@@ -129,12 +153,22 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
                     _logger.LogInformation(
                         "Artefacto {Id}: encontrado por código '{Codigo}' → '{Nombre}'.",
                         artefactoEsperadoId, codigoArtefacto, content.Name);
-                    return ArmarVerificacionEncontrado(content);
+                    return await ArmarResultadoAsync(content);
                 }
             }
+
+            // Código formal presente pero sin archivo matching: no caer a nombre/path.
+            // Un archivo sin el código en su nombre no es evidencia válida de este
+            // artefacto (evita que "FR 25" matchee "PR 11-13 Liberación de Software").
+            _logger.LogInformation(
+                "Artefacto {Id} (codigo='{Codigo}', nombre='{Nombre}'): " +
+                "no encontrado por código; fallback por nombre omitido " +
+                "(artefacto tiene código formal).",
+                artefactoEsperadoId, codigoArtefacto, nombreArtefacto);
+            return NoEncontrado;
         }
 
-        // --- PASO 3: nombre del artefacto ---
+        // --- PASO 3: nombre del artefacto (solo si no tiene código formal) ---
         var nombreNorm = TailoringColumnMapper.NormalizeHeaderKey(nombreArtefacto);
         if (nombreNorm.Length > 0)
         {
@@ -151,12 +185,12 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
                 _logger.LogInformation(
                     "Artefacto {Id}: encontrado por nombre '{Nombre}' → '{Archivo}'.",
                     artefactoEsperadoId, nombreArtefacto, content.Name);
-                return ArmarVerificacionEncontrado(content);
+                return await ArmarResultadoAsync(content);
             }
         }
 
-        // --- PASO 4: por path de carpeta. Additive y último: solo corre si
-        //     PASO 1-3 fallaron, así no toca lo que ya resuelve. ---
+        // --- PASO 4: por path de carpeta (solo si no tiene código formal).
+        //     Solo corre si PASO 1-3 fallaron, así no toca lo que ya resuelve. ---
         var tokensPath = ExtraerTokensPath(nombreArtefacto);
         if (tokensPath.Count > 0)
         {
@@ -177,7 +211,7 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
                 _logger.LogInformation(
                     "Artefacto {Id}: encontrado por path de carpeta '{Path}' → '{Archivo}'.",
                     artefactoEsperadoId, match.Path, content.Name);
-                return ArmarVerificacionEncontrado(content);
+                return await ArmarResultadoAsync(content);
             }
         }
 
@@ -188,7 +222,66 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
         return NoEncontrado;
     }
 
-    private VerificacionFisica ArmarVerificacionEncontrado(DriveFileContent content)
+    // -------------------------------------------------------------------------
+    //  Template fetching: busca el archivo de template en la carpeta de
+    //  templates de Drive y parsea sus secciones. Robusto: cualquier error
+    //  devuelve lista vacía sin abortar la verificación del documento.
+    // -------------------------------------------------------------------------
+
+    private async ValueTask<(IReadOnlyList<SeccionDetectada> Secciones, string? NombreArchivo)>
+        FetchTemplateAsync(
+            string? templatesFolderId,
+            string? nombreTemplateArchivo,
+            CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(templatesFolderId)
+            || string.IsNullOrWhiteSpace(nombreTemplateArchivo))
+        {
+            return (Array.Empty<SeccionDetectada>(), null);
+        }
+
+        _logger.LogInformation("FetchTemplate: iniciando para {Template} en folder {Folder}.", nombreTemplateArchivo, templatesFolderId);
+        try
+        {
+            _logger.LogInformation(
+                "FetchTemplate: llamando ListFilesUnderFolder en {Folder}.", templatesFolderId);
+            var listing = await _drive.ListFilesUnderFolderAsync(templatesFolderId, ct);
+            _logger.LogInformation("FetchTemplate: listing OK ({N} archivos).", listing.Files.Count);
+            var match = listing.Files.FirstOrDefault(f =>
+                string.Equals(f.Name, nombreTemplateArchivo, StringComparison.OrdinalIgnoreCase));
+
+            if (match is null)
+            {
+                _logger.LogWarning(
+                    "Template '{Nombre}' no encontrado en carpeta {FolderId}. " +
+                    "Continúo sin secciones de template.",
+                    nombreTemplateArchivo, templatesFolderId);
+                return (Array.Empty<SeccionDetectada>(), null);
+            }
+
+            var content = await _drive.GetFileContentAsync(match.Id, ct);
+            var secciones = ParsearSeccionesSeguro(content);
+
+            _logger.LogInformation(
+                "Template '{Nombre}' obtenido: {Count} secciones.",
+                content.Name, secciones.Count);
+
+            return (secciones, content.Name);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Error al obtener template '{Nombre}' de carpeta {FolderId}. " +
+                "Continúo sin secciones de template.",
+                nombreTemplateArchivo, templatesFolderId);
+            return (Array.Empty<SeccionDetectada>(), null);
+        }
+    }
+
+    private VerificacionFisica ArmarVerificacionEncontrado(
+        DriveFileContent content,
+        IReadOnlyList<SeccionDetectada> seccionesTemplate,
+        string? nombreTemplateArchivo)
     {
         var hash = ContentHasher.Sha256Hex(content.Bytes);
         var secciones = ParsearSeccionesSeguro(content);
@@ -198,7 +291,9 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
             Fuente: FuenteDocumento.Drive,
             NombreArchivo: content.Name,
             HashContenido: hash,
-            Secciones: secciones);
+            Secciones: secciones,
+            SeccionesTemplate: seccionesTemplate,
+            NombreTemplateArchivo: nombreTemplateArchivo);
     }
 
     /// <summary>

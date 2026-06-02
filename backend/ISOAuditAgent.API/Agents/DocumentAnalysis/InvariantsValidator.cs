@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  InvariantsValidator — DocumentAnalysis (Parte 4.C)
 // ----------------------------------------------------------------------------
 //  Validador de invariantes del DocumentosExtraidos (contrato 3) antes de
@@ -93,6 +93,12 @@ internal static partial class InvariantsValidator
                     "SeccionesDetectadas no puede ser null (usar lista vacía).");
             }
 
+            if (a.SeccionesTemplate is null)
+            {
+                throw new InvalidOperationException(
+                    "SeccionesTemplate no puede ser null (usar lista vacía).");
+            }
+
             // Disponibilidad vs DocumentoEncontrado.
             if (a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado
                 && a.DocumentoEncontrado is null)
@@ -133,7 +139,7 @@ internal static partial class InvariantsValidator
                 // El contrato admite las 4 fuentes; este agente solo valida
                 // artefactos en Drive en esta versión. Relajar cuando se
                 // sume soporte real para Trello/Clockify/MSProject.
-                if (a.DocumentoEncontrado.Fuente != FuenteDocumento.Drive)
+                if (a.DocumentoEncontrado.Fuente == FuenteDocumento.MSProject)
                 {
                     throw new InvalidOperationException(
                         $"Artefacto {a.ArtefactoEsperadoId}: MVP del agente DocumentAnalysis " +
@@ -144,8 +150,9 @@ internal static partial class InvariantsValidator
                 // MVP-DRIVE: la validación de SHA-256 64 chars asume archivos
                 // binarios. Si en post-MVP se permite Trello/Clockify, este
                 // validador debe relajarse junto con el de Fuente.
-                if (string.IsNullOrEmpty(a.DocumentoEncontrado.HashContenido)
-                    || !HashHex64Regex().IsMatch(a.DocumentoEncontrado.HashContenido))
+                if (a.DocumentoEncontrado.Fuente == FuenteDocumento.Drive
+                    && (string.IsNullOrEmpty(a.DocumentoEncontrado.HashContenido)
+                        || !HashHex64Regex().IsMatch(a.DocumentoEncontrado.HashContenido)))
                 {
                     throw new InvalidOperationException(
                         $"Artefacto {a.ArtefactoEsperadoId}: HashContenido debe ser " +

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  TailoringReader — Lectura del FR-29 desde un folder de Drive (D3.4)
 // ----------------------------------------------------------------------------
 //  Responsabilidad acotada:
@@ -76,7 +76,14 @@ public sealed class TailoringReader
                 $"(MIME real: '{content.MimeType}').");
         }
 
-        return ParsearWorkbook(content.Bytes, content.Name);
+        _logger.LogInformation(
+            "TailoringReader: descargado {Nombre} ({Bytes} bytes). Iniciando ParsearWorkbook.",
+            content.Name, content.Bytes.Length);
+        var filas = ParsearWorkbook(content.Bytes, content.Name);
+        _logger.LogInformation(
+            "TailoringReader: ParsearWorkbook completado — {N} filas de tailoring.",
+            filas.Count);
+        return filas;
     }
 
     private static bool EsCandidatoFr29(DriveFile f)

@@ -4,6 +4,8 @@ using ISOAuditAgent.API.Repositories;
 using ISOAuditAgent.API.Services;
 using ISOAuditAgent.API.Agents.Orchestrator;
 using ISOAuditAgent.API.Integrations.MCP.Drive;
+using ISOAuditAgent.API.Integrations.MCP.Trello;
+using ISOAuditAgent.API.Integrations.MCP.Clockify;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Drive;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Parsing;
 using ISOAuditAgent.API.Agents.DocumentAnalysis;
@@ -80,6 +82,8 @@ builder.Services.AddScoped<ResolutorContextoService>();
 // Registra GoogleDriveClient (Singleton, perezoso) + MCP server con tools.
 // El montaje en /mcp/drive se hace abajo con app.MapMcp.
 builder.Services.AddGoogleDriveMcpServer(builder.Configuration);
+builder.Services.AddTrelloMcpServer(builder.Configuration);
+builder.Services.AddClockifyMcpServer(builder.Configuration);
 // ----------------------------------------
 
 // --- D4: Gemini + AIAgent keyed ---
@@ -108,6 +112,8 @@ app.UseCors(CorsPolicyFrontend);
 
 // --- D3.1: Montaje del server MCP de Drive en /mcp/drive ---
 app.MapMcp("/mcp/drive");
+app.MapMcp("/mcp/trello");
+app.MapMcp("/mcp/clockify");
 // -----------------------------------------------------------
 
 // ============================================================================
@@ -300,7 +306,8 @@ app.MapGet("/api/_smoke/checker",
         var integraciones = new ISOAuditAgent.API.Agents.Contracts.IntegracionesProyecto(
             DriveFolderId: folderId,
             TrelloBoardId: null,
-            ClockifyProjectId: null);
+            ClockifyProjectId: null,
+            TemplatesFolderId: null);
 
         var resultado = await checker.VerificarAsync(
             integraciones,
@@ -308,7 +315,7 @@ app.MapGet("/api/_smoke/checker",
             codigoArtefacto: string.IsNullOrWhiteSpace(codigo) ? null : codigo,
             nombreArtefacto: nombre,
             urlReferenciaTailoring: string.IsNullOrWhiteSpace(url) ? null : url,
-            pathTemplateAbsoluto: null,
+            nombreTemplateArchivo: null,
             ct: ct);
 
         return Results.Ok(resultado);

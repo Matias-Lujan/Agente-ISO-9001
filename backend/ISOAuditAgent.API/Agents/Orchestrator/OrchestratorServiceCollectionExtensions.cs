@@ -36,6 +36,8 @@
 // ============================================================================
 
 using ISOAuditAgent.API.Agents.DocumentAnalysis;
+using ISOAuditAgent.API.Agents.DocumentAnalysis.Clockify;
+using ISOAuditAgent.API.Agents.DocumentAnalysis.Trello;
 using ISOAuditAgent.API.Services;
 using Microsoft.Agents.AI;
 
@@ -61,6 +63,8 @@ public static class OrchestratorServiceCollectionExtensions
             sp.GetRequiredKeyedService<AIAgent>("DocumentAnalysis"),
             sp.GetRequiredService<ITailoringSource>(),
             sp.GetRequiredService<IArtefactoFisicoChecker>(),
+            sp.GetRequiredService<TrelloChecker>(),
+            sp.GetRequiredService<ClockifyChecker>(),
             sp.GetRequiredService<IAuditoriaProgresoTracker>(),
             sp.GetRequiredService<ILogger<DocumentAnalysisNode>>()));
 

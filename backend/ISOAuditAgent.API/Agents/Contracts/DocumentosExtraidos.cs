@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  Contrato 3 � Salida de DocumentAnalysis (contratos_agentes.md v2.2)
 // ----------------------------------------------------------------------------
 //  Lo produce DocumentAnalysis: recibe el ContextoAuditoria (artefactos
@@ -70,9 +70,10 @@ public sealed record ArtefactoExtraido(
     // Resultado de la recolecci�n f�sica del artefacto.
     EstadoDisponibilidad EstadoDisponibilidad,
     string? UrlReferencia,
-    string? PathTemplateAbsoluto,
+    string? NombreTemplateArchivo,
     DocumentoEncontrado? DocumentoEncontrado,
-    IReadOnlyList<SeccionDetectada> SeccionesDetectadas
+    IReadOnlyList<SeccionDetectada> SeccionesDetectadas,
+    IReadOnlyList<SeccionDetectada> SeccionesTemplate
 );
 
 /// <summary>

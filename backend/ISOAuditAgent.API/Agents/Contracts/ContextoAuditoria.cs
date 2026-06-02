@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 //  Contrato 2 � Salida de ResolutorContexto (contratos_agentes.md v2.2)
 // ----------------------------------------------------------------------------
 //  DTO que produce el nodo determinista ResolutorContexto y consume el agente
@@ -48,7 +48,8 @@ public sealed record ContextoAuditoria(
 public sealed record IntegracionesProyecto(
     string? DriveFolderId,
     string? TrelloBoardId,
-    string? ClockifyProjectId
+    string? ClockifyProjectId,
+    string? TemplatesFolderId  // Drive folder ID donde viven los templates (configuraciones_sistema)
 );
 
 /// <summary>
@@ -84,7 +85,8 @@ public sealed record ArtefactoEsperadoContexto(
     /// null cuando el artefacto no tiene template (ej. tarjeta de Trello,
     /// registro de Clockify).
     /// </summary>
-    string? PathTemplateAbsoluto
+    string? NombreTemplateArchivo,  // nombre del archivo de template en la carpeta de templates
+    ISOAuditAgent.API.Models.FuenteVerificacion FuenteVerificacion  // fuente donde se verifica la evidencia
 );
 
 // ----------------------------------------------------------------------------
