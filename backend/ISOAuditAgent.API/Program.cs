@@ -181,4 +181,12 @@ app.MapMcp("/mcp/drive");
 
 app.MapControllers();
 
+// En desarrollo: aplica migraciones pendientes y siembra los usuarios demo, así
+// todo el equipo arranca con el mismo login funcionando (sin inserts manuales).
+// Ver Data/DataSeeder.cs. En producción NO se ejecuta.
+if (app.Environment.IsDevelopment())
+{
+    await DataSeeder.InicializarAsync(app.Services);
+}
+
 app.Run();
