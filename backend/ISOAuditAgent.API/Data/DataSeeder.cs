@@ -25,9 +25,9 @@ public static class DataSeeder
 
     private static readonly (string Email, string Nombre, RolUsuario Rol)[] UsuariosDemo =
     {
-        ("admin@bdtglobal.com.ar",    "Administrador Demo", RolUsuario.Administrador),
-        ("auditor@bdtglobal.com.ar",  "Auditor Demo",       RolUsuario.Auditor),
-        ("operador@bdtglobal.com.ar", "Operador Demo",      RolUsuario.Operador),
+        ("admin@bdtglobal.com.ar",    "Admin", RolUsuario.Administrador),
+        ("auditor@bdtglobal.com.ar",  "Auditor",       RolUsuario.Auditor),
+        ("operador@bdtglobal.com.ar", "Operador",      RolUsuario.Operador),
     };
 
     public static async Task InicializarAsync(IServiceProvider services)
