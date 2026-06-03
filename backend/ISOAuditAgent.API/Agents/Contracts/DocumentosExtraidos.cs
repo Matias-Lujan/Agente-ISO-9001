@@ -1,17 +1,17 @@
-// ============================================================================
-//  Contrato 3 — Salida de DocumentAnalysis (contratos_agentes.md v2.2)
+ï»¿// ============================================================================
+//  Contrato 3 ï¿½ Salida de DocumentAnalysis (contratos_agentes.md v2.2)
 // ----------------------------------------------------------------------------
 //  Lo produce DocumentAnalysis: recibe el ContextoAuditoria (artefactos
 //  esperados ya enriquecidos), lee el tailoring del proyecto, lo cruza con
 //  los artefactos esperados y va a buscar los exigibles que aplican.
 //
 //  Lo consumen ComplianceValidation y ConsistencyVerification en paralelo
-//  (fan-out), y también FindingsClassification vía edge directo.
+//  (fan-out), y tambiï¿½n FindingsClassification vï¿½a edge directo.
 //
-//  DESVÍO REGISTRADO respecto de contratos_agentes.md v2.2:
+//  DESVï¿½O REGISTRADO respecto de contratos_agentes.md v2.2:
 //  La spec v2.2 define el campo de ArtefactoExtraido como
 //  'EstadoTailoring EstadoTailoring', con un enum propio EstadoTailoring.
-//  Por la decisión cerrada 2.8 del plan maestro de integración, el enum
+//  Por la decisiï¿½n cerrada 2.8 del plan maestro de integraciï¿½n, el enum
 //  EstadoTailoring se ELIMINA y se unifica en el enum compartido
 //  EstadoAplicacionTailoring (definido en ISOAuditAgent.API.Models, junto a
 //  las entidades EF). El campo pasa a 'EstadoAplicacionTailoring
@@ -19,7 +19,7 @@
 //  punto.
 //
 //  Enums:
-//   - EstadoDisponibilidad: propio del workflow, se define acá.
+//   - EstadoDisponibilidad: propio del workflow, se define acï¿½.
 //   - ExigibilidadArtefacto / ObligatoriedadArtefacto: definidos en
 //     ContextoAuditoria.cs (contrato 2), se referencian.
 //   - EstadoAplicacionTailoring / FuenteDocumento: enums compartidos con las
@@ -36,19 +36,21 @@ namespace ISOAuditAgent.API.Agents.Contracts;
 
 /// <summary>
 /// Salida de DocumentAnalysis. Incluye TODOS los artefactos esperados del
-/// procedimiento — exigibles y PendienteEtapaFutura — para que el dashboard
+/// procedimiento ï¿½ exigibles y PendienteEtapaFutura ï¿½ para que el dashboard
 /// pueda calcular el porcentaje de cumplimiento sobre el total.
 /// </summary>
 public sealed record DocumentosExtraidos(
     int AuditoriaId,
     int ProyectoId,
     int EtapaId,
+    string ProcedimientoCodigo,
+    string ProcedimientoNombre,
     IReadOnlyList<ArtefactoExtraido> Artefactos
 );
 
 /// <summary>
 /// Resultado por artefacto esperado del procedimiento: clasificado por
-/// exigibilidad y obligatoriedad y, si aplica, con el documento físico
+/// exigibilidad y obligatoriedad y, si aplica, con el documento fï¿½sico
 /// encontrado en la fuente externa.
 /// </summary>
 public sealed record ArtefactoExtraido(
@@ -61,23 +63,24 @@ public sealed record ArtefactoExtraido(
     ExigibilidadArtefacto Exigibilidad,
     ObligatoriedadArtefacto Obligatoriedad,
 
-    // Voz del tailoring. Enum unificado (ver desvío en la cabecera).
+    // Voz del tailoring. Enum unificado (ver desvï¿½o en la cabecera).
     EstadoAplicacionTailoring EstadoAplicacionTailoring,
     string? JustificacionNoAplica,
 
-    // Resultado de la recolección física del artefacto.
+    // Resultado de la recolecciï¿½n fï¿½sica del artefacto.
     EstadoDisponibilidad EstadoDisponibilidad,
     string? UrlReferencia,
-    string? PathTemplateAbsoluto,
+    string? NombreTemplateArchivo,
     DocumentoEncontrado? DocumentoEncontrado,
-    IReadOnlyList<SeccionDetectada> SeccionesDetectadas
+    IReadOnlyList<SeccionDetectada> SeccionesDetectadas,
+    IReadOnlyList<SeccionDetectada> SeccionesTemplate
 );
 
 /// <summary>
-/// Documento físico efectivamente recolectado desde una fuente externa.
+/// Documento fï¿½sico efectivamente recolectado desde una fuente externa.
 /// Solo se construye cuando EstadoDisponibilidad = Encontrado.
 /// El HashContenido se calcula sobre los bytes (fuentes binarias) o sobre el
-/// texto canónico normalizado (fuentes sin binario).
+/// texto canï¿½nico normalizado (fuentes sin binario).
 /// </summary>
 public sealed record DocumentoEncontrado(
     string NombreArchivo,
@@ -86,9 +89,9 @@ public sealed record DocumentoEncontrado(
 );
 
 /// <summary>
-/// Sección detectada dentro del documento encontrado, comparable contra el
-/// template del FR correspondiente. TieneContenido indica si la sección tiene
-/// algún contenido más allá del propio título.
+/// Secciï¿½n detectada dentro del documento encontrado, comparable contra el
+/// template del FR correspondiente. TieneContenido indica si la secciï¿½n tiene
+/// algï¿½n contenido mï¿½s allï¿½ del propio tï¿½tulo.
 /// </summary>
 public sealed record SeccionDetectada(
     string Titulo,
@@ -96,11 +99,11 @@ public sealed record SeccionDetectada(
 );
 
 // ----------------------------------------------------------------------------
-//  Enum propio del workflow — definido una sola vez, acá
+//  Enum propio del workflow ï¿½ definido una sola vez, acï¿½
 // ----------------------------------------------------------------------------
 
 /// <summary>
-/// Resultado de la recolección física del artefacto. Solo los artefactos
+/// Resultado de la recolecciï¿½n fï¿½sica del artefacto. Solo los artefactos
 /// exigibles que aplican se buscan; el resto queda en NoBuscado.
 /// </summary>
 public enum EstadoDisponibilidad

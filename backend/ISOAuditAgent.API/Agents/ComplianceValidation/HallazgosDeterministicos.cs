@@ -76,15 +76,27 @@ internal static class HallazgosDeterministicos
             if (a.EstadoAplicacionTailoring == EstadoAplicacionTailoring.Aplica
                 && a.EstadoDisponibilidad == EstadoDisponibilidad.Faltante)
             {
+                var justReg1 = string.IsNullOrWhiteSpace(a.UrlReferencia)
+                    ? $"El tailoring del proyecto declara '{a.NombreArtefacto}' como 'Aplica', " +
+                      $"comprometiendo su existencia para la etapa auditada. " +
+                      $"El sistema buscó la evidencia y no la encontró. " +
+                      $"El procedimiento {input.ProcedimientoCodigo} ({input.ProcedimientoNombre}) " +
+                      $"exige que todo artefacto aplicable esté disponible o quede justificado " +
+                      $"en el tailoring; un artefacto comprometido y ausente sin justificación " +
+                      $"es una no conformidad directa."
+                    : $"El tailoring del proyecto declara '{a.NombreArtefacto}' como 'Aplica', " +
+                      $"comprometiendo su existencia para la etapa auditada. " +
+                      $"El tailoring declara una URL de referencia para este artefacto, " +
+                      $"pero el sistema buscó la evidencia y no la encontró. " +
+                      $"El procedimiento {input.ProcedimientoCodigo} ({input.ProcedimientoNombre}) " +
+                      $"exige que todo artefacto aplicable esté disponible o quede justificado " +
+                      $"en el tailoring; un artefacto comprometido y ausente sin justificación " +
+                      $"es una no conformidad directa.";
+
                 hallazgos.Add(new HallazgoPreliminar(
                     ArtefactoEsperadoId: a.ArtefactoEsperadoId,
                     Descripcion: $"Artefacto exigible '{a.NombreArtefacto}' no se encontró.",
-                    Justificacion:
-                        "El artefacto pertenece a la etapa actual o a una etapa anterior " +
-                        "y por lo tanto es exigible. El sistema intentó verificar su " +
-                        "existencia física pero no encontró evidencia asociada. El PR 11-13 " +
-                        "exige que los artefactos definidos como exigibles estén disponibles " +
-                        "o queden debidamente justificados en el tailoring.",
+                    Justificacion: justReg1,
                     OrigenRegla: OrigenRegla.Procedimiento));
             }
 
@@ -96,23 +108,38 @@ internal static class HallazgosDeterministicos
                     ArtefactoEsperadoId: a.ArtefactoEsperadoId,
                     Descripcion: $"Artefacto '{a.NombreArtefacto}' marcado como 'No aplica' sin justificación en el tailoring.",
                     Justificacion:
-                        "El cliente confirmó que cuando el tailoring marca un artefacto " +
-                        "como 'No (justificar)' debe existir una justificación textual. " +
-                        "Sin esa justificación, la exclusión no es válida.",
+                        $"El tailoring del proyecto declara '{a.NombreArtefacto}' como 'No aplica', " +
+                        $"pero la justificación de esa exclusión está vacía. " +
+                        $"La política de tailoring acordada con el cliente exige que toda exclusión " +
+                        $"de un artefacto incluya una justificación textual que la sustente. " +
+                        $"Sin ella, la exclusión no puede validarse contra el procedimiento " +
+                        $"{input.ProcedimientoCodigo} ({input.ProcedimientoNombre}) " +
+                        $"y constituye una no conformidad.",
                     OrigenRegla: OrigenRegla.Procedimiento));
             }
 
             // Regla 3: SinDeclararEnTailoring.
             if (a.EstadoAplicacionTailoring == EstadoAplicacionTailoring.SinDeclararEnTailoring)
             {
+                var artefactoRef = a.CodigoArtefacto is not null
+                    ? $"{a.CodigoArtefacto} '{a.NombreArtefacto}'"
+                    : $"'{a.NombreArtefacto}'";
+                var mandatorio = a.Obligatoriedad == ObligatoriedadArtefacto.Mandatorio
+                    ? " y mandatorio"
+                    : string.Empty;
+
                 hallazgos.Add(new HallazgoPreliminar(
                     ArtefactoEsperadoId: a.ArtefactoEsperadoId,
                     Descripcion: $"Artefacto '{a.NombreArtefacto}' no figura en el tailoring del proyecto.",
                     Justificacion:
-                        "El PR 11-13 establece que la obligatoriedad de los artefactos " +
-                        "del proyecto se define en el FR-29 Tailoring del Proyecto. " +
-                        "Este artefacto forma parte del procedimiento esperado pero no " +
-                        "fue declarado en el tailoring con una decisión explícita.",
+                        $"El procedimiento {input.ProcedimientoCodigo} ({input.ProcedimientoNombre}) " +
+                        $"exige que cada artefacto esperado tenga en el tailoring del proyecto " +
+                        $"una decisión explícita de aplicabilidad ('Aplica' o 'No aplica' con justificación). " +
+                        $"El tailoring no contiene ninguna entrada para {artefactoRef}, " +
+                        $"artefacto exigible{mandatorio} en la etapa auditada. " +
+                        $"Al no haber decisión declarada, no puede determinarse si el artefacto " +
+                        $"debía producirse: la omisión es una no conformidad con el requisito " +
+                        $"de completitud del tailoring.",
                     OrigenRegla: OrigenRegla.Procedimiento));
             }
         }

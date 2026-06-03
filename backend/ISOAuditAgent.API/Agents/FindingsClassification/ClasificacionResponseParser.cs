@@ -132,9 +132,11 @@ internal static class ClasificacionResponseParser
                     ArtefactoEsperadoId: hallazgoOriginal.ArtefactoEsperadoId,
                     Tipo: ResolverTipo(tipoStr, hallazgoOriginal.OrigenRegla),
                     Descripcion: hallazgoOriginal.Descripcion,
-                    Justificacion: string.IsNullOrWhiteSpace(justificacionLlm)
+                    Justificacion: hallazgoOriginal.OrigenRegla == OrigenRegla.Procedimiento
                         ? hallazgoOriginal.Justificacion
-                        : justificacionLlm,
+                        : string.IsNullOrWhiteSpace(justificacionLlm)
+                            ? hallazgoOriginal.Justificacion
+                            : justificacionLlm,
                     AgenteOrigen: agenteOrigen);
             }
 
@@ -173,9 +175,11 @@ internal static class ClasificacionResponseParser
             _ => TipoHallazgo.OBS
         };
 
-        // Regla de oro determinística: degradar NC a OM si la regla no viene
-        // del procedimiento. El prompt la enuncia; este código la fuerza.
-        if (origenRegla != OrigenRegla.Procedimiento && clasificadoPorLlm == TipoHallazgo.NC)
+        // Regla de oro determinística: degradar NC a OM solo para OrigenRegla.Tailoring.
+        // Procedimiento y Template pueden producir NC (ERS 4.2).
+        // Tailoring permanece techado a OM: las reglas de negocio del tailoring
+        // son acuerdos de proyecto, no requisitos del procedimiento.
+        if (origenRegla == OrigenRegla.Tailoring && clasificadoPorLlm == TipoHallazgo.NC)
         {
             return TipoHallazgo.OM;
         }

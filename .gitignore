@@ -30,3 +30,6 @@ build/
 Thumbs.db
 
 docs/*
+/docs/
+/backend/ISOAuditAgent.API/secrets/
+.cursorrules

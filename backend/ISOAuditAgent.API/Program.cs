@@ -1,8 +1,10 @@
-﻿using System.Text;
+using System.Text;
 using ISOAuditAgent.API.Agents.Orchestrator;
 using ISOAuditAgent.API.Data;
 using ISOAuditAgent.API.Integrations.LLM;
 using ISOAuditAgent.API.Integrations.MCP.Drive;
+using ISOAuditAgent.API.Integrations.MCP.Trello;
+using ISOAuditAgent.API.Integrations.MCP.Clockify;
 using ISOAuditAgent.API.Repositories;
 using ISOAuditAgent.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -145,6 +147,11 @@ builder.Services.AddSingleton<IAuditoriaProgresoTracker, AuditoriaProgresoTracke
 // Server MCP de Google Drive + cliente (config "GoogleDrive" y "Mcp:Drive")
 builder.Services.AddGoogleDriveMcpServer(builder.Configuration);
 
+// Servers MCP de Trello y Clockify (evidencias ML-06, portado de dev).
+// Registran TrelloChecker/ClockifyChecker que consume el DocumentAnalysisNode.
+builder.Services.AddTrelloMcpServer(builder.Configuration);
+builder.Services.AddClockifyMcpServer(builder.Configuration);
+
 // Gemini (IChatClient) + 4 AIAgent keyed (config "Gemini")
 builder.Services.AddGeminiAndAgents(builder.Configuration);
 
@@ -176,8 +183,10 @@ app.UseCors(CorsPolicyFrontend);
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Server MCP de Google Drive montado en /mcp/drive
+// Servers MCP montados (Drive + evidencias Trello/Clockify de dev)
 app.MapMcp("/mcp/drive");
+app.MapMcp("/mcp/trello");
+app.MapMcp("/mcp/clockify");
 
 app.MapControllers();
 

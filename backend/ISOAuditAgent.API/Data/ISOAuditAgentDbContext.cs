@@ -79,6 +79,12 @@ public class ISOAuditAgentDbContext : DbContext
             .Property(i => i.Tipo)
             .HasConversion<string>();
 
+        // Fuente donde se verifica el artefacto (Drive/Trello/Clockify) — de dev (ML-06).
+        modelBuilder.Entity<ArtefactoEsperado>()
+            .Property(a => a.FuenteVerificacion)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
         // ── Progreso del workflow (portado de dev) ────────────────────────────
         modelBuilder.Entity<AuditoriaProgreso>()
             .Property(p => p.Nodo).HasConversion<string>();
