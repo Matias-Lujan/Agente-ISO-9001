@@ -16,6 +16,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import type { ReactNode } from 'react';
 import type { Rol } from './authApi';
+import { rutaInicial } from '../utils/navegacion';
 
 interface Props {
   children: ReactNode;
@@ -45,7 +46,8 @@ export default function ProtectedRoute({ children, requiereRol }: Props) {
   if (requiereRol) {
     const rolesPermitidos = Array.isArray(requiereRol) ? requiereRol : [requiereRol];
     if (!rolesPermitidos.includes(usuario.rol)) {
-      return <Navigate to="/dashboard" replace />;
+      // A la pantalla inicial que el rol sí puede ver (evita loops de redirección).
+      return <Navigate to={rutaInicial(usuario.rol)} replace />;
     }
   }
 

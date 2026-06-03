@@ -17,6 +17,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useInjectStyle } from '../utils/useInjectStyle';
 import { useAuth } from './AuthContext';
+import { rutaInicial } from '../utils/navegacion';
 import { loginCss } from './loginStyles';
 import NetworkBackground, { type NetworkConfig } from './NetworkBackground';
 import InputField from './InputField.tsx';
@@ -271,24 +272,25 @@ function BrandPanel({ onSwitch }: { onSwitch: (mode: 'signin' | 'signup') => voi
 export default function Login() {
   useInjectStyle(loginCss, 'login-design-style');
 
-  const { estaAutenticado } = useAuth();
+  const { estaAutenticado, usuario } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 
-  // Si ya esta logueado, redirigir al destino guardado o al home
+  // Si ya esta logueado, redirigir al destino guardado o a la pantalla inicial
+  // que corresponde al rol (Operador → /hallazgos, resto → /dashboard).
   useEffect(() => {
     if (estaAutenticado) {
       const state = location.state as LocationState | null;
-      const destino = state?.from?.pathname ?? '/dashboard';
+      const destino = state?.from?.pathname ?? rutaInicial(usuario?.rol);
       navigate(destino, { replace: true });
     }
-  }, [estaAutenticado, navigate, location]);
+  }, [estaAutenticado, usuario, navigate, location]);
 
   const handleLoginSuccess = () => {
     const state = location.state as LocationState | null;
-    const destino = state?.from?.pathname ?? '/dashboard';
+    const destino = state?.from?.pathname ?? rutaInicial(usuario?.rol);
     navigate(destino, { replace: true });
   };
 

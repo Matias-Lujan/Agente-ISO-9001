@@ -4,12 +4,12 @@
 //
 //  Rutas:
 //   - /login              Publica (sin sidebar)
-//   - /dashboard          Protegida (con sidebar) — cualquier rol autenticado
-//   - /nueva-auditoria    Protegida (con sidebar) — cualquier rol autenticado
+//   - /dashboard          Protegida — Administrador / Auditor (NO Operador)
+//   - /nueva-auditoria    Protegida — Administrador / Auditor (NO Operador)
 //   - /hallazgos          Protegida — cualquier rol autenticado
 //   - /configuracion      Protegida — cualquier rol autenticado
 //   - /usuarios           Protegida — SOLO Administrador (ABM)
-//   - *                   Redirige a /dashboard (pantalla default)
+//   - *                   Redirige a la pantalla inicial según el rol
 // ============================================================================
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -21,10 +21,10 @@ import Configuracion from './screens/Configuracion';
 import Usuarios from './screens/Usuarios';
 import { useInjectStyle } from './utils/useInjectStyle';
 import { sharedCss } from './styles/shared';
-import { AuthProvider } from './login/AuthContext';
+import { AuthProvider, useAuth } from './login/AuthContext';
 import ProtectedRoute from './login/ProtectedRoute';
 import Login from './login/Login';
-;
+import { rutaInicial } from './utils/navegacion';
 
 // Shell con sidebar — para las rutas protegidas
 function ShellLayout({ children }: { children: ReactNode }) {
@@ -34,6 +34,13 @@ function ShellLayout({ children }: { children: ReactNode }) {
       <main className="main">{children}</main>
     </div>
   );
+}
+
+// Redirección del catch-all a la pantalla inicial que corresponde al rol
+// (Operador → /hallazgos, resto → /dashboard).
+function InicioRedirect() {
+  const { usuario } = useAuth();
+  return <Navigate to={rutaInicial(usuario?.rol)} replace />;
 }
 
 export default function App() {
@@ -50,7 +57,7 @@ export default function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiereRol={['Administrador', 'Auditor']}>
                 <ShellLayout>
                   <Dashboard />
                 </ShellLayout>
@@ -60,7 +67,7 @@ export default function App() {
           <Route
             path="/nueva-auditoria"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiereRol={['Administrador', 'Auditor']}>
                 <ShellLayout>
                   <NuevaAuditoria />
                 </ShellLayout>
@@ -100,8 +107,8 @@ export default function App() {
             }
           />
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          {/* Catch-all — a la pantalla inicial según el rol */}
+          <Route path="*" element={<InicioRedirect />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

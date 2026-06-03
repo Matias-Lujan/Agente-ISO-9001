@@ -25,6 +25,10 @@ export default function Sidebar() {
   const isConfigActive    = location.pathname.startsWith('/configuracion');
 
   const esAdmin = usuario?.rol === 'Administrador';
+  // Solo Administrador y Auditor pueden ejecutar auditorías y ver el dashboard.
+  // El Operador solo accede a Hallazgos (y a su Configuración).
+  const puedeAuditar = usuario?.rol === 'Administrador' || usuario?.rol === 'Auditor';
+  const puedeVerDashboard = usuario?.rol !== 'Operador';
 
   const handleLogout = () => {
     cerrarSesion();
@@ -58,18 +62,20 @@ export default function Sidebar() {
         </div>
       </NavLink>
 
-      <NavLink
-        to="/dashboard"
-        className={`nav-item clickable${isDashboardActive ? ' active' : ''}`}
-      >
-        <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
-          <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-          <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-          <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-          <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-        </svg>
-        Dashboard
-      </NavLink>
+      {puedeVerDashboard && (
+        <NavLink
+          to="/dashboard"
+          className={`nav-item clickable${isDashboardActive ? ' active' : ''}`}
+        >
+          <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+            <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+            <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+            <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+          </svg>
+          Dashboard
+        </NavLink>
+      )}
 
       <div className="nav-item disabled" title="Próximamente">
         <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
@@ -78,16 +84,18 @@ export default function Sidebar() {
         Proyectos
       </div>
 
-      <NavLink
-        to="/nueva-auditoria"
-        className={`nav-item clickable${isAuditActive ? ' active' : ''}`}
-      >
-        <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
-          <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-        </svg>
-        Nueva auditoría
-      </NavLink>
+      {puedeAuditar && (
+        <NavLink
+          to="/nueva-auditoria"
+          className={`nav-item clickable${isAuditActive ? ' active' : ''}`}
+        >
+          <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          </svg>
+          Nueva auditoría
+        </NavLink>
+      )}
 
       <div className="nav-item disabled" title="Próximamente">
         <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
@@ -134,6 +142,8 @@ export default function Sidebar() {
           marginTop: 'auto',
           background: 'transparent',
           border: 'none',
+          borderTop: '0.5px solid var(--sb-border)',
+          paddingTop: '14px',
           width: '100%',
           textAlign: 'left',
           fontFamily: 'inherit',

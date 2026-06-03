@@ -74,6 +74,22 @@ export const dashboardCss = `
 /* ----- Vacío ----- */
 .dash-empty{padding:1.25rem;text-align:center;font-size:13px;color:var(--text-muted);}
 
+/* ----- Modal de advertencia (rol sin permiso) ----- */
+.dash-modal-overlay{
+  position:fixed;inset:0;background:rgba(15,8,40,0.55);
+  display:flex;align-items:center;justify-content:center;
+  z-index:1000;padding:1rem;animation:dash-fade .15s ease;
+}
+@keyframes dash-fade{from{opacity:0;}to{opacity:1;}}
+.dash-modal{
+  background:var(--surface);border:0.5px solid var(--border);border-radius:12px;
+  max-width:380px;width:100%;padding:1.75rem;text-align:center;
+  box-shadow:0 24px 60px rgba(0,0,0,0.35);
+}
+.dash-modal-icon{font-size:32px;margin-bottom:0.5rem;line-height:1;}
+.dash-modal-title{font-size:16px;font-weight:600;color:var(--text);margin:0 0 0.5rem;}
+.dash-modal-text{font-size:13px;color:var(--text-muted);line-height:1.5;margin-bottom:1.25rem;}
+
 /* ----- Responsive ----- */
 @media (max-width:900px){
   .dash-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}

@@ -20,6 +20,12 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- Necesario para referenciar tipos de ASP.NET (controllers, AuthorizeAttribute)
+       desde los tests. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\ISOAuditAgent.API\ISOAuditAgent.API.csproj" />
   </ItemGroup>

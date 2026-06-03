@@ -130,7 +130,7 @@ export default function Usuarios() {
         <div>
           <h1 className="us-header-title">Usuarios</h1>
           <p className="us-header-sub">
-            Gestión de cuentas del sistema — Solo Administradores
+            Gestión de cuentas del sistema — solo Administradores
           </p>
         </div>
         <button

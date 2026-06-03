@@ -70,6 +70,7 @@ public class AuditoriaController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = $"{Roles.Administrador},{Roles.Auditor}")]
     public async Task<IActionResult> Crear([FromBody] CrearAuditoriaRequest request)
     {
         if (!ModelState.IsValid)
