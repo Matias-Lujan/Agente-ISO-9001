@@ -125,8 +125,10 @@ public class ProcedimientoRepository : IProcedimientoRepository
 
     public async Task<IReadOnlyList<Etapa>> ObtenerEtapasAsync(int procedimientoId, CancellationToken ct)
     {
+        // Include obligatorio: ResolutorContextoService usa etapaAuditada.Procedimiento.Codigo/Nombre.
         return await _db.Etapas
             .AsNoTracking()
+            .Include(e => e.Procedimiento)
             .Where(e => e.ProcedimientoId == procedimientoId)
             .OrderBy(e => e.Orden)
             .ToListAsync(ct);
