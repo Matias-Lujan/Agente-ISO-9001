@@ -54,6 +54,15 @@ public class AuditoriaController : ControllerBase
         return Ok(auditoria);
     }
 
+    [HttpGet("{id}/resultado")]
+    public async Task<IActionResult> ObtenerResultado(int id)
+    {
+        var resultado = await _auditoriaService.ObtenerResultadoAsync(id);
+        if (resultado is null)
+            return NotFound(new { mensaje = $"Auditoría con ID {id} no encontrada" });
+        return Ok(resultado);
+    }
+
     [HttpGet("{id}/progreso")]
     public async Task<IActionResult> ObtenerProgreso(int id, CancellationToken ct)
     {

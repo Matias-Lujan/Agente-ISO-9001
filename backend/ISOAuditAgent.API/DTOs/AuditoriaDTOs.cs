@@ -28,3 +28,50 @@ public record ProgresoNodoResponse(
     DateTime? FechaInicioUtc,
     DateTime? FechaFinUtc
 );
+
+public record AuditoriaContadoresResponse(
+    int ArtefactosEvaluados,
+    int Hallazgos,
+    int DocumentosAnalizados
+);
+
+public record HallazgoResultadoResponse(
+    int Id,
+    string Tipo,
+    string Descripcion,
+    string Justificacion,
+    string AgenteOrigen
+);
+
+public record DocumentoAnalizadoResultadoResponse(
+    int Id,
+    string NombreArchivo,
+    string Fuente,
+    string? UrlReferencia,
+    string HashContenido
+);
+
+public record ArtefactoEvaluadoResultadoResponse(
+    int Id,
+    int ArtefactoEsperadoId,
+    string? ArtefactoEsperadoCodigo,
+    string? ArtefactoEsperadoNombre,
+    string Aplica,
+    string? JustificacionNoAplica,
+    string Resultado,
+    string? Observaciones,
+    IReadOnlyList<HallazgoResultadoResponse> Hallazgos,
+    IReadOnlyList<DocumentoAnalizadoResultadoResponse> DocumentosAnalizados
+);
+
+public record AuditoriaResultadoResponse(
+    int Id,
+    int ProyectoId,
+    int EtapaId,
+    int UsuarioId,
+    string Estado,
+    DateTime FechaInicioUtc,
+    DateTime? FechaFinalizacionUtc,
+    AuditoriaContadoresResponse Contadores,
+    IReadOnlyList<ArtefactoEvaluadoResultadoResponse> ArtefactosEvaluados
+);
