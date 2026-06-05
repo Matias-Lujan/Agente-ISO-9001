@@ -10,11 +10,10 @@ public class ArtefactoEsperado
     public bool MandatorioTipoA { get; set; }
     public bool MandatorioTipoB { get; set; }
     public string? PathTemplateRelativo { get; set; }
+
+    // Origen donde se verifica el artefacto (Drive / Trello / Clockify) — viene de dev (ML-06).
     public FuenteVerificacion FuenteVerificacion { get; set; } = FuenteVerificacion.Drive;
 
-    // Navegaci�n hacia el "uno".
     public Etapa Etapa { get; set; } = null!;
-
-    // Navegaci�n hacia los "muchos".
     public ICollection<ArtefactoEvaluado> ArtefactosEvaluados { get; set; } = new List<ArtefactoEvaluado>();
 }

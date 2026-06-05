@@ -1,5 +1,5 @@
 namespace ISOAuditAgent.API.Models;
-
+ 
 public class Informe
 {
     public int Id { get; set; }
@@ -7,7 +7,8 @@ public class Informe
     public DateTime FechaGeneracion { get; set; }
     public TipoInforme Tipo { get; set; }
     public string Contenido { get; set; } = null!;
-
-    // Navegación hacia el "uno".
+    
+    public bool Activo { get; set; } = true;
     public Auditoria Auditoria { get; set; } = null!;
 }
+ 

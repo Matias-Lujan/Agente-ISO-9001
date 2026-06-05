@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ISOAuditAgent.API.Migrations
 {
     [DbContext(typeof(ISOAuditAgentDbContext))]
-    [Migration("20260602020530_AddFuenteVerificacion")]
-    partial class AddFuenteVerificacion
+    [Migration("20260601035357_AgregarTemaPreferidoUsuario")]
+    partial class AgregarTemaPreferidoUsuario
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -29,87 +29,66 @@ namespace ISOAuditAgent.API.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Codigo")
-                        .HasColumnType("longtext")
-                        .HasColumnName("codigo");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Descripcion")
-                        .HasColumnType("longtext")
-                        .HasColumnName("descripcion");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("EtapaId")
-                        .HasColumnType("int")
-                        .HasColumnName("etapa_id");
-
-                    b.Property<string>("FuenteVerificacion")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("fuente_verificacion");
+                        .HasColumnType("int");
 
                     b.Property<bool>("MandatorioTipoA")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("mandatorio_tipo_a");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<bool>("MandatorioTipoB")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("mandatorio_tipo_b");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("nombre");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("PathTemplateRelativo")
-                        .HasColumnType("longtext")
-                        .HasColumnName("path_template_relativo");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
                     b.HasIndex("EtapaId");
 
-                    b.ToTable("artefactos_esperados");
+                    b.ToTable("artefactos_esperados", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.ArtefactoEvaluado", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Aplica")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)")
-                        .HasColumnName("aplica");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("ArtefactoEsperadoId")
-                        .HasColumnType("int")
-                        .HasColumnName("artefacto_esperado_id");
+                        .HasColumnType("int");
 
                     b.Property<int>("AuditoriaId")
-                        .HasColumnType("int")
-                        .HasColumnName("auditoria_id");
+                        .HasColumnType("int");
 
                     b.Property<string>("JustificacionNoAplica")
-                        .HasColumnType("longtext")
-                        .HasColumnName("justificacion_no_aplica");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Observaciones")
-                        .HasColumnType("longtext")
-                        .HasColumnName("observaciones");
+                        .HasColumnType("longtext");
 
-                    b.Property<int>("Resultado")
-                        .HasColumnType("int")
-                        .HasColumnName("resultado");
+                    b.Property<string>("Resultado")
+                        .IsRequired()
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -117,43 +96,38 @@ namespace ISOAuditAgent.API.Migrations
 
                     b.HasIndex("AuditoriaId");
 
-                    b.ToTable("artefactos_evaluados");
+                    b.ToTable("artefactos_evaluados", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.Auditoria", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<string>("Estado")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("estado");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("EtapaId")
-                        .HasColumnType("int")
-                        .HasColumnName("etapa_id");
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("FechaFinalizacionUtc")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_finalizacion_utc");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("FechaInicioUtc")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_inicio_utc");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("ProyectoId")
-                        .HasColumnType("int")
-                        .HasColumnName("proyecto_id");
+                        .HasColumnType("int");
 
                     b.Property<int>("UsuarioId")
-                        .HasColumnType("int")
-                        .HasColumnName("usuario_id");
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
@@ -163,117 +137,94 @@ namespace ISOAuditAgent.API.Migrations
 
                     b.HasIndex("UsuarioId");
 
-                    b.ToTable("auditorias");
+                    b.ToTable("auditorias", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.AuditoriaProgreso", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("AuditoriaId")
-                        .HasColumnType("int")
-                        .HasColumnName("auditoria_id");
+                        .HasColumnType("int");
 
                     b.Property<string>("Estado")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("estado");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime?>("FechaFinUtc")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_fin_utc");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTime?>("FechaInicioUtc")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_inicio_utc");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Nodo")
                         .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("varchar(40)")
-                        .HasColumnName("nodo");
+                        .HasColumnType("varchar(255)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AuditoriaId", "Nodo")
                         .IsUnique();
 
-                    b.ToTable("auditoria_progresos");
+                    b.ToTable("auditoria_progreso", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.ConfiguracionSistema", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Clave")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("clave");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Descripcion")
-                        .HasColumnType("longtext")
-                        .HasColumnName("descripcion");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Valor")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("valor");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Clave")
-                        .IsUnique();
-
-                    b.ToTable("configuraciones_sistema");
+                    b.ToTable("configuraciones_sistema", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.DocumentoAnalizado", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ArtefactoEvaluadoId")
-                        .HasColumnType("int")
-                        .HasColumnName("artefacto_evaluado_id");
+                        .HasColumnType("int");
 
                     b.Property<int>("AuditoriaId")
-                        .HasColumnType("int")
-                        .HasColumnName("auditoria_id");
+                        .HasColumnType("int");
 
                     b.Property<string>("Fuente")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("fuente");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("HashContenido")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("hash_contenido");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("NombreArchivo")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("nombre_archivo");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("UrlReferencia")
-                        .HasColumnType("longtext")
-                        .HasColumnName("url_referencia");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -281,284 +232,246 @@ namespace ISOAuditAgent.API.Migrations
 
                     b.HasIndex("AuditoriaId");
 
-                    b.ToTable("documentos_analizados");
+                    b.ToTable("documentos_analizados", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.Etapa", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Descripcion")
-                        .HasColumnType("longtext")
-                        .HasColumnName("descripcion");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("nombre");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("Orden")
-                        .HasColumnType("int")
-                        .HasColumnName("orden");
+                        .HasColumnType("int");
 
                     b.Property<int>("ProcedimientoId")
-                        .HasColumnType("int")
-                        .HasColumnName("procedimiento_id");
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ProcedimientoId");
 
-                    b.ToTable("etapas");
+                    b.ToTable("etapas", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.Hallazgo", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AgenteOrigen")
                         .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("varchar(30)")
-                        .HasColumnName("agente_origen");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("ArtefactoEvaluadoId")
-                        .HasColumnType("int")
-                        .HasColumnName("artefacto_evaluado_id");
+                        .HasColumnType("int");
 
                     b.Property<string>("Descripcion")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("descripcion");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Justificacion")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("justificacion");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Tipo")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)")
-                        .HasColumnName("tipo");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ArtefactoEvaluadoId");
 
-                    b.ToTable("hallazgos");
+                    b.ToTable("hallazgos", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.Informe", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<bool>("Activo")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<int>("AuditoriaId")
-                        .HasColumnType("int")
-                        .HasColumnName("auditoria_id");
+                        .HasColumnType("int");
 
                     b.Property<string>("Contenido")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("contenido");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("FechaGeneracion")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_generacion");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Tipo")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("varchar(10)")
-                        .HasColumnName("tipo");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AuditoriaId");
 
-                    b.ToTable("informes");
+                    b.ToTable("informes", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.Procedimiento", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Codigo")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("codigo");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("Descripcion")
-                        .HasColumnType("longtext")
-                        .HasColumnName("descripcion");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("nombre");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Codigo")
                         .IsUnique();
 
-                    b.ToTable("procedimientos");
+                    b.ToTable("procedimientos", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.Proyecto", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("activo");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("ClockifyProjectId")
-                        .HasColumnType("longtext")
-                        .HasColumnName("clockify_project_id");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Descripcion")
-                        .HasColumnType("longtext")
-                        .HasColumnName("descripcion");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("DriveFolderId")
-                        .HasColumnType("longtext")
-                        .HasColumnName("drive_folder_id");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime?>("FechaFin")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_fin");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<DateTime>("FechaInicio")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_inicio");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("HorasEstimadas")
-                        .HasColumnType("int")
-                        .HasColumnName("horas_estimadas");
+                        .HasColumnType("int");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("nombre");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("ProcedimientoId")
-                        .HasColumnType("int")
-                        .HasColumnName("procedimiento_id");
+                        .HasColumnType("int");
 
                     b.Property<string>("TipoProyecto")
                         .IsRequired()
-                        .HasMaxLength(1)
-                        .HasColumnType("varchar(1)")
-                        .HasColumnName("tipo_proyecto");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("TrelloBoardId")
-                        .HasColumnType("longtext")
-                        .HasColumnName("trello_board_id");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ProcedimientoId");
 
-                    b.ToTable("proyectos");
+                    b.ToTable("proyectos", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.ProyectoUsuario", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("ProyectoId")
-                        .HasColumnType("int")
-                        .HasColumnName("proyecto_id");
+                        .HasColumnType("int");
 
                     b.Property<int>("UsuarioId")
-                        .HasColumnType("int")
-                        .HasColumnName("usuario_id");
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ProyectoId");
+
                     b.HasIndex("UsuarioId");
 
-                    b.HasIndex("ProyectoId", "UsuarioId")
-                        .IsUnique();
-
-                    b.ToTable("proyecto_usuarios");
+                    b.ToTable("proyectos_usuarios", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.Usuario", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasColumnName("id");
+                        .HasColumnType("int");
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("Activo")
-                        .HasColumnType("tinyint(1)")
-                        .HasColumnName("activo");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("varchar(255)")
-                        .HasColumnName("email");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<DateTime>("FechaCreacion")
-                        .HasColumnType("datetime(6)")
-                        .HasColumnName("fecha_creacion");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Nombre")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("nombre");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasColumnType("longtext")
-                        .HasColumnName("password_hash");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Rol")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("varchar(20)")
-                        .HasColumnName("rol");
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("TemaPreferido")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasDefaultValue("Claro");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("usuarios");
+                    b.ToTable("usuarios", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.ArtefactoEsperado", b =>
@@ -623,7 +536,7 @@ namespace ISOAuditAgent.API.Migrations
                     b.HasOne("ISOAuditAgent.API.Models.Auditoria", "Auditoria")
                         .WithMany()
                         .HasForeignKey("AuditoriaId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Auditoria");
@@ -686,7 +599,7 @@ namespace ISOAuditAgent.API.Migrations
                     b.HasOne("ISOAuditAgent.API.Models.Procedimiento", "Procedimiento")
                         .WithMany()
                         .HasForeignKey("ProcedimientoId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Procedimiento");

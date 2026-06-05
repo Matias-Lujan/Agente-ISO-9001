@@ -5,13 +5,13 @@
 namespace ISOAuditAgent.API.Migrations
 {
     /// <inheritdoc />
-    public partial class AddFuenteVerificacion : Migration
+    public partial class AgregarFuenteVerificacion : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<string>(
-                name: "fuente_verificacion",
+                name: "FuenteVerificacion",
                 table: "artefactos_esperados",
                 type: "varchar(20)",
                 maxLength: 20,
@@ -24,7 +24,7 @@ namespace ISOAuditAgent.API.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "fuente_verificacion",
+                name: "FuenteVerificacion",
                 table: "artefactos_esperados");
         }
     }

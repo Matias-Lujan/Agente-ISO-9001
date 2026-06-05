@@ -1,5 +1,5 @@
 namespace ISOAuditAgent.API.Models;
-
+ 
 public class Proyecto
 {
     public int Id { get; set; }
@@ -14,11 +14,8 @@ public class Proyecto
     public string? ClockifyProjectId { get; set; }
     public string? DriveFolderId { get; set; }
     public bool Activo { get; set; }
-
-    // Navegación hacia el "uno".
+ 
     public Procedimiento Procedimiento { get; set; } = null!;
-
-    // Navegación hacia los "muchos".
     public ICollection<ProyectoUsuario> ProyectoUsuarios { get; set; } = new List<ProyectoUsuario>();
     public ICollection<Auditoria> Auditorias { get; set; } = new List<Auditoria>();
 }

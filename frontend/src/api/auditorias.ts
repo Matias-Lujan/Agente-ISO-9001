@@ -1,4 +1,11 @@
-import { api, DEFAULT_USUARIO_ID } from './client';
+
+// ============================================================================
+//  Endpoints del workflow de auditorias.
+//  El usuarioId YA NO se manda en el body — el backend lo extrae del JWT
+//  (claim NameIdentifier) del header Authorization.
+// ============================================================================
+
+import { api } from './client';
 
 export type EstadoAuditoria = 'EnCurso' | 'Completada' | 'Fallida';
 
@@ -32,15 +39,17 @@ export interface ProgresoNodo {
   fechaFinUtc: string | null;
 }
 
-export function crearAuditoria(
+export async function crearAuditoria(
   proyectoId: number,
   etapaId: number
 ): Promise<CrearAuditoriaResponse> {
-  return api.post<CrearAuditoriaResponse>('/api/auditorias', {
-    proyectoId,
-    etapaId,
-    usuarioId: DEFAULT_USUARIO_ID,
-  });
+  // El backend (POST /api/auditorias) devuelve AuditoriaResponse { id, ..., estado },
+  // NO { auditoriaId }. Mapeamos id → auditoriaId para mantener el contrato del front.
+  const r = await api.post<{ id: number; estado: EstadoAuditoria }>(
+    '/api/auditorias',
+    { proyectoId, etapaId }
+  );
+  return { auditoriaId: r.id, estado: r.estado };
 }
 
 export function obtenerAuditoria(id: number): Promise<AuditoriaResumen> {

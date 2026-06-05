@@ -1,5 +1,5 @@
 namespace ISOAuditAgent.API.Models;
-
+ 
 public class Hallazgo
 {
     public int Id { get; set; }
@@ -8,7 +8,6 @@ public class Hallazgo
     public string Descripcion { get; set; } = null!;
     public string Justificacion { get; set; } = null!;
     public AgenteOrigen AgenteOrigen { get; set; }
-
-    // Navegación hacia el "uno".
+ 
     public ArtefactoEvaluado ArtefactoEvaluado { get; set; } = null!;
 }

@@ -1,34 +1,63 @@
-// ============================================================================
-//  HallazgoRepository — Inserción de lote de Hallazgo
-// ----------------------------------------------------------------------------
-//  Implementa IHallazgoRepository. Consumido por AuditoriaPersistenceService
-//  como segundo paso del flujo de persistencia. La FK artefacto_evaluado_id
-//  ya fue resuelta por el service usando el mapa de ids generados en el
-//  paso anterior.
-//
-//  AddRange + SaveChanges único: una sola ida a BD por lote. Si el lote
-//  está vacío, EF Core no emite SQL (es seguro llamarlo igual).
-//
-//  Se asume ejecución dentro de la transacción del IUnitOfWork.
-// ============================================================================
-
 using ISOAuditAgent.API.Data;
 using ISOAuditAgent.API.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace ISOAuditAgent.API.Repositories;
 
-public sealed class HallazgoRepository : IHallazgoRepository
+/// <summary>
+/// Implementacion del repositorio de hallazgos usando Entity Framework.
+/// Solo lectura — los hallazgos los insertan los agentes.
+/// </summary>
+public class HallazgoRepository : IHallazgoRepository
 {
-    private readonly ISOAuditAgentDbContext _context;
+    private readonly ISOAuditAgentDbContext _db;
+    private readonly ILogger<HallazgoRepository> _logger;
 
-    public HallazgoRepository(ISOAuditAgentDbContext context)
+    public HallazgoRepository(ISOAuditAgentDbContext db, ILogger<HallazgoRepository> logger)
     {
-        _context = context;
+        _db     = db;
+        _logger = logger;
     }
 
+    public async Task<IReadOnlyList<Hallazgo>> ObtenerPorAuditoriaAsync(int auditoriaId)
+    {
+        try
+        {
+            return await _db.Hallazgos
+                .Where(h => h.ArtefactoEvaluado.AuditoriaId == auditoriaId)
+                .Include(h => h.ArtefactoEvaluado)
+                    .ThenInclude(ae => ae.ArtefactoEsperado)
+                .OrderBy(h => h.Tipo)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener hallazgos de auditoria: {Id}", auditoriaId);
+            return [];
+        }
+    }
+
+    public async Task<Hallazgo?> ObtenerPorIdAsync(int id)
+    {
+        try
+        {
+            return await _db.Hallazgos
+                .Include(h => h.ArtefactoEvaluado)
+                    .ThenInclude(ae => ae.ArtefactoEsperado)
+                .FirstOrDefaultAsync(h => h.Id == id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener hallazgo: {Id}", id);
+            return null;
+        }
+    }
+
+    // Usado por el workflow del orchestrator (portado de dev). Se asume
+    // ejecución dentro de la transacción del IUnitOfWork.
     public async Task AgregarRangoAsync(IEnumerable<Hallazgo> hallazgos, CancellationToken ct)
     {
-        _context.Hallazgos.AddRange(hallazgos);
-        await _context.SaveChangesAsync(ct);
+        _db.Hallazgos.AddRange(hallazgos);
+        await _db.SaveChangesAsync(ct);
     }
 }

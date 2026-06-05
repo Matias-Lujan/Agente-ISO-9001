@@ -1,94 +1,132 @@
-// ============================================================================
-//  AuditoriaRepository — Operaciones sobre la entidad Auditoria
-// ----------------------------------------------------------------------------
-//  Implementa IAuditoriaRepository. Consumidores:
-//   - API REST (D6): CrearEnCursoAsync, ObtenerPorIdOrNullAsync.
-//   - AuditoriaRunner: ObtenerPorIdOrNullAsync, MarcarFallidaAsync.
-//   - AuditoriaPersistenceService: MarcarCompletadaAsync (dentro de la
-//     transacción del UnitOfWork).
-//
-//  Notas:
-//   - MarcarCompletada y MarcarFallida llaman SaveChangesAsync por sí mismos.
-//     Cuando se ejecutan dentro de EjecutarEnTransaccionAsync (caso de
-//     MarcarCompletada), el UoW agrupa esos SaveChanges en el commit único.
-//   - MarcarFallida se llama FUERA de transacción (camino de error del
-//     worker). SaveChangesAsync directo está bien — no hay rollback que
-//     coordinar.
-//   - Si la auditoría no existe al marcarla, lanzamos InvalidOperationException:
-//     no debería ocurrir nunca (la API la creó antes de encolar); si pasa,
-//     es un bug y queremos enterarnos ruidosamente.
-// ============================================================================
-
 using ISOAuditAgent.API.Data;
 using ISOAuditAgent.API.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace ISOAuditAgent.API.Repositories;
 
-public sealed class AuditoriaRepository : IAuditoriaRepository
+/// <summary>
+/// Implementacion del repositorio de auditorias usando Entity Framework + MySQL.
+/// </summary>
+public class AuditoriaRepository : IAuditoriaRepository
 {
-    private readonly ISOAuditAgentDbContext _context;
+    private readonly ISOAuditAgentDbContext _db;
+    private readonly ILogger<AuditoriaRepository> _logger;
 
-    public AuditoriaRepository(ISOAuditAgentDbContext context)
+    public AuditoriaRepository(ISOAuditAgentDbContext db, ILogger<AuditoriaRepository> logger)
     {
-        _context = context;
+        _db     = db;
+        _logger = logger;
     }
+
+    public async Task<IReadOnlyList<Auditoria>> ObtenerTodasAsync()
+    {
+        try
+        {
+            return await _db.Auditorias
+                //.Where(a => a.Activo)
+                .OrderByDescending(a => a.FechaInicioUtc)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener todas las auditorias");
+            return [];
+        }
+    }
+
+    public async Task<IReadOnlyList<Auditoria>> ObtenerPorProyectoAsync(int proyectoId)
+    {
+        try
+        {
+            return await _db.Auditorias
+                .Where(a => a.ProyectoId == proyectoId)
+                .OrderByDescending(a => a.FechaInicioUtc)
+                .ToListAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener auditorias del proyecto: {Id}", proyectoId);
+            return [];
+        }
+    }
+
+    public async Task<Auditoria?> ObtenerPorIdAsync(int id)
+    {
+        try
+        {
+            return await _db.Auditorias
+                .FirstOrDefaultAsync(a => a.Id == id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener auditoria por ID: {Id}", id);
+            return null;
+        }
+    }
+
+    public async Task<Auditoria> CrearAsync(Auditoria auditoria)
+    {
+        _db.Auditorias.Add(auditoria);
+        await _db.SaveChangesAsync();
+        return auditoria;
+    }
+
+    public async Task<Auditoria> ActualizarAsync(Auditoria auditoria)
+    {
+        _db.Auditorias.Update(auditoria);
+        await _db.SaveChangesAsync();
+        return auditoria;
+    }
+
+    // ── Usados por el workflow del orchestrator (portado de dev) ──────────────
 
     public async Task<int> CrearEnCursoAsync(
         int proyectoId, int usuarioId, int etapaId, CancellationToken ct)
     {
         var auditoria = new Auditoria
         {
-            ProyectoId = proyectoId,
-            UsuarioId = usuarioId,
-            EtapaId = etapaId,
-            FechaInicioUtc = DateTime.UtcNow,
+            ProyectoId           = proyectoId,
+            UsuarioId            = usuarioId,
+            EtapaId              = etapaId,
+            FechaInicioUtc       = DateTime.UtcNow,
             FechaFinalizacionUtc = null,
-            Estado = EstadoAuditoria.EnCurso
+            Estado               = EstadoAuditoria.EnCurso,
+            Activo               = true,
         };
 
-        _context.Auditorias.Add(auditoria);
-        await _context.SaveChangesAsync(ct);
-
-        // EF Core puebla auditoria.Id tras el SaveChanges (auto-increment).
+        _db.Auditorias.Add(auditoria);
+        await _db.SaveChangesAsync(ct);
         return auditoria.Id;
     }
 
     public Task<Auditoria?> ObtenerPorIdOrNullAsync(int auditoriaId, CancellationToken ct)
     {
-        // AsNoTracking: los consumidores actuales no modifican la entidad
-        // por esta vía. Cuando hace falta modificarla (Marcar*), se busca
-        // de nuevo con tracking.
-        return _context.Auditorias
+        return _db.Auditorias
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == auditoriaId, ct);
     }
 
     public async Task MarcarCompletadaAsync(int auditoriaId, CancellationToken ct)
     {
-        var auditoria = await _context.Auditorias
+        var auditoria = await _db.Auditorias
             .FirstOrDefaultAsync(a => a.Id == auditoriaId, ct)
             ?? throw new InvalidOperationException(
-                $"No se puede marcar como Completada la auditoría {auditoriaId}: " +
-                $"no existe en la BD.");
+                $"No se puede marcar como Completada la auditoría {auditoriaId}: no existe.");
 
-        auditoria.Estado = EstadoAuditoria.Completada;
+        auditoria.Estado               = EstadoAuditoria.Completada;
         auditoria.FechaFinalizacionUtc = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
     }
 
     public async Task MarcarFallidaAsync(int auditoriaId, CancellationToken ct)
     {
-        var auditoria = await _context.Auditorias
+        var auditoria = await _db.Auditorias
             .FirstOrDefaultAsync(a => a.Id == auditoriaId, ct)
             ?? throw new InvalidOperationException(
-                $"No se puede marcar como Fallida la auditoría {auditoriaId}: " +
-                $"no existe en la BD.");
+                $"No se puede marcar como Fallida la auditoría {auditoriaId}: no existe.");
 
-        auditoria.Estado = EstadoAuditoria.Fallida;
+        auditoria.Estado               = EstadoAuditoria.Fallida;
         auditoria.FechaFinalizacionUtc = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync(ct);
+        await _db.SaveChangesAsync(ct);
     }
 }
