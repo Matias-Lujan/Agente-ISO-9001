@@ -129,4 +129,17 @@ public class AuditoriaRepository : IAuditoriaRepository
         auditoria.FechaFinalizacionUtc = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
     }
+
+    public Task<Auditoria?> ObtenerConResultadoOrNullAsync(int id, CancellationToken ct)
+    {
+        return _db.Auditorias
+            .AsNoTracking()
+            .Include(a => a.ArtefactosEvaluados)
+                .ThenInclude(ae => ae.ArtefactoEsperado)
+            .Include(a => a.ArtefactosEvaluados)
+                .ThenInclude(ae => ae.Hallazgos)
+            .Include(a => a.ArtefactosEvaluados)
+                .ThenInclude(ae => ae.DocumentosAnalizados)
+            .FirstOrDefaultAsync(a => a.Id == id, ct);
+    }
 }

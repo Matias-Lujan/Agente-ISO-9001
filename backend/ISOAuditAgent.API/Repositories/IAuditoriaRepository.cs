@@ -57,4 +57,10 @@ public interface IAuditoriaRepository
     /// Marca la auditoría como Fallida y setea la fecha de finalización.
     /// </summary>
     Task MarcarFallidaAsync(int auditoriaId, CancellationToken ct);
+
+    /// <summary>
+    /// Trae la auditoría con artefactos evaluados, hallazgos y documentos analizados incluidos.
+    /// Null si no existe.
+    /// </summary>
+    Task<Auditoria?> ObtenerConResultadoOrNullAsync(int id, CancellationToken ct);
 }

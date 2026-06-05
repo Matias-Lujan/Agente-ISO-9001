@@ -1,4 +1,4 @@
-﻿-- seed-30052.sql
+-- seed-30052.sql
 -- Carga la BD en estado "proyecto BDT 30.052 (App Productores) listo para auditar".
 --
 -- Supone BD vacía (sin filas, IDs autoincrementales reseteados). Para vaciar:
@@ -11,7 +11,8 @@
 --   - modelo_bd.md (schema)
 --
 -- Convención validada contra migraciones EF / ISOAuditAgentDbContext:
---   tablas en plural snake_case (procedimientos, etapas, artefactos_esperados, etc.).
+--   tablas en plural snake_case (procedimientos, etapas, artefactos_esperados, etc.)
+--   columnas en PascalCase según propiedades C# (EF no configura HasColumnName).
 -- Convive con seed-demo.sql — no lo reemplaza.
 
 USE iso_audit_agent;
@@ -19,7 +20,7 @@ USE iso_audit_agent;
 -- ----------------------------------------------------------------------------
 -- 1. Procedimiento maestro
 -- ----------------------------------------------------------------------------
-INSERT INTO procedimientos (id, codigo, nombre, descripcion) VALUES
+INSERT INTO procedimientos (Id, Codigo, Nombre, Descripcion) VALUES
   (1, 'PR 11-13', 'Diseño y Análisis, Desarrollo e Implementación de Software',
    'Procedimiento maestro de BDT Global. Establece la metodología para diseño, desarrollo, pruebas e implementación de software. Revisión 13 vigente desde 13/01/2026.');
 
@@ -28,7 +29,7 @@ INSERT INTO procedimientos (id, codigo, nombre, descripcion) VALUES
 -- ----------------------------------------------------------------------------
 -- Se modelan 5 etapas. "Revisión" no se modela como etapa auditable porque
 -- no produce artefactos formales propios (decisión en calidad-auditoria.md §5).
-INSERT INTO etapas (id, procedimiento_id, nombre, orden, descripcion) VALUES
+INSERT INTO etapas (Id, ProcedimientoId, Nombre, Orden, Descripcion) VALUES
   (1, 1, 'Planificación',     1, 'Definición del alcance, tailoring, control de costos inicial, cronograma y configuración de Trello/Clockify.'),
   (2, 1, 'Análisis y diseño', 2, 'Definición de tarjetas en Trello, arquitectura (cuando aplica) y escritura de casos de prueba en TestLodge.'),
   (3, 1, 'Desarrollo',        3, 'Programación, versionado del código fuente, generación de paquetes de despliegue y liberación de software.'),
@@ -42,7 +43,7 @@ INSERT INTO etapas (id, procedimiento_id, nombre, orden, descripcion) VALUES
 -- Etapa de FR 31 y FR 46 tomada del tailoring del 30.052 (PR no las indica
 -- explícitamente).
 --
--- mandatorio_tipo_a/b: regla organizacional del FR 29 (hoja Referencias) —
+-- MandatorioTipoA/B: regla organizacional del FR 29 (hoja Referencias) —
 -- tipo A = Mandatorio (TRUE), tipo B = Evaluar y Justificar (FALSE).
 -- Excepción: FR 85 y FR 47 son FALSE/FALSE (siempre evaluar y justificar).
 -- Limitación documentada: el sistema no detecta inconsistencias del tipo
@@ -50,7 +51,7 @@ INSERT INTO etapas (id, procedimiento_id, nombre, orden, descripcion) VALUES
 -- (ver punto D pendiente en calidad-auditoria.md).
 
 -- Etapa 1: Planificación
-INSERT INTO artefactos_esperados (id, etapa_id, codigo, nombre, descripcion, mandatorio_tipo_a, mandatorio_tipo_b, path_template_relativo) VALUES
+INSERT INTO artefactos_esperados (Id, EtapaId, Codigo, Nombre, Descripcion, MandatorioTipoA, MandatorioTipoB, PathTemplateRelativo) VALUES
   (1, 1, 'FR 11', 'Minuta de Kickoff',
    'Acta de la reunión de inicio del proyecto donde se establecen fecha de inicio, roles del equipo y fechas objetivo con el cliente.',
    TRUE, FALSE, NULL),
@@ -77,7 +78,7 @@ INSERT INTO artefactos_esperados (id, etapa_id, codigo, nombre, descripcion, man
    TRUE, FALSE, NULL);
 
 -- Etapa 2: Análisis y diseño
-INSERT INTO artefactos_esperados (id, etapa_id, codigo, nombre, descripcion, mandatorio_tipo_a, mandatorio_tipo_b, path_template_relativo) VALUES
+INSERT INTO artefactos_esperados (Id, EtapaId, Codigo, Nombre, Descripcion, MandatorioTipoA, MandatorioTipoB, PathTemplateRelativo) VALUES
   (9,  2, NULL, 'Tarjetas en Trello',
    'Tarjetas del proyecto definidas por el Líder de Proyecto junto con los programadores, basadas en el documento de alcance.',
    TRUE, FALSE, NULL),
@@ -89,7 +90,7 @@ INSERT INTO artefactos_esperados (id, etapa_id, codigo, nombre, descripcion, man
    TRUE, FALSE, NULL);
 
 -- Etapa 3: Desarrollo
-INSERT INTO artefactos_esperados (id, etapa_id, codigo, nombre, descripcion, mandatorio_tipo_a, mandatorio_tipo_b, path_template_relativo) VALUES
+INSERT INTO artefactos_esperados (Id, EtapaId, Codigo, Nombre, Descripcion, MandatorioTipoA, MandatorioTipoB, PathTemplateRelativo) VALUES
   (12, 3, NULL, 'Código fuente versionado',
    'Código fuente del proyecto administrado en SVN o GIT. Es la documentación principal de esta etapa.',
    TRUE, FALSE, NULL),
@@ -101,13 +102,13 @@ INSERT INTO artefactos_esperados (id, etapa_id, codigo, nombre, descripcion, man
    TRUE, FALSE, NULL);
 
 -- Etapa 4: Testing
-INSERT INTO artefactos_esperados (id, etapa_id, codigo, nombre, descripcion, mandatorio_tipo_a, mandatorio_tipo_b, path_template_relativo) VALUES
+INSERT INTO artefactos_esperados (Id, EtapaId, Codigo, Nombre, Descripcion, MandatorioTipoA, MandatorioTipoB, PathTemplateRelativo) VALUES
   (15, 4, NULL, 'Ejecución de pruebas en TestLodge',
    'Registro en TestLodge de la ejecución de los casos de prueba: pruebas realizadas, resultados obtenidos y descripción de errores en caso de fallas.',
    TRUE, FALSE, NULL);
 
 -- Etapa 5: Implementación
-INSERT INTO artefactos_esperados (id, etapa_id, codigo, nombre, descripcion, mandatorio_tipo_a, mandatorio_tipo_b, path_template_relativo) VALUES
+INSERT INTO artefactos_esperados (Id, EtapaId, Codigo, Nombre, Descripcion, MandatorioTipoA, MandatorioTipoB, PathTemplateRelativo) VALUES
   (16, 5, 'FR 48', 'Sign-Off',
    'Cierre formal del proyecto. Describe los entregables y registra la conformidad del cliente (correo electrónico guardado junto al documento).',
    TRUE, FALSE, 'FR48-01_Sign_Off_template.docx'),
@@ -121,22 +122,22 @@ INSERT INTO artefactos_esperados (id, etapa_id, codigo, nombre, descripcion, man
 -- ----------------------------------------------------------------------------
 -- 4. Usuario auditor
 -- ----------------------------------------------------------------------------
--- password_hash: placeholder — el MVP aún no implementa login/JWT ni hasher
+-- PasswordHash: placeholder — el MVP aún no implementa login/JWT ni hasher
 -- (mismo criterio que seed-demo.sql). Cuando exista AuthService, reemplazar
 -- por hash real (ej. contraseña en claro sugerida: auditor123).
-INSERT INTO usuarios (id, nombre, email, password_hash, rol, activo, fecha_creacion) VALUES
+INSERT INTO usuarios (Id, Nombre, Email, PasswordHash, Rol, Activo, FechaCreacion) VALUES
   (1, 'Auditor', 'auditor@bdtglobal.com.ar', '$placeholder-no-auth-yet$', 'Auditor', TRUE, NOW());
 
 -- ----------------------------------------------------------------------------
 -- 5. Proyecto 30.052 — App Productores
 -- ----------------------------------------------------------------------------
--- horas_estimadas: 800 (hardcodeado, no tenemos el dato real; consistente
+-- HorasEstimadas: 800 (hardcodeado, no tenemos el dato real; consistente
 -- con tipo B = ≤1200h).
--- fecha_inicio: NOT NULL en schema (Proyecto.FechaInicio) — se deja hardcodeada.
--- fecha_fin: nullable en schema (Proyecto.FechaFin) — NULL.
--- trello_board_id, clockify_project_id: NULL (fuera de scope MVP según
+-- FechaInicio: NOT NULL en schema (Proyecto.FechaInicio) — se deja hardcodeada.
+-- FechaFin: nullable en schema (Proyecto.FechaFin) — NULL.
+-- TrelloBoardId, ClockifyProjectId: NULL (fuera de scope MVP según
 -- calidad-auditoria.md).
-INSERT INTO proyectos (id, nombre, descripcion, fecha_inicio, fecha_fin, tipo_proyecto, horas_estimadas, procedimiento_id, trello_board_id, clockify_project_id, drive_folder_id, activo) VALUES
+INSERT INTO proyectos (Id, Nombre, Descripcion, FechaInicio, FechaFin, TipoProyecto, HorasEstimadas, ProcedimientoId, TrelloBoardId, ClockifyProjectId, DriveFolderId, Activo) VALUES
   (1, 'App Productores',
    'Proyecto 30.052. Material real cedido por BDT Global para validar la calidad de la auditoría.',
    '2024-01-01', NULL, 'B', 800, 1, NULL, NULL, '15Y7zY72QGzVlN2CqDDRFaUwVZNngLT5n', TRUE);
@@ -144,21 +145,21 @@ INSERT INTO proyectos (id, nombre, descripcion, fecha_inicio, fecha_fin, tipo_pr
 -- ----------------------------------------------------------------------------
 -- 6. Asignación auditor → proyecto
 -- ----------------------------------------------------------------------------
-INSERT INTO proyecto_usuarios (id, proyecto_id, usuario_id) VALUES
+INSERT INTO proyectos_usuarios (Id, ProyectoId, UsuarioId) VALUES
   (1, 1, 1);
 
 -- ----------------------------------------------------------------------------
 -- 7. Configuración global del sistema
 -- ----------------------------------------------------------------------------
-INSERT INTO configuraciones_sistema (id, clave, valor, descripcion) VALUES
+INSERT INTO configuraciones_sistema (Id, Clave, Valor, Descripcion) VALUES
   (1, 'path_carpeta_templates', '1OK2qSmcqJD5UkhZ0WR8KwBT-oaZR-l9S',
-   'Folder ID de Google Drive donde viven los templates de los artefactos. El ResolutorContexto lo concatena con artefacto_esperado.path_template_relativo para obtener la referencia completa al archivo del template.');
+   'Folder ID de Google Drive donde viven los templates de los artefactos. El ResolutorContexto lo concatena con artefacto_esperado.PathTemplateRelativo para obtener la referencia completa al archivo del template.');
 
 -- ----------------------------------------------------------------------------
 -- 8. FuenteVerificacion para artefactos Trello y Clockify
 -- ----------------------------------------------------------------------------
 -- Se aplica después de la migración AddFuenteVerificacion.
 -- Los demás artefactos tienen el default 'Drive' puesto por la migración.
-UPDATE artefactos_esperados SET fuente_verificacion = 'Trello'   WHERE id = 7;
-UPDATE artefactos_esperados SET fuente_verificacion = 'Clockify'  WHERE id = 8;
-UPDATE artefactos_esperados SET fuente_verificacion = 'Trello'   WHERE id = 9;
+UPDATE artefactos_esperados SET FuenteVerificacion = 'Trello'   WHERE Id = 7;
+UPDATE artefactos_esperados SET FuenteVerificacion = 'Clockify'  WHERE Id = 8;
+UPDATE artefactos_esperados SET FuenteVerificacion = 'Trello'   WHERE Id = 9;

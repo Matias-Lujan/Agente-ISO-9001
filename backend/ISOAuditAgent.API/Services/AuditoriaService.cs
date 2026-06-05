@@ -109,6 +109,59 @@ public class AuditoriaService
             .ToList();
     }
 
+    public async Task<AuditoriaResultadoResponse?> ObtenerResultadoAsync(int id)
+    {
+        var auditoria = await _auditoriaRepo.ObtenerConResultadoOrNullAsync(id, CancellationToken.None);
+        if (auditoria is null) return null;
+
+        var contadores = new AuditoriaContadoresResponse(
+            auditoria.ArtefactosEvaluados.Count,
+            auditoria.ArtefactosEvaluados.Sum(ae => ae.Hallazgos.Count),
+            auditoria.ArtefactosEvaluados.Sum(ae => ae.DocumentosAnalizados.Count));
+
+        var artefactos = auditoria.ArtefactosEvaluados
+            .OrderBy(ae => ae.Id)
+            .Select(ae => new ArtefactoEvaluadoResultadoResponse(
+                ae.Id,
+                ae.ArtefactoEsperadoId,
+                ae.ArtefactoEsperado?.Codigo,
+                ae.ArtefactoEsperado?.Nombre,
+                ae.Aplica.ToString(),
+                ae.JustificacionNoAplica,
+                ae.Resultado.ToString(),
+                ae.Observaciones,
+                ae.Hallazgos
+                    .OrderBy(h => h.Id)
+                    .Select(h => new HallazgoResultadoResponse(
+                        h.Id,
+                        h.Tipo.ToString(),
+                        h.Descripcion,
+                        h.Justificacion,
+                        h.AgenteOrigen.ToString()))
+                    .ToList(),
+                ae.DocumentosAnalizados
+                    .OrderBy(d => d.Id)
+                    .Select(d => new DocumentoAnalizadoResultadoResponse(
+                        d.Id,
+                        d.NombreArchivo,
+                        d.Fuente.ToString(),
+                        d.UrlReferencia,
+                        d.HashContenido))
+                    .ToList()))
+            .ToList();
+
+        return new AuditoriaResultadoResponse(
+            auditoria.Id,
+            auditoria.ProyectoId,
+            auditoria.EtapaId,
+            auditoria.UsuarioId,
+            auditoria.Estado.ToString(),
+            auditoria.FechaInicioUtc,
+            auditoria.FechaFinalizacionUtc,
+            contadores,
+            artefactos);
+    }
+
     public async Task<AuditoriaResponse?> ActualizarEstadoAsync(int id, EstadoAuditoria estado)
     {
         var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(id);
