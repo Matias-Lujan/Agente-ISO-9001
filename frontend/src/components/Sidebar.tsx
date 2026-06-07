@@ -20,6 +20,7 @@ export default function Sidebar() {
 
   const isDashboardActive = location.pathname.startsWith('/dashboard');
   const isProyectosActive = location.pathname.startsWith('/proyectos');
+  const isInformesActive  = location.pathname.startsWith('/informes');
   const isAuditActive     = location.pathname.startsWith('/nueva-auditoria');
   const isHallazgosActive = location.pathname.startsWith('/hallazgos');
   const isUsuariosActive  = location.pathname.startsWith('/usuarios');
@@ -101,13 +102,16 @@ export default function Sidebar() {
         </NavLink>
       )}
 
-      <div className="nav-item disabled" title="Próximamente">
+      <NavLink
+        to="/informes"
+        className={`nav-item clickable${isInformesActive ? ' active' : ''}`}
+      >
         <svg className="nav-icon" viewBox="0 0 16 16" fill="none">
           <path d="M3 2h7l3 3v9H3V2z" stroke="currentColor" strokeWidth="1.2" />
           <path d="M10 2v3h3M5 7h6M5 10h4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
         </svg>
         Informes
-      </div>
+      </NavLink>
 
       <NavLink
         to="/hallazgos"

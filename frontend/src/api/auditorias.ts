@@ -1,4 +1,3 @@
-
 // ============================================================================
 //  Endpoints del workflow de auditorias.
 //  El usuarioId YA NO se manda en el body — el backend lo extrae del JWT
@@ -54,6 +53,14 @@ export async function crearAuditoria(
 
 export function obtenerAuditoria(id: number): Promise<AuditoriaResumen> {
   return api.get<AuditoriaResumen>(`/api/auditorias/${id}`);
+}
+
+// Auditorías de un proyecto (cualquier autenticado). Se usa para armar la
+// lista de informes del Operador a partir de sus proyectos asignados.
+export function listarAuditoriasDeProyecto(
+  proyectoId: number
+): Promise<AuditoriaResumen[]> {
+  return api.get<AuditoriaResumen[]>(`/api/auditorias/proyecto/${proyectoId}`);
 }
 
 export function obtenerProgreso(id: number): Promise<ProgresoNodo[]> {
