@@ -35,8 +35,8 @@ public class ProyectoController : ControllerBase
 
     /// <summary>
     /// Devuelve proyectos segun el rol del usuario:
-    /// - Administrador → todos los proyectos
-    /// - Operador/Auditor → solo sus proyectos asignados
+    /// - Administrador / Auditor → todos los proyectos
+    /// - Operador → solo sus proyectos asignados
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> ObtenerProyectos()
@@ -48,9 +48,10 @@ public class ProyectoController : ControllerBase
         if (idClaim == null || !int.TryParse(idClaim, out var usuarioId))
             return Unauthorized();
 
-        // El Administrador ve todos los proyectos
-        // El resto ve solo los suyos
-        var proyectos = rolClaim == Roles.Administrador
+        // El Administrador y el Auditor ven todos los proyectos.
+        // El Operador ve solo los que tiene asignados.
+        var puedeVerTodos = rolClaim == Roles.Administrador || rolClaim == Roles.Auditor;
+        var proyectos = puedeVerTodos
             ? await _proyectoService.ObtenerTodosAsync()
             : await _proyectoService.ObtenerPorUsuarioAsync(usuarioId);
 
