@@ -119,6 +119,8 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
             try
             {
                 var content = await _drive.GetFileContentAsync(fileIdDesdeUrl, ct);
+                if (content.ErrorExport is not null)
+                    return VerificacionExportFallida(content, artefactoEsperadoId);
                 _logger.LogInformation(
                     "Artefacto {Id}: encontrado por URL del tailoring → '{Nombre}'.",
                     artefactoEsperadoId, content.Name);
@@ -150,6 +152,8 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
                 if (match is not null)
                 {
                     var content = await _drive.GetFileContentAsync(match.Id, ct);
+                    if (content.ErrorExport is not null)
+                        return VerificacionExportFallida(content, artefactoEsperadoId);
                     _logger.LogInformation(
                         "Artefacto {Id}: encontrado por código '{Codigo}' → '{Nombre}'.",
                         artefactoEsperadoId, codigoArtefacto, content.Name);
@@ -182,6 +186,8 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
             if (match is not null)
             {
                 var content = await _drive.GetFileContentAsync(match.Id, ct);
+                if (content.ErrorExport is not null)
+                    return VerificacionExportFallida(content, artefactoEsperadoId);
                 _logger.LogInformation(
                     "Artefacto {Id}: encontrado por nombre '{Nombre}' → '{Archivo}'.",
                     artefactoEsperadoId, nombreArtefacto, content.Name);
@@ -208,6 +214,8 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
             if (match is not null)
             {
                 var content = await _drive.GetFileContentAsync(match.Id, ct);
+                if (content.ErrorExport is not null)
+                    return VerificacionExportFallida(content, artefactoEsperadoId);
                 _logger.LogInformation(
                     "Artefacto {Id}: encontrado por path de carpeta '{Path}' → '{Archivo}'.",
                     artefactoEsperadoId, match.Path, content.Name);
@@ -354,6 +362,31 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
             .Where(t => t.Length >= 4 && !StopwordsPath.Contains(t))
             .Distinct(StringComparer.Ordinal)
             .ToList();
+    }
+
+    /// <summary>
+    /// Devuelve una VerificacionFisica con ExportFallido=true cuando el archivo
+    /// existe en Drive pero su export falló (formato nativo Google, ej: >10 MB).
+    /// No es NoEncontrado: el archivo existe, pero no es procesable sin su contenido.
+    /// El hallazgo determinístico correspondiente se genera en HallazgosDeterministicos.
+    /// </summary>
+    private VerificacionFisica VerificacionExportFallida(
+        DriveFileContent content, int artefactoEsperadoId)
+    {
+        _logger.LogWarning(
+            "Artefacto {Id}: archivo '{Nombre}' encontrado en Drive pero export fallido. " +
+            "Se marca ExportFallido — verificación manual requerida. Detalle: {Error}",
+            artefactoEsperadoId, content.Name, content.ErrorExport);
+
+        return new VerificacionFisica(
+            Encontrado: false,
+            Fuente: FuenteDocumento.Drive,
+            NombreArchivo: content.Name,
+            HashContenido: null,
+            Secciones: Array.Empty<SeccionDetectada>(),
+            SeccionesTemplate: Array.Empty<SeccionDetectada>(),
+            NombreTemplateArchivo: null,
+            ExportFallido: true);
     }
 
     /// <summary>

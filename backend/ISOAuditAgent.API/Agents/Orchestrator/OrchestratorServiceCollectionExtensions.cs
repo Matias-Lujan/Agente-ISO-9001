@@ -79,7 +79,8 @@ public static class OrchestratorServiceCollectionExtensions
 
         services.AddScoped<FindingsClassificationNode>(sp => new FindingsClassificationNode(
             sp.GetRequiredKeyedService<AIAgent>("FindingsClassification"),
-            sp.GetRequiredService<IAuditoriaProgresoTracker>()));
+            sp.GetRequiredService<IAuditoriaProgresoTracker>(),
+            sp.GetRequiredService<ILogger<FindingsClassificationNode>>()));
 
         // Determinista, sin dependencias.
         services.AddScoped<ConsolidadorResultadoNode>();

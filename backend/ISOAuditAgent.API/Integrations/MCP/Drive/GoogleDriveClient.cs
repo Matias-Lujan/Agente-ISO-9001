@@ -1,17 +1,17 @@
 // ============================================================================
-//  GoogleDriveClient ù Capa de I/O contra Google Drive (D3.1+)
+//  GoogleDriveClient ‚Äî Capa de I/O contra Google Drive (D3.1+)
 // ----------------------------------------------------------------------------
-//  Singleton que encapsula DriveService de Google.Apis.Drive.v3. Es el ùNICO
+//  Singleton que encapsula DriveService de Google.Apis.Drive.v3. Es el √öNICO
 //  punto del backend que importa Google.Apis.*. El resto del agente accede a
-//  Drive solo vùa el server MCP que envuelve a esta clase.
+//  Drive solo v√≠a el server MCP que envuelve a esta clase.
 //
-//  CONSTRUCCIùN PEREZOSA (idea rescatada del diff viejo):
+//  CONSTRUCCI√ìN PEREZOSA (idea rescatada del diff viejo):
 //  El ctor NO carga las credenciales. Se cargan en el primer uso, dentro de
 //  Lazy<DriveService>. Eso permite que la API levante aunque el JSON de
-//  service account estù ausente o mal ù el error real (parseo, archivo no
-//  existe, permisos) aparece reciùn cuando se invoca una tool MCP, con
-//  mensaje claro. Si fallara en el ctor, serùa antes del DI y el error
-//  quedarùa enmascarado.
+//  service account est√© ausente o mal ‚Äî el error real (parseo, archivo no
+//  existe, permisos) aparece reci√©n cuando se invoca una tool MCP, con
+//  mensaje claro. Si fallara en el ctor, ser√≠a antes del DI y el error
+//  quedar√≠a enmascarado.
 // ============================================================================
 
 using Google.Apis.Auth.OAuth2;
@@ -26,14 +26,30 @@ namespace ISOAuditAgent.API.Integrations.MCP.Drive;
 public sealed class GoogleDriveClient : IDisposable
 {
     private const string FolderMimeType = "application/vnd.google-apps.folder";
+    private const string GoogleAppsPrefix = "application/vnd.google-apps.";
     private const int MaxRecursionDepth = 10;
+
+    /// <summary>
+    /// Mapeo de MIME nativo Google ‚Üí MIME de export para Files.Export().
+    /// Los tipos sin entrada expl√≠cita caen al fallback PDF.
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, string> ExportMimeMap =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["application/vnd.google-apps.document"]     =
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ["application/vnd.google-apps.spreadsheet"]  =
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ["application/vnd.google-apps.presentation"] = "application/pdf",
+        };
+    private const string ExportFallbackMime = "application/pdf";
 
     /// <summary>Lockfiles temporales de Microsoft Office (~$documento.xlsx).</summary>
     private const string PrefijoLockfileOffice = "~$";
 
     /// <summary>
     /// Archivos basura de SO / sync que no deben aparecer en el listado.
-    /// Comparaciùn por nombre exacto, case-insensitive.
+    /// Comparaci√≥n por nombre exacto, case-insensitive.
     /// </summary>
     private static readonly HashSet<string> NombresArchivosBasuraExcluidos =
         new(StringComparer.OrdinalIgnoreCase)
@@ -73,13 +89,13 @@ public sealed class GoogleDriveClient : IDisposable
         if (string.IsNullOrWhiteSpace(path))
         {
             throw new InvalidOperationException(
-                "GoogleDrive:ServiceAccountKeyPath no estù configurada en appsettings.");
+                "GoogleDrive:ServiceAccountKeyPath no est√° configurada en appsettings.");
         }
 
         if (!File.Exists(path))
         {
             throw new InvalidOperationException(
-                $"No se encontrù el JSON de service account en '{path}'. " +
+                $"No se encontr√≥ el JSON de service account en '{path}'. " +
                 "Verificar GoogleDrive:ServiceAccountKeyPath y que el archivo exista " +
                 "relativo al working directory de la API.");
         }
@@ -105,7 +121,7 @@ public sealed class GoogleDriveClient : IDisposable
 
             throw new InvalidOperationException(
                 $"No se pudo cargar la credencial de service account desde '{path}'. " +
-                "Verificar que el archivo sea un JSON vùlido de service account. " +
+                "Verificar que el archivo sea un JSON v√°lido de service account. " +
                 $"Detalle: {ex.Message}",
                 ex);
         }
@@ -113,7 +129,7 @@ public sealed class GoogleDriveClient : IDisposable
 
     /// <summary>
     /// Lista recursivamente todos los archivos bajo el folderId dado. Devuelve
-    /// una lista plana con path relativo al folder raùz. Excluye carpetas y
+    /// una lista plana con path relativo al folder ra√≠z. Excluye carpetas y
     /// archivos en papelera.
     /// </summary>
     public async Task<IReadOnlyList<DriveFile>> ListFilesInFolderAsync(
@@ -138,7 +154,7 @@ public sealed class GoogleDriveClient : IDisposable
         return archivos;
     }
 
-    /// <returns>Cantidad de subcarpetas en las que se descendiù.</returns>
+    /// <returns>Cantidad de subcarpetas en las que se descendi√≥.</returns>
     private static bool EsArchivoBasuraSistema(string nombre) =>
         NombresArchivosBasuraExcluidos.Contains(nombre)
         || nombre.StartsWith(PrefijoLockfileOffice, StringComparison.Ordinal);
@@ -176,7 +192,7 @@ public sealed class GoogleDriveClient : IDisposable
                 if (depth >= MaxRecursionDepth)
                 {
                     _logger.LogWarning(
-                        "Profundidad mùxima de recursiùn ({Max}) alcanzada en '{Path}'. " +
+                        "Profundidad m√°xima de recursi√≥n ({Max}) alcanzada en '{Path}'. " +
                         "No se desciende a subcarpetas.",
                         MaxRecursionDepth, carpetaPath);
                     continue;
@@ -215,7 +231,7 @@ public sealed class GoogleDriveClient : IDisposable
 
     /// <summary>
     /// Lista todos los hijos directos de un folder (archivos y carpetas), con
-    /// paginaciùn completa. Excluye elementos en papelera.
+    /// paginaci√≥n completa. Excluye elementos en papelera.
     /// </summary>
     private async Task<IReadOnlyList<DriveFileItem>> ListarHijosDirectosAsync(
         string folderId, CancellationToken ct)
@@ -246,7 +262,15 @@ public sealed class GoogleDriveClient : IDisposable
     }
 
     /// <summary>
-    /// Descarga los bytes de un archivo + sus metadatos bùsicos.
+    /// Descarga los bytes de un archivo + sus metadatos b√°sicos.
+    /// Para archivos en formato nativo de Google (vnd.google-apps.*) usa
+    /// Files.Export() con el MIME de destino apropiado y devuelve ese MIME
+    /// en el resultado ‚Äî no el MIME nativo ‚Äî para que los parsers de
+    /// ArtefactoFisicoChecker lo reconozcan sin cambios.
+    /// Si el export falla (ej: documento supera el l√≠mite de 10 MB de la API),
+    /// devuelve DriveFileContent con ErrorExport != null en lugar de tirar.
+    /// El caller (ArtefactoFisicoChecker) marca el artefacto como ExportFallido,
+    /// visible en el resultado de auditor√≠a y en hallazgos determin√≠sticos.
     /// </summary>
     public async Task<DriveFileContent> DownloadFileAsync(
         string fileId, CancellationToken ct)
@@ -257,6 +281,15 @@ public sealed class GoogleDriveClient : IDisposable
         metadataRequest.Fields = FileFields;
         metadataRequest.SupportsAllDrives = true;
         var metadata = await metadataRequest.ExecuteAsync(ct).ConfigureAwait(false);
+
+        var mimeType = metadata.MimeType ?? string.Empty;
+
+        if (mimeType.StartsWith(GoogleAppsPrefix, StringComparison.Ordinal)
+            && !string.Equals(mimeType, FolderMimeType, StringComparison.Ordinal))
+        {
+            return await ExportarFormatoNativoAsync(metadata, fileId, mimeType, ct)
+                .ConfigureAwait(false);
+        }
 
         var contentRequest = _service.Value.Files.Get(fileId);
         contentRequest.SupportsAllDrives = true;
@@ -270,6 +303,61 @@ public sealed class GoogleDriveClient : IDisposable
             MimeType: metadata.MimeType,
             Bytes: stream.ToArray(),
             Size: metadata.Size);
+    }
+
+    private async Task<DriveFileContent> ExportarFormatoNativoAsync(
+        DriveFileItem metadata,
+        string fileId,
+        string mimeNativo,
+        CancellationToken ct)
+    {
+        if (!ExportMimeMap.TryGetValue(mimeNativo, out var exportMime))
+            exportMime = ExportFallbackMime;
+
+        _logger.LogInformation(
+            "Archivo '{Nombre}' ({Id}) es formato nativo Google ({MimeNativo}). " +
+            "Usando Files.Export hacia {ExportMime}.",
+            metadata.Name, fileId, mimeNativo, exportMime);
+
+        try
+        {
+            var exportRequest = _service.Value.Files.Export(fileId, exportMime);
+            using var stream = new MemoryStream();
+            await exportRequest.DownloadAsync(stream, ct).ConfigureAwait(false);
+
+            var bytes = stream.ToArray();
+            _logger.LogInformation(
+                "Export de '{Nombre}' ({Id}) OK: {Bytes} bytes como {ExportMime}.",
+                metadata.Name, fileId, bytes.Length, exportMime);
+
+            // MimeType devuelto es el del export (docx/xlsx/pdf), no el nativo Google,
+            // para que el switch de parsers en ArtefactoFisicoChecker lo reconozca.
+            return new DriveFileContent(
+                Id: metadata.Id,
+                Name: metadata.Name,
+                MimeType: exportMime,
+                Bytes: bytes,
+                Size: metadata.Size);
+        }
+        catch (Exception ex)
+        {
+            var error =
+                $"Export de '{metadata.Name}' ({mimeNativo} ‚Üí {exportMime}) fall√≥: {ex.Message}. " +
+                "Causas comunes: el documento supera el l√≠mite de 10 MB de la API de Drive, " +
+                "o la service account no tiene permisos de lectura sobre este archivo.";
+
+            _logger.LogWarning(ex,
+                "Export de archivo nativo Google '{Nombre}' ({Id}) fall√≥. {Error}",
+                metadata.Name, fileId, error);
+
+            return new DriveFileContent(
+                Id: metadata.Id,
+                Name: metadata.Name,
+                MimeType: mimeNativo,
+                Bytes: Array.Empty<byte>(),
+                Size: metadata.Size,
+                ErrorExport: error);
+        }
     }
 
     public void Dispose()

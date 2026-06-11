@@ -20,6 +20,9 @@ public sealed class TailoringReader
     private const string XlsxMime =
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
+    private const string GoogleSheetsMime =
+        "application/vnd.google-apps.spreadsheet";
+
     private static readonly Regex Fr29EnNombre = new(
         @"FR[\s._-]*29",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
@@ -69,6 +72,14 @@ public sealed class TailoringReader
             .GetFileContentAsync(elegido.Id, ct)
             .ConfigureAwait(false);
 
+        if (content.ErrorExport is not null)
+        {
+            throw new InvalidOperationException(
+                $"El archivo FR-29 '{elegido.Name}' fue encontrado en Drive pero no pudo exportarse. " +
+                $"Detalle: {content.ErrorExport}. " +
+                $"Convertí el archivo a formato .xlsx estándar en el Drive del proyecto.");
+        }
+
         if (!string.Equals(content.MimeType, XlsxMime, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
@@ -88,7 +99,10 @@ public sealed class TailoringReader
 
     private static bool EsCandidatoFr29(DriveFile f)
     {
-        if (!string.Equals(f.MimeType, XlsxMime, StringComparison.OrdinalIgnoreCase))
+        bool esXlsx = string.Equals(f.MimeType, XlsxMime, StringComparison.OrdinalIgnoreCase);
+        bool esGoogleSheets = string.Equals(f.MimeType, GoogleSheetsMime, StringComparison.OrdinalIgnoreCase);
+
+        if (!esXlsx && !esGoogleSheets)
             return false;
 
         return ScoreFr29(f.Name) > 0;

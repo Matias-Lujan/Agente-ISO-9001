@@ -104,6 +104,8 @@ public sealed class ResolutorContextoNode
 public sealed class DocumentAnalysisNode
     : AgenteExecutorBase<ContextoAuditoria, DocumentosExtraidos>
 {
+    private const int MaxIntentos = 3;
+
     private readonly ITailoringSource _tailoringSource;
     private readonly IArtefactoFisicoChecker _artefactoChecker;
     private readonly TrelloChecker _trelloChecker;
@@ -182,13 +184,9 @@ public sealed class DocumentAnalysisNode
         // 2. Armar el prompt (sync, sin I/O).
         var prompt = ConstruirPromptInterno(message, tailoring);
 
-        // 3. Llamar al LLM. La base no se usa porque HandleAsync overridea
-        //    el template completo, pero el AIAgent está heredado vía Agente.
-        //    La llamada al AIAgent usa la misma API validada en AgenteExecutorBase.
-        using var llmCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        llmCts.CancelAfter(TimeSpan.FromSeconds(30));
-        var respuesta = await Agente.RunAsync(prompt, cancellationToken: llmCts.Token);
-        var textoLlm = respuesta.Text ?? string.Empty;
+        // 3. Llamar al LLM con reintentos. La base no se usa porque HandleAsync
+        //    overridea el template completo.
+        var textoLlm = await LlmConReintentosAsync(prompt, message.AuditoriaId, ct);
 
         // 3.5. Log de la respuesta cruda — D7.3, mientras estabilizamos el
         //      formato del LLM. Si el parseo falla, el log tiene el texto
@@ -232,6 +230,29 @@ public sealed class DocumentAnalysisNode
         // --------------------------------------------
 
         return resultado;
+    }
+
+    private async Task<string> LlmConReintentosAsync(
+        string prompt, int idAuditoria, CancellationToken ct)
+    {
+        Exception? ultimoError = null;
+        for (int intento = 1; intento <= MaxIntentos; intento++)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var respuesta = await Agente.RunAsync(prompt, cancellationToken: ct);
+                return respuesta.Text ?? string.Empty;
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested && intento < MaxIntentos)
+            {
+                ultimoError = ex;
+                _logger.LogWarning(ex,
+                    "DocumentAnalysis: intento {Intento}/{Max} falló (error de red, auditoría {Id}). Reintentando.",
+                    intento, MaxIntentos, idAuditoria);
+            }
+        }
+        throw ultimoError!;
     }
 
     /// <summary>
@@ -745,19 +766,26 @@ public sealed class ConsistencyVerificationNode
 [SendsMessage(typeof(ResultadoClasificacionConContexto))]
 public sealed partial class FindingsClassificationNode : Executor
 {
+    private const int MaxIntentos = 3;
+
     private readonly AIAgent _agente;
     private readonly IAuditoriaProgresoTracker _tracker;
+    private readonly ILogger<FindingsClassificationNode> _logger;
 
     // Los tres elementos a cachear antes de poder clasificar.
     private DocumentosExtraidos? _contextoDocumentos;
     private HallazgosPreliminares? _hallazgosCompliance;
     private HallazgosPreliminares? _hallazgosConsistency;
 
-    public FindingsClassificationNode(AIAgent agente, IAuditoriaProgresoTracker tracker)
+    public FindingsClassificationNode(
+        AIAgent agente,
+        IAuditoriaProgresoTracker tracker,
+        ILogger<FindingsClassificationNode> logger)
         : base("FindingsClassification")
     {
         _agente = agente;
         _tracker = tracker;
+        _logger = logger;
     }
 
     // --- Entrada A: contexto, por edge directo desde DocumentAnalysis -------
@@ -850,16 +878,16 @@ public sealed partial class FindingsClassificationNode : Executor
 
         try
         {
-            // 1. Prompt de clasificación.
+            // 1. Prompt de clasificación (se construye una sola vez; el retry
+            //    solo repite la llamada al LLM, no reconstruye el prompt).
             string prompt = ConstruirPrompt(lotes);
 
-            // 2 + 3. El LLM clasifica.
-            // El handler actual no propaga CancellationToken hasta este punto.
-            var respuesta = await _agente.RunAsync(prompt);
-            string textoLlm = respuesta.Text ?? string.Empty;
-
-            // 4. Parsear la clasificación.
-            HallazgosClasificados clasificacion = ParsearRespuesta(lotes, textoLlm);
+            // 2 + 3. El LLM clasifica con reintentos automáticos.
+            // El LLM ocasionalmente devuelve JSON malformado (propiedad 'indice'
+            // ausente, prosa mezclada, array truncado). Un reintento inmediato
+            // suele obtener una respuesta válida sin cambiar el prompt.
+            HallazgosClasificados clasificacion = await ClasificarConReintentosAsync(
+                lotes, prompt, idContexto);
 
             // 5. Combinar con el contexto conservado (no pasó por el LLM).
             var salida = new ResultadoClasificacionConContexto(
@@ -886,6 +914,34 @@ public sealed partial class FindingsClassificationNode : Executor
             _hallazgosCompliance = null;
             _hallazgosConsistency = null;
         }
+    }
+
+    private async Task<HallazgosClasificados> ClasificarConReintentosAsync(
+        IReadOnlyList<HallazgosPreliminares> lotes,
+        string prompt,
+        int idContexto)
+    {
+        Exception? ultimoError = null;
+
+        for (int intento = 1; intento <= MaxIntentos; intento++)
+        {
+            try
+            {
+                var respuesta = await _agente.RunAsync(prompt);
+                string textoLlm = respuesta.Text ?? string.Empty;
+                return ParsearRespuesta(lotes, textoLlm);
+            }
+            catch (InvalidOperationException ex) when (intento < MaxIntentos)
+            {
+                ultimoError = ex;
+                _logger.LogWarning(ex,
+                    "FindingsClassification: intento {Intento}/{Max} falló al parsear " +
+                    "respuesta del LLM (auditoría {Id}). Reintentando.",
+                    intento, MaxIntentos, idContexto);
+            }
+        }
+
+        throw ultimoError!;
     }
 
     private string ConstruirPrompt(IReadOnlyList<HallazgosPreliminares> hallazgos)

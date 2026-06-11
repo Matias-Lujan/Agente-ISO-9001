@@ -116,4 +116,5 @@ public sealed record VerificacionFisica(
     string? HashContenido,
     IReadOnlyList<SeccionDetectada> Secciones,
     IReadOnlyList<SeccionDetectada> SeccionesTemplate,
-    string? NombreTemplateArchivo);
+    string? NombreTemplateArchivo,
+    bool ExportFallido = false);

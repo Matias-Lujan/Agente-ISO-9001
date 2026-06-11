@@ -39,6 +39,8 @@ namespace ISOAuditAgent.API.Agents.Orchestrator;
 public abstract class AgenteExecutorBase<TInput, TOutput>
     : Executor<TInput, TOutput>
 {
+    private const int MaxIntentos = 3;
+
     /// <summary>El AIAgent que razona. Detalle de implementación interno.</summary>
     protected AIAgent Agente { get; }
 
@@ -58,16 +60,26 @@ public abstract class AgenteExecutorBase<TInput, TOutput>
         // 1. DTO -> prompt
         string prompt = ConstruirPrompt(message);
 
-        // 2 + 3. Llamada al LLM.
-        // La API usada acepta prompt textual y CancellationToken.
-        // La respuesta textual se parsea manualmente en ParsearRespuesta.
-        using var llmCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        llmCts.CancelAfter(TimeSpan.FromSeconds(30));
-        var respuesta = await Agente.RunAsync(prompt, cancellationToken: llmCts.Token);
-        string textoRespuesta = respuesta.Text ?? string.Empty;
+        // 2 + 3. Llamada al LLM con reintentos para tolerar timeouts de red o
+        // demoras de modelos de razonamiento (gemini-2.5-flash, etc.).
+        Exception? ultimoError = null;
+        for (int intento = 1; intento <= MaxIntentos; intento++)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var respuesta = await Agente.RunAsync(prompt, cancellationToken: ct);
+                string textoRespuesta = respuesta.Text ?? string.Empty;
 
-        // 4. Respuesta del LLM -> DTO de salida
-        return ParsearRespuesta(message, textoRespuesta);
+                // 4. Respuesta del LLM -> DTO de salida
+                return ParsearRespuesta(message, textoRespuesta);
+            }
+            catch (Exception ex) when (!ct.IsCancellationRequested && intento < MaxIntentos)
+            {
+                ultimoError = ex;
+            }
+        }
+        throw ultimoError!;
     }
 
     /// <summary>

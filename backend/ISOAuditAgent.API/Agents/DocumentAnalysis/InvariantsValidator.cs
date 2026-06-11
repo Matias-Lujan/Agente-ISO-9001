@@ -109,11 +109,12 @@ internal static partial class InvariantsValidator
 
             if (a.EstadoDisponibilidad is EstadoDisponibilidad.Faltante
                 or EstadoDisponibilidad.NoBuscado
+                or EstadoDisponibilidad.ExportFallido
                 && a.DocumentoEncontrado is not null)
             {
                 throw new InvalidOperationException(
-                    $"Artefacto {a.ArtefactoEsperadoId}: Faltante/NoBuscado requieren " +
-                    "DocumentoEncontrado null.");
+                    $"Artefacto {a.ArtefactoEsperadoId}: Faltante/NoBuscado/ExportFallido " +
+                    "requieren DocumentoEncontrado null.");
             }
 
             // Exigibilidad vs disponibilidad.

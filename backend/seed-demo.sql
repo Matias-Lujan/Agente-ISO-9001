@@ -85,8 +85,8 @@ INSERT INTO artefactos_esperados (Id, EtapaId, Codigo, Nombre, Descripcion, Mand
   (10, 2, NULL, 'Documento de Arquitectura',
    'Arquitectura de la solución generada por el Arquitecto. No se genera cuando se trata de implementación de un producto BDT existente. El PR no define template formal: se audita por presencia, no por estructura.',
    TRUE, FALSE, NULL),
-  (11, 2, NULL, 'Casos de prueba en TestLodge',
-   'Casos de prueba escritos en TestLodge por el Tester en colaboración con el Analista Funcional. Mandatorio para tipo A; en tipo B se evalúan condiciones y se justifica si no es posible.',
+  (11, 2, NULL, 'Casos de prueba',
+   'Casos de prueba escritos por el Tester en colaboración con el Analista Funcional. Mandatorio para tipo A; en tipo B se evalúan condiciones y se justifica si no es posible.',
    TRUE, FALSE, NULL);
 
 -- Etapa 3: Desarrollo
@@ -103,8 +103,8 @@ INSERT INTO artefactos_esperados (Id, EtapaId, Codigo, Nombre, Descripcion, Mand
 
 -- Etapa 4: Testing
 INSERT INTO artefactos_esperados (Id, EtapaId, Codigo, Nombre, Descripcion, MandatorioTipoA, MandatorioTipoB, PathTemplateRelativo) VALUES
-  (15, 4, NULL, 'Ejecución de pruebas en TestLodge',
-   'Registro en TestLodge de la ejecución de los casos de prueba: pruebas realizadas, resultados obtenidos y descripción de errores en caso de fallas.',
+  (15, 4, NULL, 'Ejecución de pruebas',
+   'Registro de la ejecución de los casos de prueba: pruebas realizadas, resultados obtenidos y descripción de errores en caso de fallas.',
    TRUE, FALSE, NULL);
 
 -- Etapa 5: Implementación

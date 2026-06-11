@@ -118,6 +118,29 @@ internal static class HallazgosDeterministicos
                     OrigenRegla: OrigenRegla.Procedimiento));
             }
 
+            // Regla 4: Aplica + ExportFallido.
+            // El archivo existe en Drive pero no pudo exportarse (ej: formato nativo
+            // Google con tamaño >10 MB). No es lo mismo que Faltante: el archivo
+            // está, pero el sistema no pudo verificar su contenido.
+            if (a.EstadoAplicacionTailoring == EstadoAplicacionTailoring.Aplica
+                && a.EstadoDisponibilidad == EstadoDisponibilidad.ExportFallido)
+            {
+                hallazgos.Add(new HallazgoPreliminar(
+                    ArtefactoEsperadoId: a.ArtefactoEsperadoId,
+                    Descripcion: $"Artefacto '{a.NombreArtefacto}' encontrado en Drive pero no procesable (export fallido).",
+                    Justificacion:
+                        $"El sistema encontró un archivo asociado al artefacto '{a.NombreArtefacto}' " +
+                        $"en Google Drive, pero no pudo exportar su contenido para verificación. " +
+                        $"El archivo está almacenado en formato nativo de Google (Google Docs/Sheets/Slides) " +
+                        $"y probablemente supera el límite de 10 MB impuesto por la API de export de Drive, " +
+                        $"o la service account no tiene permisos suficientes sobre ese archivo. " +
+                        $"Sin acceso al contenido no es posible verificar la conformidad del artefacto " +
+                        $"con los requisitos del procedimiento {input.ProcedimientoCodigo} ({input.ProcedimientoNombre}). " +
+                        $"Se requiere revisión manual o convertir el archivo a formato estándar " +
+                        $"(.docx / .xlsx / .pdf) en el Drive del proyecto.",
+                    OrigenRegla: OrigenRegla.Procedimiento));
+            }
+
             // Regla 3: SinDeclararEnTailoring.
             if (a.EstadoAplicacionTailoring == EstadoAplicacionTailoring.SinDeclararEnTailoring)
             {

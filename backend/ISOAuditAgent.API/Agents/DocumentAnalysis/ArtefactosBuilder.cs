@@ -80,7 +80,17 @@ internal static class DriveDtos
                     clockifyChecker,
                     ct).ConfigureAwait(false);
 
-                if (ver.Encontrado)
+                if (ver.ExportFallido)
+                {
+                    // Archivo existe en Drive pero no fue exportable (ej: >10 MB).
+                    // No es Faltante (el archivo está) ni Encontrado (sin contenido).
+                    // HallazgosDeterministicos genera un hallazgo específico para esto.
+                    disponibilidad = EstadoDisponibilidad.ExportFallido;
+                    doc = null;
+                    secciones = Array.Empty<SeccionDetectada>();
+                    seccionesTemplate = Array.Empty<SeccionDetectada>();
+                }
+                else if (ver.Encontrado)
                 {
                     if (string.IsNullOrWhiteSpace(ver.NombreArchivo))
                         throw new InvalidOperationException(

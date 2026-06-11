@@ -110,5 +110,12 @@ public enum EstadoDisponibilidad
 {
     Encontrado,
     Faltante,
-    NoBuscado
+    NoBuscado,
+    /// <summary>
+    /// El archivo existe en Drive pero no pudo exportarse (formato nativo Google,
+    /// ej: supera el límite de 10 MB de la API). El contenido no está disponible
+    /// para verificación; se genera un hallazgo determinístico que requiere
+    /// revisión manual.
+    /// </summary>
+    ExportFallido
 }

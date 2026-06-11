@@ -38,10 +38,14 @@ public sealed record DriveFolderListing(
 /// <summary>
 /// Resultado de descargar un archivo. Bytes en base64 se serializan
 /// automáticamente como string en el JSON de la respuesta MCP.
+/// ErrorExport != null indica que el archivo existe en Drive pero el export
+/// de formato nativo Google falló (ej: supera el límite de 10 MB de la API).
+/// En ese caso Bytes está vacío y el artefacto debe marcarse ExportFallido.
 /// </summary>
 public sealed record DriveFileContent(
     string Id,
     string Name,
     string MimeType,
     byte[] Bytes,
-    long? Size);
+    long? Size,
+    string? ErrorExport = null);

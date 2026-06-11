@@ -221,10 +221,12 @@ public static class ConsolidadorEnsamble
                 return ResultadoEvaluacion.NoConforme; // tailoring incompleto
 
             case EstadoAplicacionTailoring.Aplica:
-                // 2.a — El artefacto aplica pero no se encontró: NoConforme
-                // determinístico, sin importar los hallazgos. El hallazgo que
-                // lo explica lo genera ComplianceValidation (Gap Analysis).
-                if (artefacto.EstadoDisponibilidad == EstadoDisponibilidad.Faltante)
+                // 2.a — El artefacto aplica pero no se encontró (o no pudo exportarse):
+                // NoConforme determinístico, sin importar los hallazgos. El hallazgo
+                // lo genera HallazgosDeterministicos (Regla 1 para Faltante,
+                // Regla 4 para ExportFallido).
+                if (artefacto.EstadoDisponibilidad is EstadoDisponibilidad.Faltante
+                    or EstadoDisponibilidad.ExportFallido)
                     return ResultadoEvaluacion.NoConforme;
 
                 // 2.b — El artefacto aplica y está presente: solo NC degrada.
