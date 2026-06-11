@@ -16,6 +16,7 @@ import type { ReactNode } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './screens/Dashboard';
 import Proyectos from './screens/Proyectos';
+import ProyectoDetalle from './screens/ProyectoDetalle';
 import Informes from './screens/Informes';
 import NuevaAuditoria from './screens/NuevaAuditoria';
 import Hallazgos from './screens/Hallazgos';
@@ -56,6 +57,16 @@ export default function App() {
           <Route path="/login" element={<Login />} />
 
           {/* Rutas protegidas — cualquier rol autenticado */}
+          <Route
+            path="/proyectos/:id"
+            element={
+              <ProtectedRoute>
+                <ShellLayout>
+                  <ProyectoDetalle />
+                </ShellLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/proyectos"
             element={

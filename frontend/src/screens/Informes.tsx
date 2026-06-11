@@ -12,9 +12,9 @@
 //     armados a partir de (proyectos → auditorías → informes).
 // ============================================================================
 import { useEffect, useMemo, useState } from 'react';
-import { jsPDF } from 'jspdf';
 import { useInjectStyle } from '../utils/useInjectStyle';
 import { informesCss } from '../styles/informes';
+import { descargarInformePdf } from '../utils/exportInformePdf';
 import { useAuth } from '../login/AuthContext';
 import {
   listarInformes,
@@ -34,36 +34,6 @@ function fmtFecha(iso: string): string {
 
 function tipoLabel(tipo: string): string {
   return TIPO_INFORME_LABEL[tipo] ?? tipo;
-}
-
-// Genera un PDF de texto plano con el contenido del informe (paginado).
-function descargarPdf(inf: Informe): void {
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  const margin = 15;
-  let y = margin;
-
-  doc.setFontSize(16); doc.setFont('helvetica', 'bold');
-  doc.text('Informe de auditoría', margin, y); y += 9;
-
-  doc.setFontSize(11); doc.setFont('helvetica', 'normal');
-  doc.text(`Proyecto: ${inf.nombreProyecto}`, margin, y); y += 6;
-  doc.text(`Tipo: ${tipoLabel(inf.tipo)}`, margin, y); y += 6;
-  doc.text(`Fecha de generación: ${fmtFecha(inf.fechaGeneracion)}`, margin, y); y += 6;
-
-  doc.setDrawColor(190); doc.line(margin, y, pageW - margin, y); y += 7;
-
-  doc.setFontSize(10);
-  const lineas = doc.splitTextToSize(inf.contenido || '(sin contenido)', pageW - margin * 2);
-  for (const linea of lineas) {
-    if (y > pageH - margin) { doc.addPage(); y = margin; }
-    doc.text(linea, margin, y);
-    y += 5;
-  }
-
-  const slug = inf.nombreProyecto.replace(/\s+/g, '_').replace(/[^\w\-]/g, '');
-  doc.save(`informe-${slug}-${inf.id}.pdf`);
 }
 
 export default function Informes() {
@@ -183,7 +153,7 @@ export default function Informes() {
                         </svg>
                         Ver
                       </button>
-                      <button className="in-link" onClick={() => descargarPdf(inf)}>
+                      <button className="in-link" onClick={() => descargarInformePdf(inf)}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                           <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
                         </svg>
@@ -215,7 +185,7 @@ export default function Informes() {
               <div className="in-contenido">{verInforme.contenido || '(sin contenido)'}</div>
             </div>
             <div className="in-modal-foot">
-              <button className="btn-pri" onClick={() => descargarPdf(verInforme)}>
+              <button className="btn-pri" onClick={() => descargarInformePdf(verInforme)}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="15" height="15">
                   <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
                 </svg>

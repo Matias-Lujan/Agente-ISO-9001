@@ -14,6 +14,7 @@
 //  el tailoring no se carga a mano acá — se deriva de procedimiento + tipo.
 // ============================================================================
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useInjectStyle } from '../utils/useInjectStyle';
 import { proyectosCss } from '../styles/proyectos';
 import { useAuth } from '../login/AuthContext';
@@ -25,6 +26,11 @@ import {
   type CrearProyectoRequest,
 } from '../api/proyectos';
 import { listarProcedimientos, type Procedimiento } from '../api/procedimientos';
+import {
+  listarAuditoriasDeProyecto,
+  obtenerResultado,
+  type AuditoriaResultado,
+} from '../api/auditorias';
 import { listarUsuarios, type UsuarioResponse } from '../login/authApi';
 
 type Filtro = 'Todos' | 'Activos' | 'Inactivos';
@@ -53,6 +59,66 @@ function fmtFecha(iso: string | null): string | null {
   return isNaN(d.getTime()) ? null : d.toLocaleDateString('es-AR');
 }
 
+// ── Cumplimiento (anillo) ──────────────────────────────────────────────────
+type Cumplimiento =
+  | { estado: 'cargando' }
+  | { estado: 'sindatos' }
+  | { estado: 'ok'; pct: number; conformes: number; evaluados: number; pendientes: number };
+
+// % = artefactos conformes / artefactos aplicables ya evaluados (con veredicto).
+function calcularCumplimiento(res: AuditoriaResultado): Cumplimiento {
+  const aplicables  = res.artefactosEvaluados.filter((a) => a.aplica === 'Aplica');
+  const conformes   = aplicables.filter((a) => a.resultado === 'Conforme').length;
+  const noConformes = aplicables.filter((a) => a.resultado === 'NoConforme').length;
+  const pendientes  = aplicables.filter((a) => a.resultado === 'PendienteEtapaFutura').length;
+  const evaluados   = conformes + noConformes;
+  if (evaluados === 0) return { estado: 'sindatos' };
+  return {
+    estado: 'ok',
+    pct: Math.round((conformes / evaluados) * 100),
+    conformes, evaluados, pendientes,
+  };
+}
+
+const RING_R = 24;
+const RING_C = 2 * Math.PI * RING_R;
+
+function Anillo({ c }: { c: Cumplimiento | undefined }) {
+  if (!c || c.estado === 'cargando') {
+    return (
+      <div className="pr-ring loading">
+        <svg width="58" height="58" viewBox="0 0 58 58">
+          <circle className="track" cx="29" cy="29" r={RING_R} fill="none" strokeWidth="6" />
+        </svg>
+        <span className="center">…</span>
+      </div>
+    );
+  }
+  if (c.estado === 'sindatos') {
+    return (
+      <div className="pr-ring empty">
+        <svg width="58" height="58" viewBox="0 0 58 58">
+          <circle className="track" cx="29" cy="29" r={RING_R} fill="none" strokeWidth="6" />
+        </svg>
+        <span className="center">—</span>
+      </div>
+    );
+  }
+  const cls = c.pct >= 90 ? 'ok' : c.pct >= 70 ? 'warn' : 'err';
+  return (
+    <div className="pr-ring">
+      <svg width="58" height="58" viewBox="0 0 58 58">
+        <circle className="track" cx="29" cy="29" r={RING_R} fill="none" strokeWidth="6" />
+        <circle
+          className={`bar ${cls}`} cx="29" cy="29" r={RING_R} fill="none" strokeWidth="6"
+          strokeDasharray={RING_C} strokeDashoffset={RING_C * (1 - c.pct / 100)}
+        />
+      </svg>
+      <span className="center">{c.pct}%</span>
+    </div>
+  );
+}
+
 const COLOR_INT: Record<string, string> = {
   drive: '#1FA463',
   trello: '#0079BF',
@@ -64,6 +130,7 @@ export default function Proyectos() {
 
   const { usuario } = useAuth();
   const esAdmin = usuario?.rol === 'Administrador';
+  const navigate = useNavigate();
 
   const [proyectos, setProyectos]       = useState<Proyecto[]>([]);
   const [procedimientos, setProcs]      = useState<Procedimiento[]>([]);
@@ -71,6 +138,7 @@ export default function Proyectos() {
   const [cargando, setCargando]         = useState(true);
   const [error, setError]               = useState('');
   const [filtro, setFiltro]             = useState<Filtro>('Todos');
+  const [cumpl, setCumpl]               = useState<Record<number, Cumplimiento>>({});
 
   // Modal de creación (solo admin)
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -104,6 +172,35 @@ export default function Proyectos() {
     recargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [esAdmin]);
+
+  // Cumplimiento por proyecto: última auditoría completada → resultado → %.
+  // Se calcula aparte para que las tarjetas aparezcan ya y el anillo se llene
+  // de a uno (datos reales, sin bloquear el render).
+  useEffect(() => {
+    if (proyectos.length === 0) { setCumpl({}); return; }
+    let activo = true;
+    setCumpl(Object.fromEntries(
+      proyectos.map((p) => [p.id, { estado: 'cargando' } as Cumplimiento]),
+    ));
+    (async () => {
+      for (const p of proyectos) {
+        let res: Cumplimiento = { estado: 'sindatos' };
+        try {
+          const auds = await listarAuditoriasDeProyecto(p.id);
+          const completadas = auds.filter((a) => a.estado === 'Completada');
+          if (completadas.length > 0) {
+            completadas.sort((a, b) => +new Date(b.fechaInicioUtc) - +new Date(a.fechaInicioUtc));
+            res = calcularCumplimiento(await obtenerResultado(completadas[0].id));
+          }
+        } catch {
+          res = { estado: 'sindatos' };
+        }
+        if (!activo) return;
+        setCumpl((prev) => ({ ...prev, [p.id]: res }));
+      }
+    })();
+    return () => { activo = false; };
+  }, [proyectos]);
 
   // Mapa id → procedimiento para mostrar el código/nombre en cada tarjeta.
   const procPorId = useMemo(() => {
@@ -270,7 +367,7 @@ export default function Proyectos() {
           {visibles.map((p) => {
             const proc = procPorId.get(p.procedimientoId);
             return (
-              <div key={p.id} className="pr-card">
+              <div key={p.id} className="pr-card" onClick={() => navigate(`/proyectos/${p.id}`)}>
                 <div className="pr-top">
                   <div className="pr-name">{p.nombre}</div>
                   <span className="pr-badge tipo">Tipo {p.tipoProyecto}</span>
@@ -285,6 +382,26 @@ export default function Proyectos() {
                 <div className="pr-proc">
                   <span className="tag">{proc ? `${proc.codigo} · ${proc.nombre}` : `Procedimiento #${p.procedimientoId}`}</span>
                   <span className="sub">Tipo {p.tipoProyecto} · el tailoring se deriva del procedimiento</span>
+                </div>
+
+                <div className="pr-compliance">
+                  <Anillo c={cumpl[p.id]} />
+                  <div className="pr-comp-info">
+                    <div className="pr-comp-title">Cumplimiento</div>
+                    {(() => {
+                      const c = cumpl[p.id];
+                      if (!c || c.estado === 'cargando') return <div className="pr-comp-sub">Calculando…</div>;
+                      if (c.estado === 'sindatos')        return <div className="pr-comp-sub">Sin auditoría completada</div>;
+                      return (
+                        <>
+                          <div className="pr-comp-sub">{c.conformes}/{c.evaluados} artefactos conformes</div>
+                          {c.pendientes > 0 && (
+                            <div className="pr-comp-pend">{c.pendientes} pendiente{c.pendientes > 1 ? 's' : ''} de etapas futuras</div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
 
                 <div className="pr-foot">
