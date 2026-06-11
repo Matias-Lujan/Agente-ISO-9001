@@ -1,5 +1,5 @@
 namespace ISOAuditAgent.API.Models;
- 
+
 public class DocumentoAnalizado
 {
     public int Id { get; set; }
@@ -9,7 +9,8 @@ public class DocumentoAnalizado
     public FuenteDocumento Fuente { get; set; }
     public string? UrlReferencia { get; set; }
     public string HashContenido { get; set; } = null!;
- 
+
+    // Navegación hacia los "uno".
     public Auditoria Auditoria { get; set; } = null!;
     public ArtefactoEvaluado ArtefactoEvaluado { get; set; } = null!;
 }

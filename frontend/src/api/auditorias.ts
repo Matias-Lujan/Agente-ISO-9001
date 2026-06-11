@@ -1,4 +1,3 @@
-
 // ============================================================================
 //  Endpoints del workflow de auditorias.
 //  El usuarioId YA NO se manda en el body — el backend lo extrae del JWT
@@ -54,6 +53,74 @@ export async function crearAuditoria(
 
 export function obtenerAuditoria(id: number): Promise<AuditoriaResumen> {
   return api.get<AuditoriaResumen>(`/api/auditorias/${id}`);
+}
+
+// Auditorías de un proyecto (cualquier autenticado). Se usa tanto para el
+// cálculo de cumplimiento como para el detalle del proyecto.
+export interface AuditoriaDeProyecto {
+  id: number;
+  proyectoId: number;
+  nombreProyecto: string;
+  usuarioId: number;
+  nombreAuditor: string;
+  etapaId: number;
+  fechaInicioUtc: string;
+  fechaFinalizacionUtc: string | null;
+  estado: EstadoAuditoria;
+}
+
+export function listarAuditoriasDeProyecto(
+  proyectoId: number
+): Promise<AuditoriaDeProyecto[]> {
+  return api.get<AuditoriaDeProyecto[]>(`/api/auditorias/proyecto/${proyectoId}`);
+}
+
+// ── Resultado de una auditoría (artefactos evaluados) ──
+// Sirve para calcular el % de cumplimiento de un proyecto.
+export type AplicaArtefacto = 'Aplica' | 'NoAplica' | 'SinDeclararEnTailoring';
+export type ResultadoArtefacto =
+  | 'Conforme' | 'NoConforme' | 'NoAplica' | 'PendienteEtapaFutura';
+
+export interface HallazgoResultado {
+  id: number;
+  tipo: string;          // 'NoConformidad' | 'Observacion' | 'OportunidadMejora' ...
+  descripcion: string;
+  justificacion: string;
+  agenteOrigen: string;
+}
+
+export interface DocumentoAnalizadoResultado {
+  id: number;
+  nombreArchivo: string;
+  fuente: string;
+  urlReferencia: string | null;
+  hashContenido: string;
+}
+
+export interface ArtefactoEvaluado {
+  id: number;
+  artefactoEsperadoId: number;
+  artefactoEsperadoCodigo: string | null;
+  artefactoEsperadoNombre: string | null;
+  aplica: AplicaArtefacto;
+  resultado: ResultadoArtefacto;
+  observaciones: string | null;
+  hallazgos: HallazgoResultado[];
+  documentosAnalizados: DocumentoAnalizadoResultado[];
+}
+
+export interface AuditoriaResultado {
+  id: number;
+  proyectoId: number;
+  etapaId: number;
+  usuarioId: number;
+  estado: EstadoAuditoria;
+  contadores: { artefactosEvaluados: number; hallazgos: number; documentosAnalizados: number };
+  artefactosEvaluados: ArtefactoEvaluado[];
+}
+
+export function obtenerResultado(id: number): Promise<AuditoriaResultado> {
+  return api.get<AuditoriaResultado>(`/api/auditorias/${id}/resultado`);
 }
 
 export function obtenerProgreso(id: number): Promise<ProgresoNodo[]> {

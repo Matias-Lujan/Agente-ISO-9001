@@ -15,6 +15,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './screens/Dashboard';
+import Proyectos from './screens/Proyectos';
+import ProyectoDetalle from './screens/ProyectoDetalle';
+import Informes from './screens/Informes';
 import NuevaAuditoria from './screens/NuevaAuditoria';
 import Hallazgos from './screens/Hallazgos';
 import Configuracion from './screens/Configuracion';
@@ -54,6 +57,36 @@ export default function App() {
           <Route path="/login" element={<Login />} />
 
           {/* Rutas protegidas — cualquier rol autenticado */}
+          <Route
+            path="/proyectos/:id"
+            element={
+              <ProtectedRoute>
+                <ShellLayout>
+                  <ProyectoDetalle />
+                </ShellLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/proyectos"
+            element={
+              <ProtectedRoute>
+                <ShellLayout>
+                  <Proyectos />
+                </ShellLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/informes"
+            element={
+              <ProtectedRoute>
+                <ShellLayout>
+                  <Informes />
+                </ShellLayout>
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={

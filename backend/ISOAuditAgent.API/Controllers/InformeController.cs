@@ -34,10 +34,10 @@ public class InformeController : ControllerBase
 
     /// <summary>
     /// Devuelve todos los informes.
-    /// Solo el Administrador puede ver todos.
+    /// Administrador y Auditor pueden ver todos.
     /// </summary>
     [HttpGet]
-    [Authorize(Roles = Roles.Administrador)]
+    [Authorize(Roles = $"{Roles.Administrador},{Roles.Auditor}")]
     public async Task<IActionResult> ObtenerTodos()
     {
         var informes = await _informeService.ObtenerTodosAsync();
