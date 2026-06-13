@@ -21,6 +21,7 @@ import {
   type EstadoAuditoria,
   type TipoHallazgo,
 } from '../api/dashboard';
+import { cargarRevision, type Revision } from '../api/hallazgos';
 
 // ── Helpers de presentación ──────────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ const TIPO_BADGE: Record<TipoHallazgo, { clase: string; label: string }> = {
   OM:  { clase: 'dash-badge-om', label: 'Oportunidad' },
 };
 
+const DASH_R = 46;
+const DASH_C = 2 * Math.PI * DASH_R;
+
 // ── Componente ───────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -56,6 +60,7 @@ export default function Dashboard() {
   const { usuario } = useAuth();
 
   const [data, setData] = useState<DashboardData | null>(null);
+  const [revision, setRevision] = useState<Revision | null>(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +75,11 @@ export default function Dashboard() {
         if (activo) setError(e instanceof Error ? e.message : 'No se pudo cargar el dashboard');
       })
       .finally(() => { if (activo) setCargando(false); });
+
+    // Cumplimiento general: mismos números que la vista de Hallazgos.
+    cargarRevision()
+      .then((r) => { if (activo) setRevision(r); })
+      .catch(() => { /* el resto del dashboard no depende de esto */ });
 
     return () => { activo = false; };
   }, []);
@@ -119,6 +129,54 @@ export default function Dashboard() {
               <div className="dash-metric-value dash-v-ok">{m.auditoriasCompletadas}</div>
               <div className="dash-metric-sub">de {m.auditoriasTotal} auditorías</div>
             </div>
+          </div>
+
+          {/* CUMPLIMIENTO GENERAL */}
+          <div className="dash-section-title">Cumplimiento general</div>
+          <div className="dash-cumpl">
+            {!revision ? (
+              <div className="dash-empty">Calculando cumplimiento…</div>
+            ) : (() => {
+              const nc = revision.hallazgos.filter((h) => h.tipo === 'NoConformidad').length;
+              const sem = nc > 0 ? 'rojo' : revision.hallazgos.length > 0 ? 'amarillo' : 'verde';
+              const estado = nc > 0 ? 'Requiere atención' : revision.hallazgos.length > 0 ? 'Con observaciones' : 'Conforme';
+              const pct = revision.revisados > 0 ? Math.round((revision.totalConformes / revision.revisados) * 100) : 0;
+              const segConf = revision.revisados > 0 ? (revision.totalConformes / revision.revisados) * DASH_C : 0;
+              return (
+                <>
+                  <div className={`dash-sem ${sem}`}>
+                    <div className="dash-light-stack"><span className="dash-lt r" /><span className="dash-lt y" /><span className="dash-lt g" /></div>
+                    <div>
+                      <div className="dash-sem-estado">{estado}</div>
+                      <div className="dash-sem-resumen">
+                        Se revisaron {revision.revisados} ítems: {revision.totalConformes} conformes · {revision.hallazgos.length} con hallazgos
+                        {nc > 0 ? ` (incluye ${nc} no conformidad${nc > 1 ? 'es' : ''}).` : revision.hallazgos.length > 0 ? ' (sin no conformidades).' : '. Todo en orden.'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="dash-donut">
+                    <svg width="112" height="112" viewBox="0 0 112 112">
+                      <circle className="track" cx="56" cy="56" r={DASH_R} fill="none" strokeWidth="14" />
+                      {revision.revisados > 0 && (
+                        <>
+                          <circle cx="56" cy="56" r={DASH_R} fill="none" stroke="var(--ok-fg)" strokeWidth="14"
+                            strokeDasharray={`${segConf.toFixed(2)} ${(DASH_C - segConf).toFixed(2)}`} strokeDashoffset="0" />
+                          <circle cx="56" cy="56" r={DASH_R} fill="none" stroke="var(--err-fg)" strokeWidth="14"
+                            strokeDasharray={`${(DASH_C - segConf).toFixed(2)} ${segConf.toFixed(2)}`} strokeDashoffset={`${(-segConf).toFixed(2)}`} />
+                        </>
+                      )}
+                    </svg>
+                    <div className="dash-donut-center"><div className="pct">{pct}%</div><div className="cap">cumplimiento</div></div>
+                  </div>
+
+                  <div className="dash-dleg">
+                    <div className="l"><span className="sw" style={{ background: 'var(--ok-fg)' }} />Conforme <b>{revision.totalConformes}</b></div>
+                    <div className="l"><span className="sw" style={{ background: 'var(--err-fg)' }} />No conforme <b>{revision.totalNoConformes}</b></div>
+                  </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* PROYECTOS RECIENTES */}

@@ -73,7 +73,12 @@ export const proyectosCss = `
 .pr-ring.empty .track{stroke-dasharray:3 4;}
 .pr-ring.empty .center{color:var(--text-muted);font-size:16px;}
 .pr-comp-info{min-width:0;}
-.pr-comp-title{font-size:12.5px;font-weight:600;color:var(--text);}
+.pr-comp-title{font-size:12.5px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:7px;}
+.pr-sem-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.pr-sem-dot.ok{background:var(--ok-fg);box-shadow:0 0 6px var(--ok-fg);}
+.pr-sem-dot.warn{background:var(--warn-fg);box-shadow:0 0 6px var(--warn-fg);}
+.pr-sem-dot.err{background:var(--err-fg);box-shadow:0 0 6px var(--err-fg);}
+.pr-sem-dot.gray{background:var(--text-muted);opacity:.5;}
 .pr-comp-sub{font-size:11px;color:var(--text-muted);margin-top:2px;}
 .pr-comp-pend{font-size:10.5px;color:var(--warn-fg);margin-top:2px;}
 @keyframes pr-pulse{0%,100%{opacity:.4;}50%{opacity:.9;}}

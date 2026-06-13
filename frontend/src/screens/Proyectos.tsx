@@ -387,13 +387,25 @@ export default function Proyectos() {
                 <div className="pr-compliance">
                   <Anillo c={cumpl[p.id]} />
                   <div className="pr-comp-info">
-                    <div className="pr-comp-title">Cumplimiento</div>
                     {(() => {
                       const c = cumpl[p.id];
-                      if (!c || c.estado === 'cargando') return <div className="pr-comp-sub">Calculando…</div>;
-                      if (c.estado === 'sindatos')        return <div className="pr-comp-sub">Sin auditoría completada</div>;
+                      if (!c || c.estado === 'cargando') return (
+                        <>
+                          <div className="pr-comp-title"><span className="pr-sem-dot gray" />Cumplimiento</div>
+                          <div className="pr-comp-sub">Calculando…</div>
+                        </>
+                      );
+                      if (c.estado === 'sindatos') return (
+                        <>
+                          <div className="pr-comp-title"><span className="pr-sem-dot gray" />Cumplimiento</div>
+                          <div className="pr-comp-sub">Sin auditoría completada</div>
+                        </>
+                      );
+                      const cls = c.pct >= 90 ? 'ok' : c.pct >= 70 ? 'warn' : 'err';
+                      const word = c.pct >= 90 ? 'Conforme' : c.pct >= 70 ? 'Con observaciones' : 'Requiere atención';
                       return (
                         <>
+                          <div className="pr-comp-title"><span className={`pr-sem-dot ${cls}`} />{word}</div>
                           <div className="pr-comp-sub">{c.conformes}/{c.evaluados} artefactos conformes</div>
                           {c.pendientes > 0 && (
                             <div className="pr-comp-pend">{c.pendientes} pendiente{c.pendientes > 1 ? 's' : ''} de etapas futuras</div>

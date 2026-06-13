@@ -61,6 +61,86 @@ function calcular(res: AuditoriaResultado | null) {
 const R = 26;
 const C = 2 * Math.PI * R;
 
+// ── Curva de evolución de ejecuciones ───────────────────────────────────────
+interface PuntoEvo {
+  id: number;
+  fecha: string;
+  cumpl: number | null;   // % de cumplimiento de esa ejecución
+  hallazgos: number;      // cantidad de hallazgos de esa ejecución
+}
+
+function colorPct(v: number | null): string {
+  if (v == null) return 'var(--text-muted)';
+  return v >= 90 ? 'var(--ok-fg)' : v >= 70 ? 'var(--warn-fg)' : 'var(--err-fg)';
+}
+
+function fechaCorta(iso: string): string {
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+}
+
+function CurvaEvolucion({ pts, selId, onSelect }: {
+  pts: PuntoEvo[]; selId: number | null; onSelect: (id: number) => void;
+}) {
+  if (pts.length === 0) {
+    return <div className="pd-empty">Todavía no hay ejecuciones completadas para graficar la evolución.</div>;
+  }
+  const W = 720, H = 188, padL = 32, padR = 16, padT = 16, padB = 38;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const n = pts.length;
+  const X = (i: number) => (n > 1 ? padL + i * (innerW / (n - 1)) : padL + innerW / 2);
+  const Y = (v: number) => padT + (1 - v / 100) * innerH;
+
+  const vp = pts.map((p, i) => ({ ...p, i, vx: X(i), vy: Y(p.cumpl ?? 0) }));
+  const line = vp.map((p, k) => `${k ? 'L' : 'M'}${p.vx.toFixed(1)} ${p.vy.toFixed(1)}`).join(' ');
+  const baseY = padT + innerH;
+  const area = `${line} L ${vp[n - 1].vx.toFixed(1)} ${baseY.toFixed(1)} L ${vp[0].vx.toFixed(1)} ${baseY.toFixed(1)} Z`;
+
+  return (
+    <div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="pd-evo-svg">
+        <defs>
+          <linearGradient id="evoGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.22" />
+            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Guías horizontales: 0 / 70 / 90 / 100 */}
+        {[0, 50, 100].map((g) => (
+          <g key={g}>
+            <line x1={padL} y1={Y(g)} x2={W - padR} y2={Y(g)} className="pd-evo-grid" />
+            <text x={padL - 6} y={Y(g) + 3} className="pd-evo-axis" textAnchor="end">{g}</text>
+          </g>
+        ))}
+        {[70, 90].map((g) => (
+          <line key={g} x1={padL} y1={Y(g)} x2={W - padR} y2={Y(g)} className="pd-evo-thr" />
+        ))}
+
+        {n > 1 && <path d={area} fill="url(#evoGrad)" />}
+        {n > 1 && <path d={line} className="pd-evo-line" fill="none" />}
+
+        {vp.map((p) => (
+          <g key={p.id} className="pd-evo-pt" onClick={() => onSelect(p.id)}>
+            <circle cx={p.vx} cy={p.vy} r={p.id === selId ? 7 : 5}
+              fill="var(--surface)" stroke={colorPct(p.cumpl)} strokeWidth={p.id === selId ? 3 : 2.5} />
+            <text x={p.vx} y={p.vy - 12} className="pd-evo-val" textAnchor="middle" fill={colorPct(p.cumpl)}>
+              {p.cumpl == null ? '—' : `${p.cumpl}%`}
+            </text>
+            <text x={p.vx} y={baseY + 16} className="pd-evo-x" textAnchor="middle">{fechaCorta(p.fecha)}</text>
+            <text x={p.vx} y={baseY + 29} className="pd-evo-x2" textAnchor="middle">{p.hallazgos} hz</text>
+          </g>
+        ))}
+      </svg>
+      <div className="pd-evo-foot">
+        {n === 1
+          ? 'Hay una sola ejecución completada. La curva se va a poblar a medida que vuelvas a ejecutar la auditoría sobre este proyecto.'
+          : 'Cada punto es una ejecución de la auditoría sobre este proyecto. Tocá un punto para ver el detalle de esa ejecución.'}
+      </div>
+    </div>
+  );
+}
+
 export default function ProyectoDetalle() {
   useInjectStyle(proyectoDetalleCss, 'proyecto-detalle-style');
   const { id } = useParams<{ id: string }>();
@@ -80,6 +160,9 @@ export default function ProyectoDetalle() {
   const [cargandoSel, setCargandoSel] = useState(false);
   const [expandido, setExpandido] = useState<Set<number>>(new Set());
   const [verInforme, setVerInforme] = useState<Informe | null>(null);
+
+  // Curva de evolución: una métrica por cada ejecución (auditoría) completada.
+  const [evolucion, setEvolucion] = useState<PuntoEvo[]>([]);
 
   // Carga inicial: proyecto + auditorías + etapas + nombre de procedimiento.
   useEffect(() => {
@@ -133,6 +216,32 @@ export default function ProyectoDetalle() {
     })();
     return () => { activo = false; };
   }, [selId]);
+
+  // Curva de evolución: para cada ejecución completada (orden cronológico),
+  // computa el % de cumplimiento y la cantidad de hallazgos de ese resultado.
+  useEffect(() => {
+    const completadas = auditorias
+      .filter((a) => a.estado === 'Completada')
+      .sort((a, b) => +new Date(a.fechaInicioUtc) - +new Date(b.fechaInicioUtc));
+    if (completadas.length === 0) { setEvolucion([]); return; }
+    let activo = true;
+    (async () => {
+      const resultados = await Promise.all(
+        completadas.map((a) => obtenerResultado(a.id).catch(() => null)),
+      );
+      if (!activo) return;
+      setEvolucion(completadas.map((a, i) => {
+        const c = calcular(resultados[i]);
+        return {
+          id: a.id,
+          fecha: a.fechaInicioUtc,
+          cumpl: c ? c.pct : null,
+          hallazgos: resultados[i]?.contadores.hallazgos ?? 0,
+        };
+      }));
+    })();
+    return () => { activo = false; };
+  }, [auditorias]);
 
   const etapaNombre = useMemo(() => {
     const m = new Map<number, string>();
@@ -220,6 +329,12 @@ export default function ProyectoDetalle() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── Evolución de ejecuciones ── */}
+      <div className="pd-panel">
+        <div className="pd-section-title">Evolución de ejecuciones</div>
+        <CurvaEvolucion pts={evolucion} selId={selId} onSelect={setSelId} />
       </div>
 
       {/* ── Auditorías + detalle ── */}

@@ -1,4 +1,3 @@
-
 // ============================================================================
 //  Modal de detalle de un hallazgo.
 //  Se abre con ESC para cerrar, click fuera para cerrar, click en X tambien.
@@ -8,7 +7,6 @@ import {
   type Hallazgo,
   TIPO_LABEL,
   TIPO_LABEL_LARGO,
-  ESTADO_LABEL,
 } from '../api/hallazgos';
 
 interface Props {
@@ -30,10 +28,6 @@ export default function HallazgoDetalleModal({ hallazgo, onClose }: Props) {
   const tipoClase =
     hallazgo.tipo === 'NoConformidad' ? 'nc' :
     hallazgo.tipo === 'Observacion' ? 'obs' : 'om';
-
-  const estadoClase =
-    hallazgo.estado === 'Abierto' ? 'estado-abierto' :
-    hallazgo.estado === 'EnRevision' ? 'estado-en-revision' : 'estado-resuelto';
 
   const fechaFormateada = new Date(hallazgo.fechaDeteccion).toLocaleDateString('es-AR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
@@ -58,7 +52,6 @@ export default function HallazgoDetalleModal({ hallazgo, onClose }: Props) {
         <div className="hz-modal-body">
           <div className="hz-modal-tags">
             <span className={`hz-badge ${tipoClase}`}>{TIPO_LABEL[hallazgo.tipo]}</span>
-            <span className={`hz-estado-dot ${estadoClase}`}>{ESTADO_LABEL[hallazgo.estado]}</span>
           </div>
 
           <div className="hz-modal-row">

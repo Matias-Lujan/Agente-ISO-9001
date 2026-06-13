@@ -142,3 +142,120 @@ export async function listarHallazgos(): Promise<Hallazgo[]> {
     })
     .sort((a, b) => fechaMs(b.fechaDeteccion) - fechaMs(a.fechaDeteccion) || b.id - a.id);
 }
+
+// ============================================================================
+//  cargarRevision() — versión "anticipación al auditor".
+//
+//  En vez de un status puntual por hallazgo (que no aporta porque el usuario
+//  corrige y re-ejecuta), esta función arma la foto de la ÚLTIMA ejecución
+//  (auditoría Completada) de cada proyecto, derivada del resultado real:
+//    GET /api/auditorias/proyecto/{id}  → última Completada
+//    GET /api/auditorias/{auditoriaId}/resultado → artefactos evaluados
+//
+//  Devuelve, de forma consistente entre sí:
+//   - hallazgos:  los detectados (problemas) de esas ejecuciones
+//   - conformes:  los artefactos revisados que dieron OK (para no dejar la
+//                 pantalla en blanco: deja constancia de que se revisó)
+//   - contadores: revisados / conformes / no conformes
+// ============================================================================
+import { listarAuditoriasDeProyecto, obtenerResultado } from './auditorias';
+
+export interface ItemConforme {
+  id: number;
+  codigo: string | null;
+  nombre: string;
+  proyecto: string;
+}
+
+export interface Revision {
+  hallazgos: Hallazgo[];
+  conformes: ItemConforme[];
+  revisados: number;          // artefactos aplicables con veredicto
+  totalConformes: number;
+  totalNoConformes: number;
+}
+
+// El resultado puede serializar el tipo como 'NC'/'OBS'/'OM' o como el nombre
+// del enum ('NoConformidad'/'Observacion'/'OportunidadMejora'): aceptamos ambos.
+function mapTipoFlexible(t: string): TipoHallazgo {
+  const x = (t ?? '').toLowerCase();
+  if (x === 'nc' || x.includes('conformidad')) return 'NoConformidad';
+  if (x === 'obs' || x.includes('observ')) return 'Observacion';
+  return 'OportunidadMejora';
+}
+
+export async function cargarRevision(): Promise<Revision> {
+  const proyectos = await listarProyectos();
+
+  // Última auditoría Completada de cada proyecto (en paralelo).
+  const auditoriasPorProyecto = await Promise.all(
+    proyectos.map(async (p) => {
+      const auds = await listarAuditoriasDeProyecto(p.id).catch(() => []);
+      const completadas = auds
+        .filter((a) => a.estado === 'Completada')
+        .sort((a, b) => fechaMs(b.fechaInicioUtc) - fechaMs(a.fechaInicioUtc));
+      return { proyecto: p, auditoria: completadas[0] ?? null };
+    }),
+  );
+
+  const conResultado = await Promise.all(
+    auditoriasPorProyecto.map(async ({ proyecto, auditoria }) => {
+      if (!auditoria) return null;
+      const res = await obtenerResultado(auditoria.id).catch(() => null);
+      return res ? { proyecto, auditoria, res } : null;
+    }),
+  );
+
+  const hallazgos: Hallazgo[] = [];
+  const conformes: ItemConforme[] = [];
+  let totalConformes = 0;
+  let totalNoConformes = 0;
+
+  for (const item of conResultado) {
+    if (!item) continue;
+    const { proyecto, auditoria, res } = item;
+
+    for (const art of res.artefactosEvaluados) {
+      if (art.aplica !== 'Aplica') continue;
+
+      if (art.resultado === 'Conforme') {
+        totalConformes += 1;
+        conformes.push({
+          id: art.id,
+          codigo: art.artefactoEsperadoCodigo,
+          nombre: art.artefactoEsperadoNombre ?? `Artefacto #${art.artefactoEsperadoId}`,
+          proyecto: proyecto.nombre,
+        });
+      } else if (art.resultado === 'NoConforme') {
+        totalNoConformes += 1;
+      }
+
+      for (const h of art.hallazgos) {
+        hallazgos.push({
+          id: h.id,
+          titulo: art.artefactoEsperadoNombre ?? `Artefacto #${art.artefactoEsperadoId}`,
+          descripcion: h.descripcion,
+          evidencia: h.justificacion ?? '',
+          proyecto: proyecto.nombre,
+          tipo: mapTipoFlexible(h.tipo),
+          estado: 'Abierto',
+          fechaDeteccion: auditoria.fechaInicioUtc,
+          agenteOrigen: h.agenteOrigen,
+          justificacion: h.justificacion,
+        });
+      }
+    }
+  }
+
+  hallazgos.sort(
+    (a, b) => fechaMs(b.fechaDeteccion) - fechaMs(a.fechaDeteccion) || b.id - a.id,
+  );
+
+  return {
+    hallazgos,
+    conformes,
+    revisados: totalConformes + totalNoConformes,
+    totalConformes,
+    totalNoConformes,
+  };
+}
