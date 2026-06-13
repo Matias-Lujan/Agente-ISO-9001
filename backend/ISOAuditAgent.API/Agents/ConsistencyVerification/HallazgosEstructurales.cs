@@ -5,7 +5,7 @@
 //  en C#, sin pasar por el LLM, comparando las secciones del documento
 //  encontrado contra las secciones del template del artefacto.
 //
-//  TRES CASOS DETERMINÍSTICOS:
+//  DOS CASOS DETERMINÍSTICOS:
 //
 //  1. Documento completamente vacío → NC / OrigenRegla.Procedimiento.
 //     TODAS las secciones del documento (excluyendo la sección sintética
@@ -24,9 +24,13 @@
 //     (matching por NormalizeHeaderKey, tolerante a tildes y mayúsculas).
 //     Solo se evalúa cuando el documento NO es completamente vacío.
 //
-//  3. Sección del template presente en el documento pero vacía → OBS / Template.
-//     La sección matchea por NormalizeHeaderKey pero TieneContenido = false.
-//     Solo se evalúa cuando el documento NO es completamente vacío.
+//  CASO DELEGADO AL LLM (antes Caso 3):
+//  Sección del template presente en el documento pero vacía → el LLM evalúa
+//  si esa sección vacía es realmente un hallazgo según el tipo de documento y
+//  el nombre de la sección. No toda sección vacía es un problema: secciones
+//  opcionales (Observaciones, Comentarios) pueden estar legítimamente vacías,
+//  mientras que secciones esenciales (Descripción del riesgo, Entregables)
+//  no pueden estarlo.
 //
 //  CRITERIOS DE FILTRADO:
 //  - Solo artefactos con SeccionesTemplate no vacío (template disponible y
@@ -122,21 +126,9 @@ internal static class HallazgosEstructurales
                             $"en el template del {procedimientoCodigo}.",
                         OrigenRegla: OrigenRegla.Template));
                 }
-                else if (!secDoc.TieneContenido)
-                {
-                    // Caso 3: sección del template presente pero vacía.
-                    hallazgos.Add(new HallazgoPreliminar(
-                        ArtefactoEsperadoId: a.ArtefactoEsperadoId,
-                        Descripcion:
-                            $"Sección '{secDoc.Titulo}' del artefacto '{a.NombreArtefacto}' " +
-                            $"está vacía.",
-                        Justificacion:
-                            $"La sección '{secDoc.Titulo}' está presente en el documento " +
-                            $"del artefacto '{a.NombreArtefacto}', pero no contiene " +
-                            $"ningún texto. Según el template del {procedimientoCodigo}, " +
-                            $"esta sección debe tener contenido.",
-                        OrigenRegla: OrigenRegla.Template));
-                }
+                // Caso 3 (sección presente pero vacía) delegado al LLM:
+                // el LLM evalúa si la vacuidad es realmente un hallazgo
+                // según el tipo de documento y el nombre de la sección.
             }
         }
 

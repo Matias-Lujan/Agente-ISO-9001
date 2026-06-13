@@ -599,83 +599,68 @@ public sealed class ConsistencyVerificationNode
         // - NoBuscado: idem.
         // Este filtrado define el conjunto de IDs que el LLM verá. ParsearRespuesta
         // debe replicar exactamente este mismo criterio para validar la respuesta.
-        var analizables = input.Artefactos
+        // El LLM recibe artefactos Exigibles + Encontrados que tengan al menos
+        // una sección vacía (con o sin template). Esto incluye:
+        //   - Artefactos SIN template: igual que antes.
+        //   - Artefactos CON template: secciones del template presentes en el
+        //     documento pero vacías (Caso 3). HallazgosEstructurales solo maneja
+        //     Caso 1 (doc vacío) y Caso 2 (sección ausente); el Caso 3 es ambiguo
+        //     y requiere razonamiento contextual → LLM.
+        // ParsearRespuesta debe replicar exactamente este criterio para saber
+        // qué IDs expuso el LLM.
+        var paraLlm = input.Artefactos
             .Where(a => a.Exigibilidad == ExigibilidadArtefacto.Exigible
-                     && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado)
+                     && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado
+                     && a.SeccionesDetectadas.Any(s => !s.TieneContenido))
             .ToList();
 
-        // Caso especial: nada para analizar. El LLM se llama igual con prompt
-        // mínimo (no podemos cortocircuitar sin overridear HandleAsync, y la
-        // asimetría con los otros nodos LLM no se justifica solo por ahorrar
-        // un call corto). ParsearRespuesta blinda este caso devolviendo lista
-        // vacía sin importar lo que diga el LLM.
-        if (analizables.Count == 0)
+        if (paraLlm.Count == 0)
         {
-            return "No hay artefactos para analizar. " +
+            return "No hay secciones vacías para analizar. " +
                    "Respondé exactamente: {\"hallazgos\": []}";
         }
 
-        // Artefactos con template: se analizan en ParsearRespuesta por HallazgosEstructurales.
-        // El LLM solo recibe artefactos SIN template para seguir detectando secciones vacías.
-        var sinTemplate = analizables.Where(a => a.SeccionesTemplate.Count == 0).ToList();
-        if (sinTemplate.Count == 0)
-        {
-            return "No hay artefactos sin template para analizar con LLM. " +
-                   "Respondé exactamente: {\"hallazgos\": []}";
-        }
-        var resumen = DocumentSummaryBuilder.Construir(sinTemplate);
+        var resumen = DocumentSummaryBuilder.Construir(paraLlm);
 
-        // El prompt se LIMITA a lo que el resumen efectivamente expone. El
-        // builder muestra: nombre, código, obligatoriedad, archivo, fuente y
-        // SeccionesDetectadas con flag TieneContenido. NADA MÁS. Por eso el
-        // prompt sólo pide detectar "secciones vacías" — pedir más sería
-        // inducir alucinación porque el LLM no tiene los datos para razonar.
-        //
-        // TODO Chat D / futura iteración: para detectar "sección esperada por
-        // el template que NO aparece en SeccionesDetectadas" haría falta que
-        // el contrato 3 exponga las secciones esperadas del template, no solo
-        // PathTemplateAbsoluto. Eso es un cambio de contrato fuera de Chat C.
-        //
-        // TODO Chat D / futura iteración: para detectar "inconsistencias entre
-        // artefactos" (responsables, referencias cruzadas) haría falta que el
-        // builder incluya contenido de las secciones, no solo flags. Decisión
-        // pendiente con el cliente.
         return
             "Sos un auditor experto en ISO 9001 y en el procedimiento PR 11-13 de BDT Global.\n\n" +
-            "Analizá los siguientes artefactos de un proyecto de desarrollo de software " +
-            "y detectá UN ÚNICO tipo de problema: secciones que existen en el documento " +
-            "pero están VACIAS (marcadas como VACIA en el resumen).\n\n" +
+            "Analizá los siguientes artefactos de un proyecto de desarrollo de software. " +
+            "Para cada artefacto se indica el nombre, código, archivo encontrado y el " +
+            "estado de sus secciones (LLENA o VACIA).\n\n" +
             "ARTEFACTOS A ANALIZAR:\n" +
             resumen + "\n\n" +
-            "QUÉ DEBÉS DETECTAR:\n" +
-            "- Únicamente secciones marcadas como VACIA en el resumen. Cada sección " +
-            "vacía representa un problema potencial: la sección existe en el documento " +
-            "como título pero no tiene contenido.\n\n" +
+            "TU TAREA:\n" +
+            "Para cada sección marcada como VACIA, evaluá si realmente es un hallazgo " +
+            "auditable. NO toda sección vacía es un problema: depende del tipo de " +
+            "documento y del propósito de esa sección.\n\n" +
+            "CRITERIO PARA DECIDIR SI UNA SECCIÓN VACÍA ES HALLAZGO:\n" +
+            "- SÍ es hallazgo si la sección es esencial para el propósito del documento. " +
+            "Ejemplos: 'Descripción del riesgo' vacío en una Matriz de Riesgo, " +
+            "'Entregables' vacío en un Sign-Off, 'Autor' vacío en una ERS, " +
+            "'Nombre del caso de prueba' vacío en un documento de casos de prueba.\n" +
+            "- NO es hallazgo si la sección es opcional por naturaleza o puede estar " +
+            "legítimamente vacía. Ejemplos: 'Observaciones', 'Comentarios', 'Notas', " +
+            "'Aclaraciones', 'Anexos', 'Historial de cambios' sin versiones previas.\n\n" +
             "QUÉ NO DEBÉS HACER:\n" +
-            "- NO inventes hallazgos sobre contenido que NO VES en el resumen. Solo tenés\n" +
-            "  títulos de secciones y un flag de tener contenido o no. NO podés juzgar:\n" +
+            "- NO inventes hallazgos sobre contenido que no ves. Solo tenés títulos " +
+            "de secciones y su estado. NO podés juzgar:\n" +
             "  * calidad del contenido;\n" +
-            "  * consistencia entre documentos (no ves contenido);\n" +
-            "  * responsables o datos puntuales (no ves contenido);\n" +
-            "  * si falta una sección que el template esperaría (no ves el template);\n" +
-            "  * fechas o vigencia (consultas_cliente.md consulta 3);\n" +
-            "  * firmas (consultas_cliente.md consulta 2 — BDT no usa firmas);\n" +
-            "  * cruce con Trello o Clockify (lectura_dominio_bdt.md §3.7 — prohibido).\n" +
+            "  * consistencia entre documentos;\n" +
+            "  * responsables o datos puntuales;\n" +
+            "  * fechas o vigencia;\n" +
+            "  * firmas (BDT no usa firmas digitales);\n" +
+            "  * cruce con Trello o Clockify.\n" +
             "- NO emitas hallazgos sobre artefactos que no aparezcan en el resumen.\n" +
-            "- Si NO hay secciones VACIAS, respondé con lista vacía.\n\n" +
-            "El campo 'artefactoEsperadoId' debe ser uno de los IDs listados arriba. " +
-            "El campo 'origenRegla' debe ser exactamente 'Template' (las secciones del " +
-            "template son la fuente de la regla).\n\n" +
+            "- Si ninguna sección vacía es realmente un hallazgo, respondé con lista vacía.\n\n" +
+            "El campo 'artefactoEsperadoId' debe ser uno de los IDs listados arriba.\n" +
+            "El campo 'origenRegla' debe ser exactamente 'Template'.\n\n" +
             "Respondé ÚNICAMENTE con este JSON (sin texto antes ni después, sin backticks):\n" +
             "{\n" +
             "  \"hallazgos\": [\n" +
             "    {\n" +
             "      \"artefactoEsperadoId\": <int>,\n" +
-            "      \"descripcion\": \"Sección '<nombre de sección>' del documento " +
-            "está vacía\",\n" +
-            "      \"justificacion\": \"La sección está presente como título en el " +
-            "documento pero no contiene texto. Según el template, esta sección debe " +
-            "tener contenido.\",\n" +
+            "      \"descripcion\": \"Sección '<nombre de sección>' del documento está vacía\",\n" +
+            "      \"justificacion\": \"<explicación de por qué esa sección vacía es un hallazgo en este tipo de documento>\",\n" +
             "      \"origenRegla\": \"Template\"\n" +
             "    }\n" +
             "  ]\n" +
@@ -695,12 +680,12 @@ public sealed class ConsistencyVerificationNode
         var hallazgosEstructurales = HallazgosEstructurales.Generar(
             conTemplate, input.ProcedimientoCodigo, input.ProcedimientoNombre);
 
-        // Replicar el filtrado de ConstruirPrompt: el LLM solo vio artefactos
-        // sin template (Exigible + Encontrado + SeccionesTemplate vacío).
+        // Replicar el filtrado de ConstruirPrompt: el LLM vio todos los artefactos
+        // Exigibles + Encontrados con al menos una sección vacía (con o sin template).
         var idsExpuestos = input.Artefactos
             .Where(a => a.Exigibilidad == ExigibilidadArtefacto.Exigible
                      && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado
-                     && a.SeccionesTemplate.Count == 0)
+                     && a.SeccionesDetectadas.Any(s => !s.TieneContenido))
             .Select(a => a.ArtefactoEsperadoId)
             .ToHashSet();
 

@@ -19,22 +19,26 @@
 
 using System.Text;
 using ISOAuditAgent.API.Agents.Contracts;
+using ISOAuditAgent.API.Agents.DocumentAnalysis.Tailoring;
 
 namespace ISOAuditAgent.API.Agents.ConsistencyVerification;
 
 internal static class DocumentSummaryBuilder
 {
     /// <summary>
-    /// Arma el texto-resumen de los artefactos para inyectar en el prompt del
-    /// LLM. Asume que <paramref name="artefactos"/> ya viene filtrada a los
-    /// analizables (Exigibles + Encontrados); no filtra de nuevo.
+    /// Arma el texto-resumen de los artefactos para inyectar en el prompt del LLM.
+    /// Asume que <paramref name="artefactos"/> ya viene filtrada a los analizables
+    /// (Exigibles + Encontrados + con al menos una sección vacía); no filtra de nuevo.
+    ///
+    /// Para artefactos con template: muestra el estado de cada sección del template
+    /// en el documento (LLENA / VACIA), de modo que el LLM tenga contexto para
+    /// razonar si una sección vacía es realmente un hallazgo.
+    /// Para artefactos sin template: muestra todas las secciones detectadas con su estado.
     /// </summary>
     public static string Construir(IReadOnlyList<ArtefactoExtraido> artefactos)
     {
         if (artefactos.Count == 0)
-        {
             return "No hay artefactos encontrados y exigibles para analizar.";
-        }
 
         var sb = new StringBuilder();
 
@@ -45,22 +49,36 @@ internal static class DocumentSummaryBuilder
             sb.AppendLine($"Codigo         : {a.CodigoArtefacto ?? "N/A"}");
             sb.AppendLine($"Obligatoriedad : {a.Obligatoriedad}");
             sb.AppendLine($"Archivo        : {a.DocumentoEncontrado?.NombreArchivo ?? "N/A"}");
-            sb.AppendLine($"Fuente         : {a.DocumentoEncontrado?.Fuente.ToString() ?? "N/A"}");
 
-            if (a.SeccionesDetectadas.Count > 0)
+            if (a.SeccionesTemplate.Count > 0)
             {
-                sb.AppendLine("Secciones detectadas:");
-                foreach (var s in a.SeccionesDetectadas)
+                // Con template: mostrar el estado de cada sección del template en
+                // el documento. El LLM necesita ver qué secciones el procedimiento
+                // definió como parte del artefacto para razonar sobre su vacuidad.
+                var docPorClave = a.SeccionesDetectadas
+                    .ToDictionary(
+                        s => TailoringColumnMapper.NormalizeHeaderKey(s.Titulo),
+                        s => s);
+
+                sb.AppendLine("Secciones del template (estado en el documento):");
+                foreach (var st in a.SeccionesTemplate)
                 {
-                    // TieneContenido = false significa que la sección existe
-                    // como título pero no tiene contenido debajo.
-                    var estado = s.TieneContenido ? "con contenido" : "VACIA";
-                    sb.AppendLine($"  - {s.Titulo}: {estado}");
+                    var clave = TailoringColumnMapper.NormalizeHeaderKey(st.Titulo);
+                    if (!docPorClave.TryGetValue(clave, out var secDoc))
+                        continue; // ausente → hallazgo determinístico, ya generado
+
+                    var estado = secDoc.TieneContenido ? "LLENA" : "VACIA";
+                    sb.AppendLine($"  - {st.Titulo}: {estado}");
                 }
             }
             else
             {
-                sb.AppendLine("Secciones: no aplica template para este tipo de artefacto");
+                sb.AppendLine("Secciones detectadas (sin template formal):");
+                foreach (var s in a.SeccionesDetectadas)
+                {
+                    var estado = s.TieneContenido ? "LLENA" : "VACIA";
+                    sb.AppendLine($"  - {s.Titulo}: {estado}");
+                }
             }
 
             sb.AppendLine();
