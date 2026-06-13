@@ -30,4 +30,10 @@
     <ProjectReference Include="..\ISOAuditAgent.API\ISOAuditAgent.API.csproj" />
   </ItemGroup>
 
+  <!-- Fixtures de documentos reales (FR-30 ERS, FR-48 Sign-Off) para los tests
+       del DocxTemplateParser. Se copian al output para leerlos en runtime. -->
+  <ItemGroup>
+    <None Include="Fixtures\**\*.docx" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

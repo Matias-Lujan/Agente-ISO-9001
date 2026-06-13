@@ -266,6 +266,11 @@ public sealed class DocumentAnalysisNode
     {
         var payload = new
         {
+            procedimiento = new
+            {
+                codigo = contexto.ProcedimientoCodigo,
+                nombre = contexto.ProcedimientoNombre
+            },
             contexto = new
             {
                 artefactosEsperados = contexto.ArtefactosEsperados.Select(a => new
@@ -482,6 +487,8 @@ public sealed class ComplianceValidationNode
             $"  NombreArchivo encontrado: {a.DocumentoEncontrado!.NombreArchivo}\n");
 
         return
+            $"Procedimiento que rige a este proyecto: {input.ProcedimientoCodigo} " +
+            $"({input.ProcedimientoNombre}).\n\n" +
             "Analizá los siguientes artefactos para detectar INCOHERENCIAS EVIDENTES " +
             "entre la URL declarada en el tailoring y el archivo encontrado.\n\n" +
             "ARTEFACTOS A ANALIZAR:\n\n" +
@@ -623,24 +630,29 @@ public sealed class ConsistencyVerificationNode
         var resumen = DocumentSummaryBuilder.Construir(paraLlm);
 
         return
-            "Sos un auditor experto en ISO 9001 y en el procedimiento PR 11-13 de BDT Global.\n\n" +
+            $"Sos un auditor experto en ISO 9001 y en el procedimiento {input.ProcedimientoCodigo} " +
+            $"({input.ProcedimientoNombre}) de BDT Global.\n\n" +
             "Analizá los siguientes artefactos de un proyecto de desarrollo de software. " +
-            "Para cada artefacto se indica el nombre, código, archivo encontrado y el " +
-            "estado de sus secciones (LLENA o VACIA).\n\n" +
+            "Para cada artefacto se indica el nombre, código, archivo encontrado, su " +
+            "PROPOSITO según el procedimiento y el estado de sus secciones (LLENA o VACIA).\n\n" +
             "ARTEFACTOS A ANALIZAR:\n" +
             resumen + "\n\n" +
             "TU TAREA:\n" +
             "Para cada sección marcada como VACIA, evaluá si realmente es un hallazgo " +
-            "auditable. NO toda sección vacía es un problema: depende del tipo de " +
-            "documento y del propósito de esa sección.\n\n" +
+            "auditable. NO toda sección vacía es un problema: depende del propósito del " +
+            "documento y del rol de esa sección dentro de ese propósito.\n\n" +
             "CRITERIO PARA DECIDIR SI UNA SECCIÓN VACÍA ES HALLAZGO:\n" +
-            "- SÍ es hallazgo si la sección es esencial para el propósito del documento. " +
-            "Ejemplos: 'Descripción del riesgo' vacío en una Matriz de Riesgo, " +
-            "'Entregables' vacío en un Sign-Off, 'Autor' vacío en una ERS, " +
-            "'Nombre del caso de prueba' vacío en un documento de casos de prueba.\n" +
-            "- NO es hallazgo si la sección es opcional por naturaleza o puede estar " +
-            "legítimamente vacía. Ejemplos: 'Observaciones', 'Comentarios', 'Notas', " +
-            "'Aclaraciones', 'Anexos', 'Historial de cambios' sin versiones previas.\n\n" +
+            "- Usá el campo 'Proposito' del artefacto como criterio principal: es para qué " +
+            "sirve ese documento según el procedimiento de BDT. Una sección vacía ES " +
+            "hallazgo cuando, sin esa sección, el documento NO cumple el propósito " +
+            "declarado. Ejemplo: si el propósito de un Sign-Off es 'describir los " +
+            "entregables del proyecto', entonces 'Entregables' vacío rompe ese propósito y " +
+            "es hallazgo.\n" +
+            "- NO es hallazgo si la sección es accesoria al propósito y puede estar " +
+            "legítimamente vacía. Ejemplos típicos: 'Observaciones', 'Comentarios', " +
+            "'Notas', 'Aclaraciones', 'Anexos', 'Historial de cambios' sin versiones previas.\n" +
+            "- Si el artefacto no trae 'Proposito', juzgá por el nombre del documento y de " +
+            "la sección con criterio de auditor.\n\n" +
             "QUÉ NO DEBÉS HACER:\n" +
             "- NO inventes hallazgos sobre contenido que no ves. Solo tenés títulos " +
             "de secciones y su estado. NO podés juzgar:\n" +
@@ -937,30 +949,82 @@ public sealed partial class FindingsClassificationNode : Executor
         // puede haber múltiples preliminares para el mismo artefacto.
         // El contrato 5 (contratos_agentes.md, invariante línea 307) establece
         // que la correspondencia 1-a-1 es por HallazgoPreliminar, no por artefacto.
+        //
+        // _contextoDocumentos es non-null en este punto: IntentarClasificarAsync
+        // solo dispara cuando los tres inputs están cacheados.
+        var contextoPorId = _contextoDocumentos!.Artefactos
+            .ToDictionary(
+                a => a.ArtefactoEsperadoId,
+                a => (
+                    NombreArtefacto: a.NombreArtefacto,
+                    NombreArchivo: a.DocumentoEncontrado?.NombreArchivo ?? string.Empty,
+                    Proposito: a.Descripcion ?? string.Empty
+                ));
+
         var preliminaresPlanos = hallazgos
             .SelectMany(lote => lote.Hallazgos)
             .Select((h, i) => (indice: i, hallazgo: h))
             .ToList();
 
         var lineas = preliminaresPlanos.Select(p =>
-            $"indice: {p.indice}\n" +
-            $"  artefactoEsperadoId: {p.hallazgo.ArtefactoEsperadoId}\n" +
-            $"  Descripcion: {p.hallazgo.Descripcion}\n" +
-            $"  Justificacion: {p.hallazgo.Justificacion}\n" +
-            $"  OrigenRegla: {p.hallazgo.OrigenRegla}");
+        {
+            // Para hallazgos Template (sección ausente), agregar nombre del artefacto
+            // y del archivo para que el LLM infiera el tipo de documento y genere
+            // una justificación específica en lugar de la genérica del C#.
+            var extra = string.Empty;
+            if (p.hallazgo.OrigenRegla == OrigenRegla.Template
+                && contextoPorId.TryGetValue(p.hallazgo.ArtefactoEsperadoId, out var ctx))
+            {
+                extra = $"\n  NombreArtefacto: {ctx.NombreArtefacto}";
+                if (!string.IsNullOrEmpty(ctx.NombreArchivo))
+                    extra += $"\n  ArchivoDocumento: {ctx.NombreArchivo}";
+                if (!string.IsNullOrEmpty(ctx.Proposito))
+                    extra += $"\n  PropositoDocumento: {ctx.Proposito}";
+            }
+
+            return
+                $"indice: {p.indice}\n" +
+                $"  artefactoEsperadoId: {p.hallazgo.ArtefactoEsperadoId}\n" +
+                $"  Descripcion: {p.hallazgo.Descripcion}\n" +
+                $"  Justificacion: {p.hallazgo.Justificacion}\n" +
+                $"  OrigenRegla: {p.hallazgo.OrigenRegla}" +
+                extra;
+        });
 
         return
-            "Clasificá cada hallazgo en NC, OBS u OM según las reglas del PR 11-13.\n" +
+            $"Sos un auditor experto en ISO 9001 y en el procedimiento {_contextoDocumentos!.ProcedimientoCodigo} " +
+            $"({_contextoDocumentos.ProcedimientoNombre}) de BDT Global.\n\n" +
+            "Clasificá cada hallazgo en NC, OBS u OM según las reglas de ese procedimiento.\n" +
             "Cada hallazgo viene identificado por un INDICE estable (no por " +
             "artefactoEsperadoId, porque puede haber múltiples hallazgos sobre el " +
             "mismo artefacto).\n" +
             $"Recibís {preliminaresPlanos.Count} hallazgos. Devolvé exactamente " +
             $"{preliminaresPlanos.Count} objetos, uno por cada indice.\n" +
             "No inventes, no omitas, no fusiones.\n\n" +
+            "REGLAS DE CLASIFICACIÓN:\n" +
+            "- NC (No Conformidad): incumplimiento directo de una exigencia del procedimiento.\n" +
+            "- OBS (Observación): desviación respecto al estándar definido (template, estructura esperada).\n" +
+            "- OM (Oportunidad de Mejora): posible mejora sin evidencia de incumplimiento.\n" +
+            "- Si OrigenRegla es 'Tailoring': el tipo no puede ser NC (clasificar como OM en ese caso).\n\n" +
+            "SOBRE LAS JUSTIFICACIONES:\n" +
+            "- OrigenRegla=Procedimiento: usá la justificación del hallazgo tal como está, sin modificarla.\n" +
+            "- OrigenRegla=Template (sección ausente del documento): la justificación recibida es " +
+            "genérica. Reemplazala con una justificación específica y auditablemente útil que explique " +
+            "POR QUÉ esa sección es esencial para el propósito del documento. Apoyate en " +
+            "PropositoDocumento (para qué sirve el documento según el procedimiento de BDT) y en " +
+            "NombreArtefacto. Conectá la sección ausente con el propósito que queda comprometido.\n" +
+            "  Ejemplo bueno: 'El Sign-Off tiene por propósito describir los entregables del proyecto; " +
+            "la ausencia de la sección Entregables impide cumplir ese propósito y verificar qué se " +
+            "entregó efectivamente al cliente.'\n" +
+            "  Ejemplo malo: 'La ausencia de una sección del template indica una desviación respecto " +
+            "al formato estándar.'\n" +
+            "- OrigenRegla=Tailoring: justificá concretamente la incoherencia detectada entre URL " +
+            "del tailoring y archivo encontrado.\n\n" +
+            "HALLAZGOS:\n\n" +
             string.Join("\n\n", lineas) +
             "\n\nSOLO el array JSON. Sin texto adicional. Sin backticks.\n" +
             "[{ \"indice\": <int>, \"tipo\": \"NC\"|\"OBS\"|\"OM\", " +
-            "\"justificacion\": \"<regla aplicada y por qué>\" }]";
+            "\"justificacion\": \"<justificación específica>\" }]";
     }
 
     private HallazgosClasificados ParsearRespuesta(

@@ -73,7 +73,15 @@ public sealed record ArtefactoExtraido(
     string? NombreTemplateArchivo,
     DocumentoEncontrado? DocumentoEncontrado,
     IReadOnlyList<SeccionDetectada> SeccionesDetectadas,
-    IReadOnlyList<SeccionDetectada> SeccionesTemplate
+    IReadOnlyList<SeccionDetectada> SeccionesTemplate,
+
+    /// <summary>
+    /// Propósito del artefacto según el procedimiento (propagado desde
+    /// ArtefactoEsperadoContexto). Lo usan ConsistencyVerification y
+    /// FindingsClassification como anclaje para juzgar la esencialidad de una
+    /// sección vacía contra para qué sirve el documento. Nullable.
+    /// </summary>
+    string? Descripcion
 );
 
 /// <summary>

@@ -7,6 +7,11 @@
     <UserSecretsId>75b9a43e-e0e5-4508-830c-da57ed160981</UserSecretsId>
   </PropertyGroup>
 
+  <!-- Exponer tipos internal al proyecto de tests (parsers, agentes). -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="ISOAuditAgent.API.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Auth + API (esta rama) -->
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />

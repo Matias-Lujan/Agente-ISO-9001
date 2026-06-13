@@ -42,6 +42,7 @@
 // ============================================================================
 
 using ISOAuditAgent.API.Agents.Contracts;
+using ISOAuditAgent.API.Agents.DocumentAnalysis.Parsing;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Tailoring;
 using ISOAuditAgent.API.Models;
 
@@ -102,6 +103,12 @@ internal static class HallazgosEstructurales
                 continue;
             }
 
+            // Claves de las secciones presentes en el documento. Se usa para
+            // suprimir hallazgos de campo cuando su sección padre está ausente.
+            var clavesDoc = seccionesDoc
+                .Select(sd => TailoringColumnMapper.NormalizeHeaderKey(sd.Titulo))
+                .ToHashSet();
+
             // Casos 2 y 3: sección ausente o vacía en documento sustantivo.
             foreach (var secTemplate in seccionesTemplate)
             {
@@ -111,6 +118,13 @@ internal static class HallazgosEstructurales
 
                 if (secDoc is null)
                 {
+                    // Si es un campo ("Sección / Campo") cuya sección padre también
+                    // está ausente, no se reporta: el hallazgo de la sección padre
+                    // ausente ya cubre la situación (evita ruido de N campos por una
+                    // sola tabla eliminada).
+                    if (PadreAusente(secTemplate.Titulo, clavesDoc))
+                        continue;
+
                     // Caso 2: sección del template ausente en el documento.
                     hallazgos.Add(new HallazgoPreliminar(
                         ArtefactoEsperadoId: a.ArtefactoEsperadoId,
@@ -133,5 +147,21 @@ internal static class HallazgosEstructurales
         }
 
         return hallazgos;
+    }
+
+    /// <summary>
+    /// Devuelve true si <paramref name="titulo"/> es un campo calificado
+    /// ("Sección / Campo", separador de <see cref="DocxTemplateParser.SeparadorCampo"/>)
+    /// y su sección padre NO está presente en el documento. En ese caso el campo
+    /// no se reporta por separado: la ausencia de la sección padre ya lo cubre.
+    /// </summary>
+    private static bool PadreAusente(string titulo, HashSet<string> clavesDoc)
+    {
+        var idx = titulo.IndexOf(DocxTemplateParser.SeparadorCampo, StringComparison.Ordinal);
+        if (idx <= 0) return false; // no es un campo calificado
+
+        var padre = titulo[..idx];
+        var clavePadre = TailoringColumnMapper.NormalizeHeaderKey(padre);
+        return !clavesDoc.Contains(clavePadre);
     }
 }

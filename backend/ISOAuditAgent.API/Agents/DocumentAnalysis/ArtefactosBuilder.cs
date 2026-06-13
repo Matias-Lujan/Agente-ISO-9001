@@ -138,7 +138,8 @@ internal static class DriveDtos
                 NombreTemplateArchivo: view.NombreTemplateArchivo,
                 DocumentoEncontrado: doc,
                 SeccionesDetectadas: secciones,
-                SeccionesTemplate: seccionesTemplate));
+                SeccionesTemplate: seccionesTemplate,
+                Descripcion: view.Descripcion));
         }
 
         return resultado;

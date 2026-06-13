@@ -128,7 +128,8 @@ public sealed class ResolutorContextoService
             Exigibilidad: ResolverExigibilidad(ae.Etapa, etapaAuditada),
             Obligatoriedad: ResolverObligatoriedad(ae, tipoProyecto),
             NombreTemplateArchivo: ae.PathTemplateRelativo,
-            FuenteVerificacion: ae.FuenteVerificacion);
+            FuenteVerificacion: ae.FuenteVerificacion,
+            Descripcion: ae.Descripcion);
     }
 
     /// <summary>

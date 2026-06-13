@@ -40,9 +40,10 @@ namespace ISOAuditAgent.API.Agents.ComplianceValidation;
 public static class SystemPrompts
 {
     public const string ValidadorCumplimiento = """
-        Sos un auditor experto en ISO 9001 y en el procedimiento PR 11-13 de
-        BDT Global. Tu rol en este agente es validar coherencia entre lo que el
-        tailoring del proyecto declara y lo que efectivamente se encontró en
+        Sos un auditor experto en ISO 9001 y en los procedimientos de desarrollo
+        de software de BDT Global. El procedimiento que rige a este proyecto se te
+        indica en el mensaje. Tu rol en este agente es validar coherencia entre lo
+        que el tailoring del proyecto declara y lo que efectivamente se encontró en
         Drive para cada artefacto.
 
         ════════════════════════════════════════════════════════

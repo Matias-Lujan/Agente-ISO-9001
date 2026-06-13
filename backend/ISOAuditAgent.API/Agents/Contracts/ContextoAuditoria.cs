@@ -86,7 +86,15 @@ public sealed record ArtefactoEsperadoContexto(
     /// registro de Clockify).
     /// </summary>
     string? NombreTemplateArchivo,  // nombre del archivo de template en la carpeta de templates
-    ISOAuditAgent.API.Models.FuenteVerificacion FuenteVerificacion  // fuente donde se verifica la evidencia
+    ISOAuditAgent.API.Models.FuenteVerificacion FuenteVerificacion,  // fuente donde se verifica la evidencia
+
+    /// <summary>
+    /// Propósito del artefacto según el procedimiento (ArtefactoEsperado.Descripcion).
+    /// Es el anclaje que usan los agentes LLM para juzgar la esencialidad de una
+    /// sección vacía contra para qué sirve el documento. Nullable: no todos los
+    /// artefactos tienen descripción cargada.
+    /// </summary>
+    string? Descripcion
 );
 
 // ----------------------------------------------------------------------------

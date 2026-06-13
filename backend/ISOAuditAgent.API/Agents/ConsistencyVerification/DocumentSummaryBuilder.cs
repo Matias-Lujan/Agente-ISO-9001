@@ -49,6 +49,10 @@ internal static class DocumentSummaryBuilder
             sb.AppendLine($"Codigo         : {a.CodigoArtefacto ?? "N/A"}");
             sb.AppendLine($"Obligatoriedad : {a.Obligatoriedad}");
             sb.AppendLine($"Archivo        : {a.DocumentoEncontrado?.NombreArchivo ?? "N/A"}");
+            // Propósito del artefacto según el procedimiento: es el criterio para
+            // juzgar si una sección vacía compromete para qué sirve el documento.
+            if (!string.IsNullOrWhiteSpace(a.Descripcion))
+                sb.AppendLine($"Proposito      : {a.Descripcion}");
 
             if (a.SeccionesTemplate.Count > 0)
             {
