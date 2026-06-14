@@ -1003,9 +1003,12 @@ public sealed partial class FindingsClassificationNode : Executor
             "No inventes, no omitas, no fusiones.\n\n" +
             "REGLAS DE CLASIFICACIÓN:\n" +
             "- NC (No Conformidad): incumplimiento directo de una exigencia del procedimiento.\n" +
-            "- OBS (Observación): desviación respecto al estándar definido (template, estructura esperada).\n" +
+            "- OBS (Observación): desviación menor respecto al template/estructura que NO impide que el documento cumpla su propósito.\n" +
             "- OM (Oportunidad de Mejora): posible mejora sin evidencia de incumplimiento.\n" +
-            "- Si OrigenRegla es 'Tailoring': el tipo no puede ser NC (clasificar como OM en ese caso).\n\n" +
+            "- Si OrigenRegla es 'Tailoring': el tipo no puede ser NC (clasificar como OM en ese caso).\n" +
+            "- Si OrigenRegla es 'Template': por defecto OBS. Es NC SOLO si la sección ausente/vacía es " +
+            "ESENCIAL al propósito del documento (la que cumple su razón de ser, según PropositoDocumento). " +
+            "Sección accesoria o de formato → OBS. Ante duda → OBS.\n\n" +
             "SOBRE LAS JUSTIFICACIONES:\n" +
             "- OrigenRegla=Procedimiento: usá la justificación del hallazgo tal como está, sin modificarla.\n" +
             "- OrigenRegla=Template (sección ausente del documento): la justificación recibida es " +

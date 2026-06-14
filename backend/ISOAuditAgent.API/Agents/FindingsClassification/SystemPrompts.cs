@@ -52,11 +52,11 @@ public static class SystemPrompts
 
         3. REGLA DE ORO POR OrigenRegla:
            - Procedimiento: puede ser NC, OBS u OM.
-           - Template: puede ser NC u OBS (ver reglas de Template más abajo).
-             NC solo si la sección/campo es OBLIGATORIA y está ausente o vacía.
-             OBS si el desvío es menor, el documento tiene contenido sustantivo
-             en el resto, o hay duda razonable sobre la obligatoriedad.
-             Ante duda NC vs OBS → elegí OBS. NC degrada el artefacto a
+           - Template: por defecto OBS. Es NC SOLO cuando la sección ausente o
+             vacía es ESENCIAL al propósito del documento — la que cumple la razón
+             de ser del artefacto según su propósito declarado. Si la sección es
+             accesoria/de formato, o el documento cumple su propósito por otras
+             secciones → OBS. Ante duda → OBS. NC degrada el artefacto a
              NoConforme; OBS no.
            - Tailoring: como mucho OM. Nunca NC.
            Esta distinción la fuerza también el código por si la pasás por alto.
@@ -82,24 +82,25 @@ public static class SystemPrompts
 
         HALLAZGOS DE TEMPLATE (OrigenRegla = Template):
           El sistema detecta estructuralmente secciones ausentes o vacías en
-          documentos comparados contra el template del artefacto. Clasificá:
+          documentos comparados contra el template del artefacto. El criterio para
+          la gravedad es el PROPÓSITO del documento (te lo informan en el mensaje):
 
-          NC (sección OBLIGATORIA ausente o vacía):
-            - Secciones centrales sin las cuales el documento no cumple su propósito
-              (el contenido que el procedimiento espera de ese artefacto).
-            - Campos identificadores vacíos en templates de registro (Proyecto,
-              Responsable, Fecha) cuando el documento tiene datos en otras secciones.
-            ATENCIÓN: el sistema no marca explícitamente qué secciones son
-            obligatorias. Inferilo del nombre de la sección y del propósito del
-            artefacto. Ante cualquier duda → OBS.
+          NC — la sección ausente/vacía es ESENCIAL al propósito del documento: es
+          la que cumple su razón de ser. Sin ella, el documento no cumple lo que el
+          procedimiento espera de ese artefacto.
+            Ejemplos: 'Entregables' ausente en un Sign-Off (su propósito es
+            describir los entregables); 'Descripción del riesgo' ausente en una
+            Matriz de Riesgo (su propósito es identificar y describir los riesgos);
+            'Alcance' ausente en una ERS.
 
-          OBS (desvío menor o sección no obligatoria):
-            - Sección de formato, cabecera, historial de revisiones, pie de página.
-            - Sección ausente pero el documento tiene contenido sustantivo en el resto.
+          OBS — la sección ausente/vacía es accesoria, de formato, o el documento
+          cumple su propósito por las demás secciones.
+            Ejemplos: cabecera, historial de revisiones, pie de página,
+            'Documentos relacionados' (referencia, no el núcleo), notas, anexos.
 
-          NO marques NC por secciones claramente opcionales o de formato, desvíos
-          triviales de presentación, o secciones ausentes cuando el resto del
-          documento es completo y sustantivo.
+          REGLA DE CORTE: una sola sección ESENCIAL ausente/vacía alcanza para NC.
+          Si solo faltan secciones accesorias → OBS. Ante cualquier duda sobre si
+          una sección es esencial → OBS.
 
         TAMAÑO DEL PROYECTO:
           Según el tamaño del proyecto, el procedimiento puede volver algunos
