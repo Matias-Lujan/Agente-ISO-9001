@@ -12,6 +12,7 @@
 //     armados a partir de (proyectos → auditorías → informes).
 // ============================================================================
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useInjectStyle } from '../utils/useInjectStyle';
 import { informesCss } from '../styles/informes';
 import { descargarInformePdf } from '../utils/exportInformePdf';
@@ -47,6 +48,16 @@ export default function Informes() {
   const [error, setError]       = useState('');
   const [filtro, setFiltro]     = useState<Filtro>('Todos');
   const [verInforme, setVerInforme] = useState<Informe | null>(null);
+
+  // Filtro por proyecto vía query param (?proyecto=Nombre), usado al venir
+  // desde "Proyectos que requieren atención" en el Dashboard.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const proyectoFiltro = searchParams.get('proyecto');
+  const limpiarProyecto = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete('proyecto');
+    setSearchParams(next, { replace: true });
+  };
 
   useEffect(() => {
     let activo = true;
@@ -91,9 +102,11 @@ export default function Informes() {
   }, [verTodos]);
 
   const visibles = useMemo(() => {
-    if (filtro === 'Todos') return informes;
-    return informes.filter((i) => i.tipo === filtro);
-  }, [informes, filtro]);
+    let res = informes;
+    if (proyectoFiltro) res = res.filter((i) => i.nombreProyecto === proyectoFiltro);
+    if (filtro !== 'Todos') res = res.filter((i) => i.tipo === filtro);
+    return res;
+  }, [informes, filtro, proyectoFiltro]);
 
   return (
     <>
@@ -103,6 +116,13 @@ export default function Informes() {
           <p className="page-sub">Informes de auditorías finalizadas · vé el detalle o descargá el PDF</p>
         </div>
       </div>
+
+      {proyectoFiltro && (
+        <div className="in-proj-chip">
+          Proyecto: <b>{proyectoFiltro}</b>
+          <button onClick={limpiarProyecto} title="Quitar filtro" aria-label="Quitar filtro">×</button>
+        </div>
+      )}
 
       <div className="in-filters">
         {(['Todos', 'Auto', 'Manual'] as Filtro[]).map((f) => (
