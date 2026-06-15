@@ -468,46 +468,7 @@ public sealed class ComplianceValidationNode
     protected override string ConstruirPrompt(DocumentosExtraidos input)
     {
         Console.WriteLine($"NODE ComplianceValidation INICIO auditoria={input.AuditoriaId} artefactos={input.Artefactos.Count}"); //test
-
-        var paraLlm = input.Artefactos
-            .Where(EsCandidatoLlm)
-            .ToList();
-
-        if (paraLlm.Count == 0)
-        {
-            return "No hay artefactos para analizar. " +
-                   "Respondé exactamente: {\"hallazgos\": []}";
-        }
-
-        var lineas = paraLlm.Select(a =>
-            $"--- ARTEFACTO ID: {a.ArtefactoEsperadoId} ---\n" +
-            $"  Nombre                  : {a.NombreArtefacto}\n" +
-            $"  Codigo                  : {a.CodigoArtefacto ?? "(sin código formal)"}\n" +
-            $"  UrlReferenciaTailoring  : {a.UrlReferencia}\n" +
-            $"  NombreArchivo encontrado: {a.DocumentoEncontrado!.NombreArchivo}\n");
-
-        return
-            $"Procedimiento que rige a este proyecto: {input.ProcedimientoCodigo} " +
-            $"({input.ProcedimientoNombre}).\n\n" +
-            "Analizá los siguientes artefactos para detectar INCOHERENCIAS EVIDENTES " +
-            "entre la URL declarada en el tailoring y el archivo encontrado.\n\n" +
-            "ARTEFACTOS A ANALIZAR:\n\n" +
-            string.Join("\n", lineas) +
-            "\nSi no hay incoherencias evidentes, respondé {\"hallazgos\": []}.\n" +
-            "No inventes hallazgos sobre material que no tengas información para juzgar.\n\n" +
-            "El campo 'artefactoEsperadoId' debe ser uno de los IDs listados arriba.\n" +
-            "El campo 'origenRegla' debe ser exactamente 'Tailoring'.\n\n" +
-            "Respondé ÚNICAMENTE con este JSON, sin texto adicional ni backticks:\n" +
-            "{\n" +
-            "  \"hallazgos\": [\n" +
-            "    {\n" +
-            "      \"artefactoEsperadoId\": <int>,\n" +
-            "      \"descripcion\": \"Incoherencia entre URL del tailoring y archivo encontrado\",\n" +
-            "      \"justificacion\": \"El tailoring declara URL '<url>' pero se encontró '<archivo>', que no corresponde al artefacto.\",\n" +
-            "      \"origenRegla\": \"Tailoring\"\n" +
-            "    }\n" +
-            "  ]\n" +
-            "}";
+        return CompliancePromptBuilder.Construir(input);
     }
 
     protected override HallazgosPreliminares ParsearRespuesta(
@@ -516,7 +477,7 @@ public sealed class ComplianceValidationNode
         var hallazgos = HallazgosDeterministicos.Generar(input);
 
         var idsExpuestos = input.Artefactos
-            .Where(EsCandidatoLlm)
+            .Where(CompliancePromptBuilder.EsCandidatoLlm)
             .Select(a => a.ArtefactoEsperadoId)
             .ToHashSet();
 
@@ -542,21 +503,6 @@ public sealed class ComplianceValidationNode
 
         return resultado;
     }
-
-    private static bool EsCandidatoLlm(ArtefactoExtraido a) =>
-        a.Exigibilidad == ExigibilidadArtefacto.Exigible
-        && a.EstadoAplicacionTailoring == EstadoAplicacionTailoring.Aplica
-        && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado
-        && a.DocumentoEncontrado?.Fuente == FuenteDocumento.Drive  // Trello/Clockify no tienen URL↔archivo comparable
-        && !string.IsNullOrWhiteSpace(a.UrlReferencia)
-        && !EsFolderUrlDrive(a.UrlReferencia!)
-        && a.DocumentoEncontrado is not null
-        && !string.IsNullOrWhiteSpace(a.DocumentoEncontrado.NombreArchivo);
-
-    // URL de carpeta Drive (/folders/): carpeta→archivo encontrado dentro es
-    // el patrón esperado; el LLM no puede juzgar coherencia en ese caso.
-    private static bool EsFolderUrlDrive(string url) =>
-        url.Contains("/folders/", StringComparison.OrdinalIgnoreCase);
 }
 
 // ============================================================================
@@ -599,84 +545,7 @@ public sealed class ConsistencyVerificationNode
     protected override string ConstruirPrompt(DocumentosExtraidos input)
     {
         Console.WriteLine($"NODE ConsistencyVerification INICIO auditoria={input.AuditoriaId} artefactos={input.Artefactos.Count}"); //test
-        // Filtrar a los artefactos analizables: Exigibles + Encontrados.
-        // - PendienteEtapaFutura: no se analiza, no se ha encontrado aún.
-        // - Faltante: si no está, no hay nada que verificar (es trabajo de
-        //   ComplianceValidation generar el hallazgo NC, no nuestro).
-        // - NoBuscado: idem.
-        // Este filtrado define el conjunto de IDs que el LLM verá. ParsearRespuesta
-        // debe replicar exactamente este mismo criterio para validar la respuesta.
-        // El LLM recibe artefactos Exigibles + Encontrados que tengan al menos
-        // una sección vacía (con o sin template). Esto incluye:
-        //   - Artefactos SIN template: igual que antes.
-        //   - Artefactos CON template: secciones del template presentes en el
-        //     documento pero vacías (Caso 3). HallazgosEstructurales solo maneja
-        //     Caso 1 (doc vacío) y Caso 2 (sección ausente); el Caso 3 es ambiguo
-        //     y requiere razonamiento contextual → LLM.
-        // ParsearRespuesta debe replicar exactamente este criterio para saber
-        // qué IDs expuso el LLM.
-        var paraLlm = input.Artefactos
-            .Where(a => a.Exigibilidad == ExigibilidadArtefacto.Exigible
-                     && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado
-                     && a.SeccionesDetectadas.Any(s => !s.TieneContenido))
-            .ToList();
-
-        if (paraLlm.Count == 0)
-        {
-            return "No hay secciones vacías para analizar. " +
-                   "Respondé exactamente: {\"hallazgos\": []}";
-        }
-
-        var resumen = DocumentSummaryBuilder.Construir(paraLlm);
-
-        return
-            $"Sos un auditor experto en ISO 9001 y en el procedimiento {input.ProcedimientoCodigo} " +
-            $"({input.ProcedimientoNombre}) de BDT Global.\n\n" +
-            "Analizá los siguientes artefactos de un proyecto de desarrollo de software. " +
-            "Para cada artefacto se indica el nombre, código, archivo encontrado, su " +
-            "PROPOSITO según el procedimiento y el estado de sus secciones (LLENA o VACIA).\n\n" +
-            "ARTEFACTOS A ANALIZAR:\n" +
-            resumen + "\n\n" +
-            "TU TAREA:\n" +
-            "Para cada sección marcada como VACIA, evaluá si realmente es un hallazgo " +
-            "auditable. NO toda sección vacía es un problema: depende del propósito del " +
-            "documento y del rol de esa sección dentro de ese propósito.\n\n" +
-            "CRITERIO PARA DECIDIR SI UNA SECCIÓN VACÍA ES HALLAZGO:\n" +
-            "- Usá el campo 'Proposito' del artefacto como criterio principal: es para qué " +
-            "sirve ese documento según el procedimiento de BDT. Una sección vacía ES " +
-            "hallazgo cuando, sin esa sección, el documento NO cumple el propósito " +
-            "declarado. Ejemplo: si el propósito de un Sign-Off es 'describir los " +
-            "entregables del proyecto', entonces 'Entregables' vacío rompe ese propósito y " +
-            "es hallazgo.\n" +
-            "- NO es hallazgo si la sección es accesoria al propósito y puede estar " +
-            "legítimamente vacía. Ejemplos típicos: 'Observaciones', 'Comentarios', " +
-            "'Notas', 'Aclaraciones', 'Anexos', 'Historial de cambios' sin versiones previas.\n" +
-            "- Si el artefacto no trae 'Proposito', juzgá por el nombre del documento y de " +
-            "la sección con criterio de auditor.\n\n" +
-            "QUÉ NO DEBÉS HACER:\n" +
-            "- NO inventes hallazgos sobre contenido que no ves. Solo tenés títulos " +
-            "de secciones y su estado. NO podés juzgar:\n" +
-            "  * calidad del contenido;\n" +
-            "  * consistencia entre documentos;\n" +
-            "  * responsables o datos puntuales;\n" +
-            "  * fechas o vigencia;\n" +
-            "  * firmas (BDT no usa firmas digitales);\n" +
-            "  * cruce con Trello o Clockify.\n" +
-            "- NO emitas hallazgos sobre artefactos que no aparezcan en el resumen.\n" +
-            "- Si ninguna sección vacía es realmente un hallazgo, respondé con lista vacía.\n\n" +
-            "El campo 'artefactoEsperadoId' debe ser uno de los IDs listados arriba.\n" +
-            "El campo 'origenRegla' debe ser exactamente 'Template'.\n\n" +
-            "Respondé ÚNICAMENTE con este JSON (sin texto antes ni después, sin backticks):\n" +
-            "{\n" +
-            "  \"hallazgos\": [\n" +
-            "    {\n" +
-            "      \"artefactoEsperadoId\": <int>,\n" +
-            "      \"descripcion\": \"Sección '<nombre de sección>' del documento está vacía\",\n" +
-            "      \"justificacion\": \"<explicación de por qué esa sección vacía es un hallazgo en este tipo de documento>\",\n" +
-            "      \"origenRegla\": \"Template\"\n" +
-            "    }\n" +
-            "  ]\n" +
-            "}";
+        return ConsistencyPromptBuilder.Construir(input);
     }
 
     protected override HallazgosPreliminares ParsearRespuesta(
@@ -692,12 +561,10 @@ public sealed class ConsistencyVerificationNode
         var hallazgosEstructurales = HallazgosEstructurales.Generar(
             conTemplate, input.ProcedimientoCodigo, input.ProcedimientoNombre);
 
-        // Replicar el filtrado de ConstruirPrompt: el LLM vio todos los artefactos
-        // Exigibles + Encontrados con al menos una sección vacía (con o sin template).
+        // Replicar el filtrado del prompt: el LLM vio los artefactos Exigibles +
+        // Encontrados con al menos una sección vacía (mismo criterio que el builder).
         var idsExpuestos = input.Artefactos
-            .Where(a => a.Exigibilidad == ExigibilidadArtefacto.Exigible
-                     && a.EstadoDisponibilidad == EstadoDisponibilidad.Encontrado
-                     && a.SeccionesDetectadas.Any(s => !s.TieneContenido))
+            .Where(ConsistencyPromptBuilder.EsCandidatoLlm)
             .Select(a => a.ArtefactoEsperadoId)
             .ToHashSet();
 
@@ -942,93 +809,7 @@ public sealed partial class FindingsClassificationNode : Executor
     }
 
     private string ConstruirPrompt(IReadOnlyList<HallazgosPreliminares> hallazgos)
-    {
-        // Aplanamos los lotes en una lista plana con indice estable.
-        // El indice es la unidad de identidad para el LLM: cada HallazgoPreliminar
-        // tiene su propio indice, independiente del ArtefactoEsperadoId, porque
-        // puede haber múltiples preliminares para el mismo artefacto.
-        // El contrato 5 (contratos_agentes.md, invariante línea 307) establece
-        // que la correspondencia 1-a-1 es por HallazgoPreliminar, no por artefacto.
-        //
-        // _contextoDocumentos es non-null en este punto: IntentarClasificarAsync
-        // solo dispara cuando los tres inputs están cacheados.
-        var contextoPorId = _contextoDocumentos!.Artefactos
-            .ToDictionary(
-                a => a.ArtefactoEsperadoId,
-                a => (
-                    NombreArtefacto: a.NombreArtefacto,
-                    NombreArchivo: a.DocumentoEncontrado?.NombreArchivo ?? string.Empty,
-                    Proposito: a.Descripcion ?? string.Empty
-                ));
-
-        var preliminaresPlanos = hallazgos
-            .SelectMany(lote => lote.Hallazgos)
-            .Select((h, i) => (indice: i, hallazgo: h))
-            .ToList();
-
-        var lineas = preliminaresPlanos.Select(p =>
-        {
-            // Para hallazgos Template (sección ausente), agregar nombre del artefacto
-            // y del archivo para que el LLM infiera el tipo de documento y genere
-            // una justificación específica en lugar de la genérica del C#.
-            var extra = string.Empty;
-            if (p.hallazgo.OrigenRegla == OrigenRegla.Template
-                && contextoPorId.TryGetValue(p.hallazgo.ArtefactoEsperadoId, out var ctx))
-            {
-                extra = $"\n  NombreArtefacto: {ctx.NombreArtefacto}";
-                if (!string.IsNullOrEmpty(ctx.NombreArchivo))
-                    extra += $"\n  ArchivoDocumento: {ctx.NombreArchivo}";
-                if (!string.IsNullOrEmpty(ctx.Proposito))
-                    extra += $"\n  PropositoDocumento: {ctx.Proposito}";
-            }
-
-            return
-                $"indice: {p.indice}\n" +
-                $"  artefactoEsperadoId: {p.hallazgo.ArtefactoEsperadoId}\n" +
-                $"  Descripcion: {p.hallazgo.Descripcion}\n" +
-                $"  Justificacion: {p.hallazgo.Justificacion}\n" +
-                $"  OrigenRegla: {p.hallazgo.OrigenRegla}" +
-                extra;
-        });
-
-        return
-            $"Sos un auditor experto en ISO 9001 y en el procedimiento {_contextoDocumentos!.ProcedimientoCodigo} " +
-            $"({_contextoDocumentos.ProcedimientoNombre}) de BDT Global.\n\n" +
-            "Clasificá cada hallazgo en NC, OBS u OM según las reglas de ese procedimiento.\n" +
-            "Cada hallazgo viene identificado por un INDICE estable (no por " +
-            "artefactoEsperadoId, porque puede haber múltiples hallazgos sobre el " +
-            "mismo artefacto).\n" +
-            $"Recibís {preliminaresPlanos.Count} hallazgos. Devolvé exactamente " +
-            $"{preliminaresPlanos.Count} objetos, uno por cada indice.\n" +
-            "No inventes, no omitas, no fusiones.\n\n" +
-            "REGLAS DE CLASIFICACIÓN:\n" +
-            "- NC (No Conformidad): incumplimiento directo de una exigencia del procedimiento.\n" +
-            "- OBS (Observación): desviación menor respecto al template/estructura que NO impide que el documento cumpla su propósito.\n" +
-            "- OM (Oportunidad de Mejora): posible mejora sin evidencia de incumplimiento.\n" +
-            "- Si OrigenRegla es 'Tailoring': el tipo no puede ser NC (clasificar como OM en ese caso).\n" +
-            "- Si OrigenRegla es 'Template': por defecto OBS. Es NC SOLO si la sección ausente/vacía es " +
-            "ESENCIAL al propósito del documento (la que cumple su razón de ser, según PropositoDocumento). " +
-            "Sección accesoria o de formato → OBS. Ante duda → OBS.\n\n" +
-            "SOBRE LAS JUSTIFICACIONES:\n" +
-            "- OrigenRegla=Procedimiento: usá la justificación del hallazgo tal como está, sin modificarla.\n" +
-            "- OrigenRegla=Template (sección ausente del documento): la justificación recibida es " +
-            "genérica. Reemplazala con una justificación específica y auditablemente útil que explique " +
-            "POR QUÉ esa sección es esencial para el propósito del documento. Apoyate en " +
-            "PropositoDocumento (para qué sirve el documento según el procedimiento de BDT) y en " +
-            "NombreArtefacto. Conectá la sección ausente con el propósito que queda comprometido.\n" +
-            "  Ejemplo bueno: 'El Sign-Off tiene por propósito describir los entregables del proyecto; " +
-            "la ausencia de la sección Entregables impide cumplir ese propósito y verificar qué se " +
-            "entregó efectivamente al cliente.'\n" +
-            "  Ejemplo malo: 'La ausencia de una sección del template indica una desviación respecto " +
-            "al formato estándar.'\n" +
-            "- OrigenRegla=Tailoring: justificá concretamente la incoherencia detectada entre URL " +
-            "del tailoring y archivo encontrado.\n\n" +
-            "HALLAZGOS:\n\n" +
-            string.Join("\n\n", lineas) +
-            "\n\nSOLO el array JSON. Sin texto adicional. Sin backticks.\n" +
-            "[{ \"indice\": <int>, \"tipo\": \"NC\"|\"OBS\"|\"OM\", " +
-            "\"justificacion\": \"<justificación específica>\" }]";
-    }
+        => FindingsPromptBuilder.Construir(hallazgos, _contextoDocumentos!);
 
     private HallazgosClasificados ParsearRespuesta(
         IReadOnlyList<HallazgosPreliminares> hallazgos, string textoLlm)
