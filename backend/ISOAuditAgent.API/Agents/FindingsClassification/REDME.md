@@ -76,7 +76,7 @@ La lógica del agente se reparte entre su carpeta propia y el orquestador. Lo se
 
 | Archivo | Función |
 |---|---|
-| `SystemPrompts.cs` | Las instrucciones del clasificador en lenguaje natural: qué significa cada gravedad, la "regla de oro" por `OrigenRegla`, cómo tratar los hallazgos de template y cómo devolver la respuesta (solo un array JSON). Es el "manual del auditor" que se le da al LLM. Documenta además qué reglas del diseño original se eliminaron (asumían cruces de datos que este agente no ve). |
+| `SystemPrompts.cs` | Las instrucciones del clasificador en lenguaje natural: qué significa cada gravedad, la "regla de oro" por `OrigenRegla`, cómo tratar los hallazgos de template y cómo devolver la respuesta (solo un array JSON). Es el "manual del auditor" que se le da al LLM. Documenta además qué reglas del diseño original se eliminaron. |
 | `ClasificacionResponseParser.cs` | Convierte la respuesta JSON del LLM en datos tipados y, sobre todo, hace cumplir las invariantes: que la cantidad coincida, que cada índice exista una sola vez y que ninguno quede fuera de rango. Si algo no cierra, lanza una excepción (falla ruidosa). También fuerza la regla de oro: un hallazgo de Tailoring nunca puede quedar como NC. |
 
 ### En el orquestador (`Agents/Orchestrator/`)

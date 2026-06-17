@@ -1,28 +1,18 @@
 // ============================================================================
-//  ClasificacionResponseParser (Parte 4.A — corregido)
-// ----------------------------------------------------------------------------
 //  Convierte la respuesta JSON del LLM en un HallazgosClasificados tipado.
 //
-//  ORIGEN: AgenteAuditoria/Services/ClasificacionResponseParser.cs del diff
-//  de classification, adaptado a contratos del monorepo y corregido.
-//
-//  IDENTIDAD POR INDICE ESTABLE, NO POR ArtefactoEsperadoId.
-//  La unidad de 1-a-1 que pide el contrato 5 es el HallazgoPreliminar, no el
-//  artefacto. Un mismo ArtefactoEsperadoId puede tener múltiples preliminares
-//  (distintos agentes, distintas reglas, distintas OrigenRegla). El nodo
-//  arma una lista plana con indice 0..N-1; el LLM debe devolver el mismo
-//  indice por cada item; el parser arma la salida indexando por posición.
+//  IDENTIDAD POR INDICE ESTABLE. 
+// hace cumplir las invariantes: que la cantidad coincida,
+// que cada índice exista una sola vez y que ninguno quede fuera de rango. 
 //
 //  REGLA DE NEGOCIO QUE EL PARSER FUERZA (red de seguridad):
 //  Si el HallazgoPreliminar original tiene OrigenRegla != Procedimiento y el
 //  LLM lo clasificó como NC, se degrada a OM. El prompt también enuncia esta
 //  regla; el código la fuerza por si el LLM no la respeta.
 //
-//  FALLAR RUIDOSO ANTE DESALINEACIÓN.
+//  FALLAR ANTE DESALINEACIÓN.
 //  Cualquiera de estas situaciones lanza InvalidOperationException:
 //   - JSON inválido o no es array.
-//   - Cantidad de items distinta a la cantidad de preliminares.
-//   - indice fuera de rango [0, N-1].
 //   - indice duplicado.
 //   - indice faltante en la respuesta.
 //  La invariante 1-a-1 vive en este parser. No se ignoran fallas del LLM:
@@ -38,16 +28,15 @@ namespace ISOAuditAgent.API.Agents.FindingsClassification;
 
 internal static class ClasificacionResponseParser
 {
-    /// <summary>
+
     /// Parsea la respuesta del LLM y arma <see cref="HallazgosClasificados"/>.
-    /// </summary>
-    /// <param name="textoLlm">JSON crudo devuelto por el LLM.</param>
-    /// <param name="preliminaresPlanos">
+    /// < name="textoLlm">JSON crudo devuelto por el LLM.</>
+    /// name="preliminaresPlanos">
     /// Lista plana de (HallazgoPreliminar, AgenteOrigen) con el MISMO orden e
     /// índices que se le presentaron al LLM en el prompt. La posición es la
     /// identidad: indice = 0 corresponde al primer item de esta lista.
-    /// </param>
-    /// <param name="auditoriaId">Id de la auditoría. Va en el DTO de salida.</param>
+
+    /// <param name="auditoriaId">Id de la auditoría. Va en el DTO de salida.</name=>
     public static HallazgosClasificados Parsear(
         string textoLlm,
         IReadOnlyList<(HallazgoPreliminar Hallazgo, AgenteOrigen Origen)> preliminaresPlanos,

@@ -1,28 +1,11 @@
 // ============================================================================
-//  SystemPrompts — FindingsClassification (Parte 4.A)
-// ----------------------------------------------------------------------------
 //  Cadena de instrucciones del AIAgent de FindingsClassification.
 //  La consume Chat D §5.4 al construir el AIAgent (ChatClientAgent de Gemini
-//  + tools MCP, si correspondiera). Acá vive como const string para que la
-//  construcción del agente no quede acoplada a este código fuente del diff.
+
 //
-//  ORIGEN: AgenteAuditoria/Agents/AgentFactory.cs del diff de classification.
-//
-//  DEPURACIÓN respecto del diff original — reglas eliminadas porque asumen
-//  cruce con documentos / repositorios externos que el LLM de este nodo NO
-//  ve (clasifica hallazgos preliminares, no documentos):
-//   - NC-01 (Clockify sin horas con tareas completadas en Trello): el LLM
-//     no ve Trello ni Clockify; ese cruce además fue PROHIBIDO por el cliente
-//     (lectura_dominio_bdt.md §3.7).
-//   - NC-03 (FR 25 faltante con paquetes en el repositorio): el LLM no ve
-//     el repositorio.
-//   - NC-05 (FR 48 sin firma): el cliente confirmó que BDT no maneja firmas
-//     en documentos (consultas_cliente.md, consulta 2). Eliminado.
-//
-//  CONSERVADO: la regla "si OrigenRegla != Procedimiento → como mucho OM"
-//  vive además en el parser (ClasificacionResponseParser.ResolverTipo) como
-//  red de seguridad determinística. El prompt la enuncia para que el LLM la
-//  aplique, el parser la fuerza por si el LLM no la respeta.
+//Las instrucciones del clasificador en lenguaje natural: qué significa cada gravedad, 
+// la "regla de oro" por OrigenRegla, cómo tratar los hallazgos de template y cómo devolver la 
+// eespuesta (solo un array JSON). Es el "manual del auditor" que se le da al LLM. 
 // ============================================================================
 
 namespace ISOAuditAgent.API.Agents.FindingsClassification;
