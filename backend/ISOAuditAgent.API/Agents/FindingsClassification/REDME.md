@@ -2,7 +2,7 @@
 
 **FindingsClassification — función de cada archivo y decisiones de diseño**
 
-Cuarto agente del pipeline de auditoría de **BDT Global**. Recibe los hallazgos que detectaron los agentes anteriores y les asigna una gravedad: No Conformidad, Observación u Oportunidad de Mejora. Este documento describe qué hace cada archivo del agente, cómo se conecta con el resto del workflow y por qué se tomó cada decisión. Pensado como material de apoyo para la defensa.
+Cuarto agente del pipeline de auditoría de **BDT Global**. Recibe los hallazgos que detectaron los agentes anteriores y les asigna una gravedad: No Conformidad, Observación u Oportunidad de Mejora. Este documento describe qué hace cada archivo del agente, cómo se conecta con el resto del workflow y por qué se tomó cada decisión.
 
 **Stack:** .NET 9 (C#) · Microsoft Agent Framework (MAF) · Gemini 2.5 Flash como modelo de lenguaje. El agente es un nodo dentro de un grafo de workflow de MAF.
 
@@ -10,10 +10,10 @@ Cuarto agente del pipeline de auditoría de **BDT Global**. Recibe los hallazgos
 
 ## 1. Qué hace el agente
 
-El sistema audita proyectos de software con un **pipeline de cuatro agentes** que se ejecutan en orden dentro de un grafo de MAF. El agente de clasificación es el **cuarto y último agente de IA** del recorrido. Su responsabilidad es muy acotada y por eso muy defendible:
+El sistema audita proyectos de software con un **pipeline de cuatro agentes** que se ejecutan en orden dentro de un grafo de MAF. El agente de clasificación es el **cuarto y último agente de IA** del recorrido. 
 
 - **Clasifica, no detecta.** Los agentes previos (ComplianceValidation y ConsistencyVerification) ya detectaron los problemas. Este agente **solo decide la gravedad** de cada uno. No busca problemas nuevos.
-- **Correspondencia 1 a 1.** Por cada hallazgo preliminar que entra, sale exactamente un hallazgo clasificado. No inventa, no omite, no fusiona.
+- **Correspondencia 1 a 1.** Por cada hallazgo preliminar que entra, sale exactamente un hallazgo clasificado. 
 - **Valida contra el procedimiento del proyecto, no contra la ISO 9001 directamente.** La ISO no dice cómo hacer las cosas; dice que se haga lo que el procedimiento interno define. El agente razona siempre contra el procedimiento del proyecto (PR 11-13 u otro).
 
 Las tres gravedades posibles:
@@ -104,7 +104,7 @@ La lógica del agente se reparte entre su carpeta propia y el orquestador. Lo se
 
 ---
 
-## 6. Decisiones de diseño (para defender)
+## 6. Decisiones de diseño 
 
 Las decisiones más importantes y por qué se tomaron:
 
@@ -114,4 +114,4 @@ Las decisiones más importantes y por qué se tomaron:
 - **Cacheo robusto ante el comportamiento del barrier.** No se asume cómo agrupa MAF los mensajes del fan-in: se toma el caso conservador de que llegan de a uno y se los cachea. Funciona en cualquier caso.
 - **Estado por ejecución, nunca Singleton.** El nodo guarda estado (las tres entradas), así que se crea uno nuevo por cada auditoría. Compartirlo entre auditorías mezclaría datos.
 - **El contexto no pasa por el LLM.** El `DocumentosExtraidos` viaja por un carril aparte y el agente solo lo transporta. Esto evita que el LLM lo altere y mantiene al consolidador como un paso simple y sin estado.
-- **Reglas depuradas respecto del diseño original.** Se eliminaron reglas que asumían cruces de datos que este agente no ve (Trello, Clockify, el repositorio) o que el cliente prohibió. El agente clasifica hallazgos preliminares, no documentos.
+- **Reglas depuradas respecto del diseño original.** El agente clasifica hallazgos preliminares, no documentos.
