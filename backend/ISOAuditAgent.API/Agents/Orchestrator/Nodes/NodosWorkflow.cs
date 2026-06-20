@@ -194,7 +194,7 @@ public sealed class DocumentAnalysisNode
             "DocumentAnalysis: LLM respondió ({Len} chars). Iniciando ArtefactosBuilder para {N} artefactos.",
             textoLlm.Length, llmOutput.Artefactos?.Count ?? 0);
         // 5. POST-LLM async: verificar artefactos físicamente y armar el contrato 3.
-        var artefactos = await DriveDtos
+        var artefactos = await ArtefactosBuilder
             .ConstruirAsync(message, llmOutput, _artefactoChecker, _trelloChecker, _clockifyChecker, ct)
             .ConfigureAwait(false);
 
