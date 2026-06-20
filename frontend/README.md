@@ -1,10 +1,24 @@
 # Agente ISO 9001 — Frontend
 
-Frontend de la plataforma de auditoría ISO 9001 de **BDT Global**. Permite a los auditores ejecutar workflows de auditoría asistida por IA, revisar hallazgos, generar informes y administrar su cuenta.
+**Arquitectura de carpetas y función de cada archivo**
+
+Aplicación web del sistema de auditoría de calidad de **BDT Global**. Este documento describe la estructura del frontend: qué hace cada carpeta, por qué se separó así y la función de cada archivo. Pensado como material de apoyo para la defensa del proyecto.
 
 ---
 
-## Stack
+## 1. Visión general
+
+El frontend es una **Single Page Application (SPA)** que consume una API REST del backend (.NET) y se comunica siempre por rutas `/api/*`. La aplicación nunca habla directo con la base de datos ni con el motor de IA: solo pide datos al backend y los muestra.
+
+**Idea central de la organización:** separar por **responsabilidad**, no por pantalla. Cada carpeta tiene un único motivo para cambiar. Si cambia cómo se piden los datos, se toca `api/`; si cambia cómo se ven, se toca `screens/` o `styles/`. Esto hace el código predecible y fácil de defender: cada cosa está donde se espera.
+
+**Seguridad:** el token JWT no se guarda en el navegador (ni en localStorage ni en sessionStorage), sino en una cookie `HttpOnly` que el JavaScript no puede leer; esto mitiga ataques XSS. El navegador la envía sola en cada pedido (`credentials: 'include'`).
+
+**Roles:** hay tres roles —Administrador, Auditor y Operador— y la interfaz se adapta a cada uno (qué ve en el menú, a qué pantallas entra y qué datos trae).
+
+---
+
+## 2. Stack
 
 | Capa | Tecnología | Versión |
 |---|---|---|
@@ -12,36 +26,33 @@ Frontend de la plataforma de auditoría ISO 9001 de **BDT Global**. Permite a lo
 | Lenguaje | TypeScript (estricto) | 5.7.2 |
 | Build / dev server | Vite | 6.0.0 |
 | Router | React Router DOM | 7.1.5 |
-| Generación de PDF | jsPDF | (instalar con `npm install jspdf`) |
+| Generación de PDF | jsPDF + html2canvas | 4.2.1 / 1.4.1 |
 | Estilos | CSS-in-string + `useInjectStyle` | propio |
-| Auth | JWT en `sessionStorage` + header `Authorization: Bearer` | propio |
+| Auth | JWT en cookie `HttpOnly` (`credentials: 'include'`) | propio |
 | Backend | .NET 9 + MySQL + EF Core | corre en `localhost:5180` |
 
-Sin librerías UI externas (ni Material UI, ni Tailwind, ni shadcn). Todo el diseño es propio para mantener consistencia y control.
+Sin librerías de UI externas (ni Material UI, ni Tailwind, ni shadcn). Todo el diseño es propio para mantener consistencia y control.
 
 ---
 
-## Cómo arrancarlo
+## 3. Cómo arrancarlo
 
 ### Requisitos previos
 
 - **Node.js** 20+ y **npm**
 - **.NET SDK 9** (para el backend)
-- **MySQL** corriendo en `localhost:3306` con la BD `iso_audit_agent` creada
+- **MySQL** corriendo en `localhost:3306` con la base `iso_audit_agent` creada
 - **Un usuario admin** insertado en la tabla `usuarios` (ver `sql/primer_usuario.sql` del repo)
-- **Variables de entorno del backend** configuradas (`Jwt:SecretKey` como user-secret, connection string a MySQL)
+- **Variables de entorno del backend** configuradas (`Jwt:SecretKey` como user-secret, connection string a MySQL, clave de Gemini)
 
 ### Primera vez
 
 ```bash
-# Clonar y entrar al frontend
+# Entrar al frontend
 cd Agente-ISO-9001/frontend
 
-# Instalar dependencias
+# Instalar dependencias (incluye jsPDF y html2canvas para los export a PDF)
 npm install
-
-# Instalar jsPDF (necesario para el export en /hallazgos)
-npm install jspdf
 ```
 
 ### Levantar en desarrollo
@@ -60,9 +71,9 @@ npm run dev
 # Frontend en http://localhost:5173
 ```
 
-Abrí `http://localhost:5173` en el browser. Te redirige automáticamente a `/login`.
+Abrí `http://localhost:5173` en el navegador. Te redirige automáticamente a `/login`. El proxy de Vite manda `/api/*` al backend, así que no hay problemas de CORS en desarrollo.
 
-**Credenciales del admin** (creado por el script `primer_usuario.sql`):
+**Credenciales del admin** (según el script `primer_usuario.sql`):
 - Email: `admin@bdtglobal.com.ar`
 - Contraseña: `Admin1234!`
 
@@ -77,110 +88,120 @@ npm run lint     # Verifica solo tipos con tsc --noEmit (no compila)
 
 ---
 
-## Estructura del proyecto
+## 4. Estructura de carpetas
+
+Todo el código vive en `src/`. La raíz del proyecto guarda la configuración (Vite, TypeScript, dependencias).
 
 ```
 frontend/
-├── index.html                    # Entry HTML, monta <div id="root">
-├── package.json                  # Dependencias y scripts npm
-├── tsconfig.json                 # Config TypeScript (strict: true)
-├── vite.config.ts                # Config Vite (proxy /api → :5180)
+├── index.html          # Entry HTML, monta <div id="root">
+├── package.json        # Dependencias y scripts npm
+├── tsconfig*.json      # Config TypeScript (modo estricto)
+├── vite.config.ts      # Config Vite (proxy /api → :5180)
+├── assets/             # Estáticos (imágenes, logos)
 └── src/
-    ├── main.tsx                  # Entry point — monta <App> en #root
-    ├── App.tsx                   # Router principal + AuthProvider
-    │
-    ├── api/                      # Clientes HTTP (1 archivo por dominio)
-    │   ├── client.ts             # Wrapper sobre fetch + JWT automático
-    │   ├── auditorias.ts         # POST /api/auditorias, GET .../{id}, etc.
-    │   ├── procedimientos.ts     # GET /api/procedimientos/{id}/etapas
-    │   ├── proyectos.ts          # GET /api/proyectos
-    │   └── hallazgos.ts          # Tipos + mock data (28 hallazgos)
-    │
-    ├── components/               # Componentes reusables
-    │   ├── Sidebar.tsx           # Navegación lateral con datos del JWT
-    │   ├── EjecucionAuditoria.tsx# Monitor del workflow en curso
-    │   └── HallazgoDetalleModal.tsx # Modal del detalle del hallazgo
-    │
-    ├── screens/                  # Pantallas completas (1 por ruta)
-    │   ├── NuevaAuditoria.tsx    # /nueva-auditoria
-    │   ├── Hallazgos.tsx         # /hallazgos
-    │   └── Configuracion.tsx     # /configuracion
-    │
-    ├── login/                    # Todo lo de autenticación juntito
-    │   ├── Login.tsx             # /login — split-screen con animación
-    │   ├── AuthContext.tsx       # Estado global de sesión
-    │   ├── ProtectedRoute.tsx    # HOC que redirige a /login si no hay sesión
-    │   ├── authApi.ts            # POST /api/auth/login, GET /api/auth/me
-    │   ├── NetworkBackground.tsx # Canvas del fondo animado
-    │   ├── InputField.tsx        # Input con label flotante + toggle ojo
-    │   └── loginStyles.ts        # CSS-in-string del login (tokens incluidos)
-    │
-    ├── styles/                   # Estilos compartidos
-    │   ├── shared.ts             # CSS del shell (sidebar + main)
-    │   ├── hallazgos.ts          # CSS de la pantalla Hallazgos
-    │   └── configuracion.ts      # CSS de la pantalla Configuración
-    │
-    └── utils/
-        ├── useInjectStyle.ts     # Hook para inyectar CSS-in-string una vez
-        └── exportHallazgosPdf.ts # Generador de PDF con jsPDF
+    ├── main.tsx        # Punto de entrada (monta <App/>)
+    ├── App.tsx         # Router principal + layout
+    ├── api/            # Acceso a datos (una función por endpoint)
+    ├── login/          # Autenticación (contexto, guardia, login)
+    ├── components/     # UI reutilizable y modales
+    ├── screens/        # Pantallas (una por ruta)
+    ├── styles/         # CSS por pantalla + compartido
+    └── utils/          # Helpers transversales (estilos, navegación, PDF)
 ```
+
+| Carpeta | Función |
+|---|---|
+| `api/` | Capa de acceso a datos. Una función por endpoint del backend, con tipos TypeScript. Es la única que sabe de URLs y de fetch. |
+| `login/` | Todo lo de autenticación, aislado: contexto de sesión, guardia de rutas, pantalla de login y su API. Separado por ser un dominio transversal y sensible. |
+| `components/` | Piezas de interfaz reutilizables y modales que usan varias pantallas (sidebar, modales, ejecución de auditoría). |
+| `screens/` | Las pantallas completas. Cada una corresponde a una ruta de la app. Contienen la lógica de presentación. |
+| `styles/` | El CSS, separado del JSX. Un archivo de estilos por pantalla, más uno compartido con los tokens del tema. |
+| `utils/` | Funciones de apoyo transversales y puras (inyección de estilos, navegación por rol, exportación a PDF). |
+
+### ¿Por qué separar así?
+
+- **Bajo acoplamiento, alta cohesión:** cada carpeta agrupa cosas que cambian juntas y se aísla de las que no.
+- **Una sola fuente de verdad para los datos:** las pantallas nunca llaman a fetch directo; siempre pasan por `api/`. Si cambia un endpoint, se corrige en un solo lugar.
+- **Estilos junto a su pantalla pero fuera del JSX:** cada pantalla tiene su archivo de estilos, lo que mantiene el componente legible sin mezclar 300 líneas de CSS.
+- **Testeable y defendible:** la lógica de datos (cálculos de cumplimiento, armado de hallazgos) vive en `api/` y se puede revisar sin tocar la interfaz.
 
 ---
 
-## Rutas
+## 5. Configuración (raíz del proyecto)
 
-| Ruta | Acceso | Componente | Descripción |
-|---|---|---|---|
-| `/login` | 🔓 Pública | `<Login />` | Pantalla de inicio de sesión con animación split-screen |
-| `/nueva-auditoria` | 🔒 Protegida | `<NuevaAuditoria />` | Crear auditorías nuevas y ver el workflow en curso |
-| `/hallazgos` | 🔒 Protegida | `<Hallazgos />` | Tabla de hallazgos con filtros, modal y export PDF |
-| `/configuracion` | 🔒 Protegida | `<Configuracion />` | 4 tabs: perfil, notificaciones, integraciones, agente IA |
-| `*` (cualquier otra) | — | `<Navigate />` | Redirige a `/nueva-auditoria` |
+Archivos de configuración que definen cómo se construye y sirve la aplicación.
 
-Las rutas protegidas están envueltas en `<ProtectedRoute>` que verifica `estaAutenticado` del `AuthContext`. Si no hay sesión, redirige a `/login` guardando la ruta original en el `state` para volver después.
+| Archivo | Función |
+|---|---|
+| `index.html` | Página HTML única que carga la SPA. Contiene el `<div id="root">` donde React monta todo y el `<script>` que arranca `main.tsx`. |
+| `package.json` | Dependencias y scripts (dev, build, preview, lint). Dependencias de runtime: react, react-dom, react-router-dom, jspdf y html2canvas (export PDF). |
+| `vite.config.ts` | Configura Vite: plugin de React, sirve los estáticos desde `assets/` y define el proxy que redirige `/api/*` al backend (localhost:5180). El proxy evita problemas de CORS en desarrollo. |
+| `tsconfig*.json` | Configuración de TypeScript (referencias app/node). Activa el modo estricto, que obliga a tipar todo y atrapa errores en tiempo de compilación. |
+| `assets/` | Recursos estáticos (imágenes, logos) servidos tal cual. |
 
 ---
 
-## Autenticación y JWT
+## 6. Arranque de la aplicación
 
-### Flujo completo
+| Archivo | Función |
+|---|---|
+| `main.tsx` | Punto de entrada. Monta `<App/>` en el `#root` dentro de `<StrictMode>`. Antes de renderizar aplica el tema (claro/oscuro) cacheado en localStorage para evitar el "flash" de tema incorrecto al cargar. |
+| `App.tsx` | Router principal. Define todas las rutas y, para cada una, qué rol puede acceder. Arma el layout con barra lateral (ShellLayout) para las pantallas internas y redirige el resto a la pantalla inicial según el rol. Inyecta los estilos compartidos. |
 
-```
-1. Usuario tipea email + password en /login
-        ↓
-2. Login.tsx llama a iniciarSesion() del AuthContext
-        ↓
-3. AuthContext llama a authApi.login()
-        ↓
-4. authApi.login() hace POST /api/auth/login
-        ↓
-5. Backend valida (dominio @bdtglobal.com.ar + BCrypt + usuario activo)
-        ↓
-6. Backend devuelve { token, nombre, email, rol, expiracion }
-        ↓
-7. AuthContext guarda en sessionStorage:
-   - "token" → string del JWT
-   - "usuario" → JSON con { nombre, email, rol, expiracion }
-        ↓
-8. estaAutenticado pasa a true → ProtectedRoute deja pasar
-        ↓
-9. Cada request siguiente (api.get / api.post) agrega el header
-   Authorization: Bearer <token> automáticamente
-        ↓
-10. Si el backend devuelve 401, client.ts limpia sessionStorage
-    y redirige a /login (token vencido o inválido)
-```
+**Mapa de rutas y permisos:**
+
+- `/login` — pública (sin barra lateral).
+- `/proyectos` y `/proyectos/:id` — cualquier usuario autenticado (la lista la filtra el backend según el rol).
+- `/informes`, `/hallazgos` y `/configuracion` — cualquier usuario autenticado.
+- `/dashboard` y `/nueva-auditoria` — solo Administrador y Auditor.
+- `/usuarios` — solo Administrador (ABM de usuarios).
+- Cualquier otra ruta redirige a la pantalla inicial del rol (Operador → Hallazgos; resto → Dashboard).
+
+---
+
+## 7. Carpeta `api/` — acceso a datos
+
+Capa que habla con el backend. Cada archivo agrupa los endpoints de un **dominio** y exporta tanto las funciones de llamada como los **tipos TypeScript** de los datos. Las pantallas importan de acá y nunca arman un fetch a mano.
+
+| Archivo | Función |
+|---|---|
+| `client.ts` | Envoltorio sobre fetch usado por todos los demás. Centraliza la base `/api/*`, el envío de la cookie del JWT (`credentials: 'include'`), el parseo de errores del backend y la redirección a `/login` cuando la sesión venció (401). Exporta el objeto `api` con get/post/put/delete. |
+| `proyectos.ts` | Endpoints de proyectos: listar, obtener uno, crear y asignar responsable. La visibilidad por rol la resuelve el backend (Admin/Auditor ven todos; Operador solo los asignados). |
+| `auditorias.ts` | Endpoints del workflow de auditoría: crear, obtener, listar por proyecto, traer el resultado (artefactos evaluados, hallazgos, documentos) y el progreso de la ejecución. Define los tipos del estado de la auditoría y de sus resultados. |
+| `hallazgos.ts` | No existe un endpoint "listar todos los hallazgos", así que esta capa los arma combinando proyectos → auditorías → hallazgos. Aporta los tipos y etiquetas de tipo/estado, y `cargarRevision()`, que calcula el cumplimiento general. |
+| `informes.ts` | Endpoints de informes ya generados: listar (todos o por auditoría) y obtener uno. Un informe existe solo cuando la auditoría terminó. |
+| `procedimientos.ts` | Endpoints de procedimientos internos y sus etapas (se usan al crear una auditoría y para etiquetar el cumplimiento por procedimiento). |
+| `dashboard.ts` | Como tampoco hay un endpoint agregado de dashboard, esta capa combina los anteriores y calcula todas las métricas y series de los gráficos: cumplimiento general y por proyecto/procedimiento, hallazgos por tipo y por agente, evolución por mes y proyectos que requieren atención. |
+
+**Decisión a destacar:** varias vistas (hallazgos, dashboard) necesitan datos que el backend no entrega "masticados" en un solo endpoint. En lugar de pedir un cambio al backend, el frontend compone esos datos a partir de los endpoints que sí existen. Esa lógica de composición está aislada en `api/`, no desparramada en las pantallas.
+
+---
+
+## 8. Autenticación y seguridad (`login/`)
+
+La autenticación se separó del resto del dominio por ser transversal (la usan todas las pantallas) y sensible. Agrupa el estado de sesión, la protección de rutas y la pantalla de ingreso.
+
+| Archivo | Función |
+|---|---|
+| `AuthContext.tsx` | Contexto global de sesión. Expone el usuario logueado, los estados de carga/verificación y las acciones (login, logout). El JWT vive en cookie HttpOnly, no en el cliente; el usuario se obtiene del backend al verificar la sesión. Provee `AuthProvider` (envuelve la app) y el hook `useAuth()`. |
+| `ProtectedRoute.tsx` | Componente que envuelve las rutas privadas. Si no hay sesión, redirige a `/login`; si la ruta exige un rol (`requiereRol`) y el usuario no lo tiene, lo manda a su pantalla inicial. Es el guardia de acceso. |
+| `authApi.ts` | Endpoints de autenticación y gestión de usuarios. Define los tipos centrales `Rol` y `Tema` y las operaciones de login, perfil y ABM de usuarios. |
+| `Login.tsx` | Pantalla de ingreso, con un diseño split-screen animado. Conectada al AuthContext: valida el formulario (incluido el dominio del email) y dispara el login. |
+| `InputField.tsx` | Campo de formulario reutilizable: label, manejo de errores y botón para mostrar/ocultar la contraseña. |
+| `NetworkBackground.tsx` | Fondo animado de la pantalla de login (red de nodos sobre canvas). Reutilizable y configurable en colores y densidad. |
+| `loginStyles.ts` | Estilos del login en el mismo patrón CSS-in-string del resto del proyecto. |
 
 ### Validación de dominio
 
-Solo cuentas con email terminando en `@bdtglobal.com.ar` o `@bdtglobal.com` pueden loguearse. Esto se valida:
+Solo cuentas con email terminado en `@bdtglobal.com.ar` o `@bdtglobal.com` pueden loguearse. Esto se valida en dos lugares:
 
-- **En el frontend** (`Login.tsx`) para UX rápida — muestra el error sin llamar al backend
-- **En el backend** (`AuthService.LoginAsync`) como validación real — un atacante no puede saltarla con curl
+- **En el frontend** (`Login.tsx`) para UX rápida: muestra el error sin llamar al backend.
+- **En el backend** (`AuthService.LoginAsync`) como validación real: un atacante no puede saltarla con `curl`.
 
-### Identificación del usuario en cada request
+### Identificación del usuario
 
-El JWT contiene en sus `claims`:
+Al loguearse, el backend emite un JWT (guardado en la cookie HttpOnly) con estos claims:
 
 | Claim | Contenido |
 |---|---|
@@ -189,419 +210,97 @@ El JWT contiene en sus `claims`:
 | `Email` | Email |
 | `Role` | `Administrador` / `Auditor` / `Operador` |
 
-El backend lee `NameIdentifier` con `ClaimsPrincipal.FindFirst(ClaimTypes.NameIdentifier)` para saber **quién** está haciendo cada request. Por eso `POST /api/auditorias` ya no recibe `usuarioId` en el body — sale del token.
+El frontend no lee el token (la cookie es HttpOnly): obtiene los datos del usuario desde el endpoint de sesión y los expone vía `AuthContext`.
 
-### Persistencia
+### Por qué cookie HttpOnly y no localStorage/sessionStorage
 
-Usamos `sessionStorage` (no `localStorage`) por seguridad. Cuando se cierra el browser, la sesión se pierde. Si querés persistencia entre cierres, se cambia en `AuthContext.tsx`.
-
-### Logout
-
-El botón `⎋` del sidebar llama a `cerrarSesion()`, que:
-1. Borra `token` y `usuario` de `sessionStorage`
-2. Pone `usuario` a `null` en el state
-3. Redirige a `/login`
-
----
-
-## Convenciones de código
-
-### TypeScript estricto
-
-`tsconfig.json` tiene `"strict": true` y `"noUnusedParameters": true`. Reglas:
-
-- **Sin `any`** — usar tipos específicos o `unknown` cuando sea necesario
-- **Sin parámetros no usados** — si no se usa, sacarlo
-- **Tipar siempre los props** con `interface` antes del componente
-- **Records inmutables** para DTOs (en backend) y `interface` para tipos del frontend
-- **Lo del backend está en español** (Auditoria, Hallazgo, etc.) y el frontend respeta la misma terminología
-
-### CSS-in-string
-
-Patrón propio para evitar configurar CSS Modules o frameworks. Funciona así:
-
-**1. Definir el CSS como string en `src/styles/[pantalla].ts`:**
-
-```ts
-// src/styles/miPantalla.ts
-export const miPantallaCss = `
-.mp-card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 1rem;
-}
-`;
-```
-
-**2. Inyectarlo en el componente con `useInjectStyle`:**
-
-```tsx
-import { useInjectStyle } from '../utils/useInjectStyle';
-import { miPantallaCss } from '../styles/miPantalla';
-
-export default function MiPantalla() {
-  useInjectStyle(miPantallaCss, 'mi-pantalla-style');
-  return <div className="mp-card">…</div>;
-}
-```
-
-**3. El hook agrega un `<style id="mi-pantalla-style">` al `<head>` una sola vez.** En remounts no se duplica gracias al `id`.
-
-**Convención de naming:** prefijo de 2-3 letras por pantalla para evitar colisiones:
-- `hz-` → Hallazgos
-- `cfg-` → Configuración
-- `login-` → Login
-- `sb-`, `nav-`, etc. → Compartidos (`shared.ts`)
-
-### Paleta de colores
-
-| Variable conceptual | Hex | Uso |
-|---|---|---|
-| Brand primary | `#4B2DAB` | Botones, badges activos, links |
-| Brand dark | `#1e1050` | Texto principal, headings |
-| Brand light bg | `#f0eefa` | Background del body |
-| Card bg | `#faf8ff` | Background de cards/inputs |
-| Brand accent | `#7B52E8` | Focus states, hover acento |
-| Text muted | `#7b6aaa` | Subtítulos, labels |
-| Text very muted | `#9080bb` | Placeholders, iconos secundarios |
-| Border | `rgba(120,80,200,0.15-0.25)` | Bordes sutiles de cards |
-| Error | `#A32D2D` (texto), `#FCEBEB` (bg) | Errores, no conformidades |
-| Warning | `#BA7517` (texto), `#FFF4E5` (bg) | Observaciones, "en desarrollo" |
-| Success | `#27500A` (texto), `#EAF3DE` (bg) | Resueltos, conectados |
-
-### API modules
-
-Cada dominio tiene su archivo en `src/api/`. Estructura típica:
-
-```ts
-// src/api/algo.ts
-import { api } from './client';
-
-// 1. Tipos públicos
-export interface Algo {
-  id: number;
-  nombre: string;
-}
-
-// 2. Helpers de presentación (opcional)
-export const TIPO_LABEL: Record<TipoAlgo, string> = { … };
-
-// 3. Funciones que llaman al backend
-export function listar(): Promise<Algo[]> {
-  return api.get<Algo[]>('/api/algo');
-}
-
-export function crear(req: CrearAlgoRequest): Promise<Algo> {
-  return api.post<Algo>('/api/algo', req);
-}
-```
-
-El cliente `api` está en `src/api/client.ts` y maneja:
-- Header `Content-Type: application/json` automático
-- Header `Authorization: Bearer <token>` automático (si hay token en `sessionStorage`)
-- Parsing de errores con el body de la respuesta
-- Redirección a `/login` si el backend devuelve 401
-
-### Estilo de commits
-
-Usamos prefijos tipo Conventional Commits, aunque sin obsesión:
-
-```
-feat(auth): login JWT con validación de dominio @bdtglobal.com.ar
-feat(hallazgos): pantalla con filtros, modal y export PDF
-feat(configuracion): pantalla con 4 tabs
-fix(sidebar): mostrar nombre del usuario logueado
-refactor(api): extraer DEFAULT_USUARIO_ID al usar JWT
-```
-
----
-
-## Pantallas en detalle
-
-### Login (`/login`)
-
-**Archivo:** `src/login/Login.tsx`
-
-Pantalla con split-screen animado entre dos vistas (Sign In / Sign Up).
-
-- **Lado izquierdo (blanco):** formulario de email + password
-- **Lado derecho (violeta gradiente):** branding con logo BDT + estadística "100% Trazable"
-- **Fondo:** canvas con red de nodos animados (`NetworkBackground.tsx`)
-
-**Características:**
-- Validación de dominio antes de llamar al backend
-- Toggle ojo para mostrar/ocultar contraseña
-- Spinner durante el loading
-- Error visible si la validación falla o el backend rechaza
-- Sign Up muestra "Funcionalidad en desarrollo" (placeholder)
-
-### Nueva auditoría (`/nueva-auditoria`)
-
-**Archivo:** `src/screens/NuevaAuditoria.tsx`
-
-Pantalla principal del flujo de creación de auditorías.
-
-- Selector de proyecto (autocomplete con datos del backend)
-- Selector de etapa del procedimiento
-- Botón "Iniciar auditoría" → llama a `POST /api/auditorias`
-- Una vez iniciada, muestra `<EjecucionAuditoria>` con progreso por nodo
-
-### Hallazgos (`/hallazgos`)
-
-**Archivo:** `src/screens/Hallazgos.tsx`
-
-Tabla completa de hallazgos detectados por los agentes IA.
-
-**Features:**
-- **4 tarjetas resumen** (calculadas dinámicamente con `useMemo`):
-  - No conformidades (rojo)
-  - Observaciones (naranja)
-  - Oportunidades de mejora (verde)
-  - Total hallazgos
-- **Buscador por texto** (filtra título, descripción, proyecto, evidencia)
-- **5 filtros pill** (Todos / NC / OBS / OM / Sin resolver)
-- **Tabla** con badges de colores, paginación de 6 por página
-- **Modal de detalle** al click "Ver →" (cierre con ESC, click fuera, o ×)
-- **Export a PDF** con `jsPDF` — exporta SOLO los hallazgos filtrados
-
-**⚠️ Importante:** los datos son **mock** (28 hallazgos hardcodeados en `src/api/hallazgos.ts`). Cuando el backend exponga `GET /api/hallazgos`, solo hay que cambiar la función `listarHallazgos()`:
-
-```ts
-// Antes (mock):
-export function listarHallazgos(): Promise<Hallazgo[]> {
-  return new Promise((resolve) => setTimeout(() => resolve(MOCK), 300));
-}
-
-// Después (real):
-export function listarHallazgos(): Promise<Hallazgo[]> {
-  return api.get<Hallazgo[]>('/api/hallazgos');
-}
-```
-
-El JWT se manda automáticamente. La interface `Hallazgo` define la forma esperada del response.
-
-### Configuración (`/configuracion`)
-
-**Archivo:** `src/screens/Configuracion.tsx`
-
-Pantalla con 4 tabs:
-
-#### Tab 1 — Mi perfil
-- Datos del usuario logueado en **solo lectura** (Nombre, Email, Rol) — extraídos del `AuthContext`
-- Card informativa sobre contraseña — explica que por seguridad no se puede ver, que contacte al administrador
-- **No hay formulario de cambio de contraseña** todavía (se agregará cuando exista el endpoint en el backend)
-
-#### Tab 2 — Notificaciones
-- 4 items de notificaciones por email + 2 del sistema
-- Cada uno tiene un badge naranja **"Función en desarrollo"** (no son toggles funcionales)
-
-#### Tab 3 — Integraciones
-- Banner azul: **"Vista de ejemplo — el monitoreo en vivo se incorporará próximamente"**
-- Mock con Google Drive (✓), Trello (✓) y Clockify (✕)
-- **Los datos son ilustrativos** — no consulta el backend
-
-#### Tab 4 — Agente IA
-- Banner azul: **"Vista de ejemplo — el monitoreo en vivo se incorporará próximamente"**
-- Modelo actual: Gemini 2.5 Flash (mock con badge "Configurable en desarrollo")
-- 4 opciones de clasificación con badge "Función en desarrollo"
-
----
-
-## Conexión con el backend
-
-### Configuración del proxy
-
-`vite.config.ts` redirige todas las llamadas a `/api/*` al backend en `localhost:5180`:
-
-```ts
-server: {
-  port: 5173,
-  proxy: {
-    '/api': {
-      target: 'http://localhost:5180',
-      changeOrigin: true,
-      secure: false,
-    },
-  },
-}
-```
-
-Esto evita problemas de CORS en desarrollo. En producción, el frontend y backend pueden vivir en el mismo dominio (o el backend tiene CORS habilitado para el dominio del frontend).
-
-### Endpoints consumidos
-
-| Método | Endpoint | Auth | Frontend |
-|---|---|---|---|
-| `POST` | `/api/auth/login` | 🔓 | `authApi.login()` |
-| `GET` | `/api/auth/me` | 🔒 | `authApi.obtenerPerfil()` |
-| `GET` | `/api/proyectos` | 🔒 | `proyectosApi.listar()` |
-| `GET` | `/api/procedimientos/{id}/etapas` | 🔒 | `procedimientosApi.listarEtapas()` |
-| `POST` | `/api/auditorias` | 🔒 | `auditoriasApi.crear()` |
-| `GET` | `/api/auditorias/{id}` | 🔒 | `auditoriasApi.obtener()` |
-| `GET` | `/api/auditorias/{id}/progreso` | 🔒 | `auditoriasApi.obtenerProgreso()` |
-
-🔒 = requiere JWT en header `Authorization: Bearer <token>`
-
-### Endpoints aún no implementados (mocks en frontend)
-
-| Endpoint esperado | Mock actual en |
-|---|---|
-| `GET /api/hallazgos` | `src/api/hallazgos.ts` (28 hallazgos hardcoded) |
-| `GET /api/configuracion/agente` | `src/screens/Configuracion.tsx` (modelo IA hardcoded) |
-| `GET /api/integraciones/estado` | `src/screens/Configuracion.tsx` (Drive/Trello/Clockify hardcoded) |
-| `POST /api/auth/cambiar-password` | No implementado (card informativa en su lugar) |
-
----
-
-## Decisiones técnicas importantes
-
-### Por qué TypeScript estricto
-
-Detectar errores en compile-time en lugar de runtime. Con `strict: true`:
-- `null`/`undefined` no se confunden con valores válidos
-- Funciones sin retorno explícito son detectadas
-- Variables no inicializadas son flagged
-- Tipos implícitos (`any`) están prohibidos
-
-Costo: hay que tipar más. Beneficio: menos bugs en producción y autocomplete confiable en el editor.
-
-### Por qué no Tailwind / Material UI / etc.
-
-Decisión consciente para mantener control total del diseño y evitar añadir 50KB+ de CSS no usado. La paleta es propia (morada), el diseño es propio, y el patrón `useInjectStyle` es suficiente.
-
-Si en algún momento crece la complejidad, se puede migrar a CSS Modules sin mucho trabajo (cambiar `import { css } from '../styles/x'` por `import styles from '../styles/x.module.css'`).
-
-### Por qué CSS-in-string y no styled-components
-
-- **No agrega runtime overhead** — los estilos se inyectan una sola vez al montar
-- **No necesita configuración de build** — funciona out of the box con Vite
-- **Compatible con TypeScript estricto** — el CSS es un string, no tiene tipos que validar
-- **Fácil de migrar** — si querés pasar a CSS Modules, solo copiás el contenido a un `.module.css`
-
-### Por qué sessionStorage y no localStorage para el token
-
-`sessionStorage` se borra al cerrar el browser. Más seguro que `localStorage`, que persiste indefinidamente y es vulnerable si alguien accede a la máquina.
-
-Trade-off: si querés que el usuario no tenga que loguearse cada vez que cierra y abre el browser, podés cambiar a `localStorage`. Pero perderías esa capa extra de protección.
+Una cookie `HttpOnly` no puede ser leída por JavaScript, así que un ataque XSS no puede robar el token. Guardarlo en `localStorage` o `sessionStorage` lo dejaría accesible desde el código de la página. La duración de la sesión la controla el backend mediante la expiración de la cookie/JWT.
 
 ### Por qué redirección automática en 401
 
-El `client.ts` intercepta cualquier 401 y manda al usuario a `/login`. Razones:
+El `client.ts` intercepta cualquier respuesta 401 y manda al usuario a `/login`. Razones:
 
-- **Token vencido:** después de 8 horas el JWT expira y todos los endpoints empiezan a fallar
-- **Token modificado:** si alguien tocó el `sessionStorage` a mano, el backend lo rechaza
-- **Usuario desactivado:** si el admin desactivó al usuario, los tokens existentes siguen siendo válidos hasta vencer, pero el sistema los rechaza
+- **Sesión vencida:** cuando expira el JWT, los endpoints empiezan a responder 401.
+- **Cookie ausente o inválida:** si no hay sesión válida, el backend rechaza el pedido.
+- **Usuario desactivado:** si el admin desactivó al usuario, el backend rechaza el acceso aunque la cookie siga vigente.
 
-En todos esos casos, mejor mandar al login que mostrar errores random.
-
-### Por qué los mocks de Hallazgos / Configuración
-
-Para poder mostrar las pantallas **funcionando visualmente** sin esperar a que el backend tenga esos endpoints. Cuando estén, son cambios de **una función** cada uno.
-
-**Lo que SÍ está conectado al backend:**
-- Login (real)
-- Datos del usuario logueado en sidebar y configuración (vienen del JWT)
-- Crear auditoría
-- Listar proyectos y etapas
-- Progreso del workflow
-
-**Lo que fakta conectar:**
-- Lista de hallazgos
-- Modelo del agente IA configurado
-- Estado de las integraciones (Drive/Trello/Clockify)
-- Cambio de contraseña
+En todos esos casos, mejor mandar al login que mostrar errores sueltos.
 
 ---
 
-## Próximos pasos 
+## 9. Carpeta `components/` — UI reutilizable
 
-### Backend pendiente
+Piezas de interfaz que usan varias pantallas, sobre todo la navegación y los modales. Evita repetir código y mantiene consistencia visual.
 
-- `GET /api/hallazgos` — lista de hallazgos del usuario logueado o de todo el sistema según rol
-- `POST /api/auth/cambiar-password` — endpoint para cambio de contraseña con validación de password actual
-- `GET /api/configuracion/agente` — devuelve modelo IA + idioma + parámetros (lee `appsettings.json`)
-- `GET /api/integraciones/estado` — verifica conexión real con Drive/Trello/Clockify
-
-### Frontend pendiente
-
-- Dashboard `/dashboard` — gráficos de tendencias, hallazgos por proyecto, KPIs
-- Lista de proyectos `/proyectos` con detalle individual
-- Lista de informes `/informes` con descarga de PDFs históricos
-- Notificaciones funcionales (toggles + persistencia)
-- Cuando exista `POST /api/auth/cambiar-password`: agregar formulario en Configuración → Mi perfil
-
-
----
-
-## Estructura para sumar pantallas nuevas
-
-Si querés agregar una pantalla `/dashboard`:
-
-1. **API module** (si necesita backend):
-   ```
-   src/api/dashboard.ts
-   ```
-
-2. **Componente de pantalla:**
-   ```
-   src/screens/Dashboard.tsx
-   ```
-
-3. **Estilos (opcional, si tiene CSS propio):**
-   ```
-   src/styles/dashboard.ts
-   ```
-
-4. **Componentes específicos (opcional):**
-   ```
-   src/components/StatCard.tsx
-   src/components/Chart.tsx
-   ```
-
-5. **Registrar la ruta en `App.tsx`:**
-   ```tsx
-   <Route
-     path="/dashboard"
-     element={
-       <ProtectedRoute>
-         <ShellLayout>
-           <Dashboard />
-         </ShellLayout>
-       </ProtectedRoute>
-     }
-   />
-   ```
-
-6. **Agregar el NavLink en `Sidebar.tsx`:**
-   ```tsx
-   <NavLink to="/dashboard" className={...}>
-     <svg className="nav-icon" ...>...</svg>
-     Dashboard
-   </NavLink>
-   ```
-
-7. **Si requiere rol específico (ej. solo Admin):** envolverlo en otro HOC que verifique `usuario.rol === 'Administrador'`.
-
----
-
-## Glosario
-
-| Término | Significado |
+| Archivo | Función |
 |---|---|
-| **Hallazgo** | Algo detectado por los agentes IA durante una auditoría. Puede ser NC, OBS u OM. |
-| **NC** | No Conformidad. Algo que incumple la norma ISO 9001 directamente. |
-| **OBS** | Observación. Algo que no es incumplimiento pero merece atención. |
-| **OM** | Oportunidad de Mejora. Sugerencia para optimizar procesos. |
-| **Procedimiento** | Conjunto de etapas de un proceso de la empresa (ej: Facturación tiene etapas: Generar → Enviar → Cobrar). |
-| **Etapa** | Paso específico dentro de un procedimiento. |
-| **Workflow** | Pipeline de agentes IA que ejecuta una auditoría: DocumentAnalysis → ComplianceValidation → ConsistencyVerification → FindingsClassification |
-| **Auditor / Operador / Administrador** | Los 3 roles del sistema (definidos en `Models/RolUsuario.cs` del backend). |
+| `Sidebar.tsx` | Barra lateral fija. Muestra los accesos según el rol del usuario, resalta la sección activa, deja entrar a Configuración desde el bloque de usuario y permite cerrar sesión. |
+| `EjecucionAuditoria.tsx` | Sigue en vivo una auditoría en curso: consulta progreso y estado del backend y muestra el avance de cada nodo del workflow. La usa la pantalla de Nueva auditoría. |
+| `HallazgoDetalleModal.tsx` | Modal con el detalle de un hallazgo. Se cierra con la tecla Escape, con clic afuera o con la X. |
+| `UsuarioModal.tsx` | Modal para crear o editar un usuario (cambia los campos según el modo). Lo usa la pantalla de Usuarios. |
+| `ResetPasswordModal.tsx` | Modal para que un Administrador resetee la contraseña de otro usuario sin conocer la anterior. |
 
 ---
 
-## Contacto
+## 10. Carpeta `screens/` — pantallas
 
-Proyecto académico — BDT Global.
+Cada archivo es una **pantalla completa** asociada a una ruta. Contienen la lógica de presentación: piden datos a `api/`, manejan estados de carga/error y arman la vista. No traen su propia barra lateral (la pone el layout).
 
-**Branches activos:**
-- `dev` — rama principal de desarrollo
+| Archivo | Función |
+|---|---|
+| `Dashboard.tsx` | Tablero del auditor (solo Admin/Auditor). Muestra KPIs, cumplimiento general con semáforo, gráficos (hallazgos por tipo y por agente, proyectos por estado, cumplimiento por proyecto y por procedimiento, evolución), proyectos que requieren atención y permite exportar todo a PDF. Gráficos hechos a mano en SVG, sin librerías. |
+| `Proyectos.tsx` | Grilla de proyectos con un anillo de cumplimiento y semáforo por tarjeta. Visibilidad por rol; alta de proyecto solo para Admin. Cada tarjeta navega al detalle. |
+| `ProyectoDetalle.tsx` | Detalle de un proyecto (`/proyectos/:id`): cabecera, auditorías seleccionables, resultado (artefactos evaluados, hallazgos, documentos), curva de evolución del cumplimiento y los informes asociados. |
+| `Informes.tsx` | Lista los informes ya generados para verlos o descargarlos en PDF. Puede filtrarse por proyecto (al llegar desde "requieren atención" del dashboard). |
+| `Hallazgos.tsx` | Pantalla de hallazgos rediseñada según el cliente: semáforo + torta de cumplimiento, deja constancia de cuántos ítems se revisaron y distingue claramente "todo OK" de "falló la consulta" (evita la pantalla en blanco ambigua). Exporta a PDF. |
+| `NuevaAuditoria.tsx` | Lanza una auditoría en tres fases: carga de proyectos, selección de proyecto y etapa, y ejecución (delegando el seguimiento en vivo a `EjecucionAuditoria`). |
+| `Configuracion.tsx` | Configuración del usuario en pestañas: perfil, notificaciones, integraciones y agente IA (algunas como adelanto de funciones futuras). |
+| `Usuarios.tsx` | ABM de usuarios (solo Admin): tarjetas resumen, buscador y alta/edición/reseteo de contraseña mediante los modales. |
+
+---
+
+## 11. Carpeta `styles/` — estilos
+
+El CSS se separó del JSX: hay **un archivo de estilos por pantalla** más uno compartido. Cada archivo exporta su CSS como texto y se inyecta con el hook `useInjectStyle`. Así el componente queda legible y el estilo viaja al lado de su pantalla.
+
+| Archivo | Función |
+|---|---|
+| `shared.ts` | Estilos base y tokens del tema (colores, tipografías, layout del shell, barra superior, botones). Define las variables que usan todas las pantallas y soporta tema claro/oscuro. |
+| `dashboard.ts` | Estilos del Dashboard: tarjetas de métrica, gráficos, semáforo, barras y skeletons de carga. |
+| `proyectos.ts` | Estilos de la grilla de proyectos y el anillo de cumplimiento. |
+| `proyectoDetalle.ts` | Estilos del detalle de proyecto y la curva de evolución. |
+| `hallazgos.ts` | Estilos de la pantalla de hallazgos (banda de estado, semáforo, torta, acordeón). |
+| `informes.ts` | Estilos de la lista de informes y el chip de filtro por proyecto. |
+| `configuracion.ts` | Estilos de la pantalla de configuración por pestañas. |
+| `usuarios.ts` | Estilos del ABM de usuarios. |
+
+**¿Por qué CSS-in-string y no Tailwind o CSS Modules?** Para no sumar herramientas de build ni dependencias: el equipo mantiene el control total del CSS, cada pantalla lleva el suyo y el tema se centraliza con variables. Es una decisión consciente de simplicidad.
+
+---
+
+## 12. Carpeta `utils/` — utilidades
+
+Funciones de apoyo transversales, en su mayoría puras (mismo input, mismo output), que no pertenecen a un dominio en particular.
+
+| Archivo | Función |
+|---|---|
+| `useInjectStyle.ts` | Hook que inyecta un bloque `<style>` en el documento bajo una clave única (sin duplicar). Es la base del patrón de estilos por componente. |
+| `navegacion.ts` | Calcula la pantalla inicial según el rol (Operador → Hallazgos; resto → Dashboard). Se usa en el login, en el catch-all de rutas y como respaldo del guardia. |
+| `exportInformePdf.ts` | Genera el PDF de un informe (texto) con jsPDF. Compartido por Informes y por el detalle de proyecto. |
+| `exportHallazgosPdf.ts` | Genera el PDF de la lista de hallazgos con jsPDF (encabezado, tabla y paginación). |
+| `exportDashboardPdf.ts` | Exporta el dashboard a PDF capturando los gráficos tal cual se ven (html2canvas) y armándolos en páginas A4 con jsPDF, sección por sección para no cortar ningún gráfico. |
+
+---
+
+## 13. Cómo se conecta todo
+
+Un recorrido típico ayuda a ver cómo colaboran las capas:
+
+1. El usuario entra a `/dashboard`.
+2. El guardia `ProtectedRoute` verifica, vía `AuthContext`, que haya sesión y que el rol sea Admin o Auditor.
+3. La pantalla `Dashboard.tsx` pide los datos a `api/dashboard.ts`.
+4. Esa capa combina varios endpoints (a través de `api/client.ts`, que adjunta la cookie del JWT) y calcula las métricas.
+5. La pantalla dibuja los gráficos en SVG con sus estilos de `styles/dashboard.ts`.
+6. Si el usuario exporta, `utils/exportDashboardPdf.ts` captura la vista y arma el PDF.
+
+Cada paso toca una sola capa, y cada capa hace una sola cosa. Esa es la idea que sostiene toda la arquitectura del frontend.

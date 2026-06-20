@@ -19,6 +19,12 @@
 
 import { api } from './client';
 import { listarProyectos } from './proyectos';
+import { listarProcedimientos } from './procedimientos';
+import {
+  listarAuditoriasDeProyecto,
+  obtenerResultado,
+  type AuditoriaDeProyecto,
+} from './auditorias';
 
 // ── Shapes tal cual los devuelve el backend ──────────────────────────────────
 
@@ -211,4 +217,207 @@ function calcularUltimosHallazgos(
 function fechaMs(iso: string): number {
   const ms = Date.parse(iso);
   return Number.isNaN(ms) ? 0 : ms;
+}
+
+// ============================================================================
+//  cargarDashboardCompleto() — versión enriquecida para el dashboard nuevo.
+//
+//  Agrega, sobre la data anterior, todo lo que necesitan los gráficos:
+//   - hallazgos por tipo / por agente / evolución por mes
+//   - proyectos por estado (de su última auditoría)
+//   - cumplimiento general + por proyecto + por procedimiento  (vía resultado)
+//   - proyectos que requieren atención (cumplimiento < 70% o con NC)
+//
+//  Todo se deriva de endpoints reales; si una llamada anidada falla, se trata
+//  como vacía y el resto del dashboard sigue funcionando.
+// ============================================================================
+
+export interface ProyectoCumpl {
+  id: number;
+  nombre: string;
+  procCodigo: string;
+  cumpl: number | null;                         // % de la última auditoría completada
+  nc: number;                                   // NC de esa ejecución
+  estadoUltima: EstadoAuditoria | 'SinAuditar';
+  fecha: string | null;
+}
+export interface SerieMes { etiqueta: string; valor: number; orden: number; }
+export interface ConteoAgente { agente: string; cantidad: number; }
+export interface CumplProc { procedimiento: string; pct: number; }
+export interface ProyectosPorEstado {
+  completada: number; enCurso: number; fallida: number; sinAuditar: number;
+}
+
+export interface DashboardCompleto {
+  metricas: DashboardMetricas;
+  ultimosHallazgos: UltimoHallazgo[];
+  hallazgosPorTipo: { nc: number; obs: number; om: number };
+  proyectosPorEstado: ProyectosPorEstado;
+  cumplimientoGeneral: { revisados: number; conformes: number; noConformes: number; pct: number };
+  cumplPorProyecto: ProyectoCumpl[];
+  cumplPorProcedimiento: CumplProc[];
+  hallazgosPorAgente: ConteoAgente[];
+  evolucion: SerieMes[];
+  atencion: ProyectoCumpl[];
+}
+
+// El resultado de auditoría puede serializar el tipo como 'NC' o como el nombre
+// del enum ('NoConformidad'…): aceptamos ambos.
+function mapTipoFlexible(t: string): TipoHallazgo {
+  const x = (t ?? '').toLowerCase();
+  if (x === 'nc' || x.includes('conformidad')) return 'NC';
+  if (x === 'obs' || x.includes('observ')) return 'OBS';
+  return 'OM';
+}
+
+export async function cargarDashboardCompleto(): Promise<DashboardCompleto> {
+  const [proyectos, procedimientos] = await Promise.all([
+    listarProyectos(),
+    listarProcedimientos().catch(() => []),
+  ]);
+  const procCodigo = new Map<number, string>();
+  for (const pr of procedimientos) procCodigo.set(pr.id, pr.codigo);
+
+  // Auditorías de cada proyecto.
+  const auditoriasPorProyecto = await Promise.all(
+    proyectos.map((p) =>
+      listarAuditoriasDeProyecto(p.id).catch(() => [] as AuditoriaDeProyecto[])
+    )
+  );
+  const auditorias = auditoriasPorProyecto.flat();
+  const auditoriaPorId = new Map<number, AuditoriaDeProyecto>();
+  for (const a of auditorias) auditoriaPorId.set(a.id, a);
+
+  // Hallazgos de TODAS las auditorías (tipo + agente + fecha).
+  const hallazgosAnidados = await Promise.all(
+    auditorias.map((a) =>
+      api.get<HallazgoApi[]>(`/api/hallazgos/auditoria/${a.id}`).catch(() => [])
+    )
+  );
+  const hallazgos = hallazgosAnidados.flat();
+
+  // Resultado de la última Completada por proyecto → cumplimiento.
+  let gConf = 0, gNoConf = 0;
+  const filas: ProyectoCumpl[] = await Promise.all(
+    proyectos.map(async (p, i) => {
+      const auds = auditoriasPorProyecto[i];
+      const ordenadas = [...auds].sort(
+        (a, b) => fechaMs(b.fechaInicioUtc) - fechaMs(a.fechaInicioUtc));
+      const ultima = ordenadas[0] ?? null;
+      const completada = ordenadas.find((a) => a.estado === 'Completada') ?? null;
+
+      let cumpl: number | null = null;
+      let nc = 0;
+      if (completada) {
+        const res = await obtenerResultado(completada.id).catch(() => null);
+        if (res) {
+          const aplic = res.artefactosEvaluados.filter((a) => a.aplica === 'Aplica');
+          const conf = aplic.filter((a) => a.resultado === 'Conforme').length;
+          const noConf = aplic.filter((a) => a.resultado === 'NoConforme').length;
+          gConf += conf; gNoConf += noConf;
+          if (conf + noConf > 0) cumpl = Math.round((conf / (conf + noConf)) * 100);
+          nc = aplic.reduce(
+            (s, a) => s + a.hallazgos.filter((h) => mapTipoFlexible(h.tipo) === 'NC').length, 0);
+        }
+      }
+      return {
+        id: p.id,
+        nombre: p.nombre,
+        procCodigo: procCodigo.get(p.procedimientoId) ?? `Proc #${p.procedimientoId}`,
+        cumpl,
+        nc,
+        estadoUltima: (ultima?.estado ?? 'SinAuditar') as EstadoAuditoria | 'SinAuditar',
+        fecha: ultima?.fechaInicioUtc ?? null,
+      };
+    })
+  );
+
+  // Proyectos por estado (de su última auditoría).
+  const ppe: ProyectosPorEstado = { completada: 0, enCurso: 0, fallida: 0, sinAuditar: 0 };
+  for (const f of filas) {
+    if (f.estadoUltima === 'Completada') ppe.completada++;
+    else if (f.estadoUltima === 'EnCurso') ppe.enCurso++;
+    else if (f.estadoUltima === 'Fallida') ppe.fallida++;
+    else ppe.sinAuditar++;
+  }
+
+  // Cumplimiento por procedimiento (promedio de los proyectos con cumplimiento).
+  const porProc = new Map<string, number[]>();
+  for (const f of filas) if (f.cumpl != null) {
+    const arr = porProc.get(f.procCodigo) ?? [];
+    arr.push(f.cumpl);
+    porProc.set(f.procCodigo, arr);
+  }
+  const cumplPorProcedimiento: CumplProc[] = [...porProc.entries()]
+    .map(([procedimiento, arr]) => ({
+      procedimiento,
+      pct: Math.round(arr.reduce((s, x) => s + x, 0) / arr.length),
+    }))
+    .sort((a, b) => b.pct - a.pct);
+
+  // Hallazgos por agente.
+  const porAgente = new Map<string, number>();
+  for (const h of hallazgos) porAgente.set(h.agenteOrigen, (porAgente.get(h.agenteOrigen) ?? 0) + 1);
+  const hallazgosPorAgente: ConteoAgente[] = [...porAgente.entries()]
+    .map(([agente, cantidad]) => ({ agente, cantidad }))
+    .sort((a, b) => b.cantidad - a.cantidad);
+
+  // Evolución de hallazgos por mes.
+  const porMes = new Map<string, number>();
+  for (const h of hallazgos) {
+    const a = auditoriaPorId.get(h.auditoriaId);
+    const ms = a ? Date.parse(a.fechaInicioUtc) : NaN;
+    if (Number.isNaN(ms)) continue;
+    const d = new Date(ms);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    porMes.set(key, (porMes.get(key) ?? 0) + 1);
+  }
+  const evolucion: SerieMes[] = [...porMes.entries()]
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([key, valor], i) => {
+      const [y, mm] = key.split('-').map(Number);
+      const etiqueta = new Date(y, mm - 1, 1).toLocaleDateString('es-AR', { month: 'short' });
+      return { etiqueta, valor, orden: i };
+    });
+
+  // Últimos hallazgos.
+  const ultimosHallazgos: UltimoHallazgo[] = hallazgos
+    .map((h) => {
+      const a = auditoriaPorId.get(h.auditoriaId);
+      return {
+        id: h.id,
+        descripcion: h.descripcion,
+        proyecto: a?.nombreProyecto ?? '—',
+        tipo: h.tipo,
+        fecha: a?.fechaInicioUtc ?? '',
+      };
+    })
+    .sort((a, b) => fechaMs(b.fecha) - fechaMs(a.fecha) || b.id - a.id)
+    .slice(0, MAX_ULTIMOS_HALLAZGOS);
+
+  // Atención: cumplimiento bajo o con NC.
+  const atencion = filas
+    .filter((f) => (f.cumpl != null && f.cumpl < 70) || f.nc > 0)
+    .sort((a, b) => (a.cumpl ?? 999) - (b.cumpl ?? 999));
+
+  const revisadosG = gConf + gNoConf;
+  return {
+    metricas: calcularMetricas(proyectos.length, auditorias, hallazgos),
+    ultimosHallazgos,
+    hallazgosPorTipo: {
+      nc: contarPorTipo(hallazgos, 'NC'),
+      obs: contarPorTipo(hallazgos, 'OBS'),
+      om: contarPorTipo(hallazgos, 'OM'),
+    },
+    proyectosPorEstado: ppe,
+    cumplimientoGeneral: {
+      revisados: revisadosG, conformes: gConf, noConformes: gNoConf,
+      pct: revisadosG > 0 ? Math.round((gConf / revisadosG) * 100) : 0,
+    },
+    cumplPorProyecto: [...filas].sort((a, b) => (b.cumpl ?? -1) - (a.cumpl ?? -1)),
+    cumplPorProcedimiento,
+    hallazgosPorAgente,
+    evolucion,
+    atencion,
+  };
 }

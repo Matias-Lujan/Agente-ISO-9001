@@ -102,4 +102,90 @@ export const dashboardCss = `
   .dash-hall-row > div:nth-child(3),
   .dash-hall-row > div:nth-child(4){display:none;}
 }
+
+/* ----- Cumplimiento general (semáforo + torta) ----- */
+.dash-cumpl{display:flex;align-items:center;gap:1.6rem;flex-wrap:wrap;background:var(--surface);border:0.5px solid var(--border);border-radius:14px;padding:1.3rem 1.5rem;margin-bottom:1.6rem;}
+.dash-sem{display:flex;align-items:center;gap:13px;flex:1;min-width:260px;}
+.dash-light-stack{display:flex;flex-direction:column;gap:6px;background:var(--surface-2);border-radius:12px;padding:9px;}
+.dash-lt{width:15px;height:15px;border-radius:50%;opacity:.16;}
+.dash-lt.r{background:var(--err-fg);} .dash-lt.y{background:var(--warn-fg);} .dash-lt.g{background:var(--ok-fg);}
+.dash-sem.rojo .dash-lt.r{opacity:1;box-shadow:0 0 10px var(--err-fg);}
+.dash-sem.amarillo .dash-lt.y{opacity:1;box-shadow:0 0 10px var(--warn-fg);}
+.dash-sem.verde .dash-lt.g{opacity:1;box-shadow:0 0 10px var(--ok-fg);}
+.dash-sem-estado{font-size:17px;font-weight:700;}
+.dash-sem.rojo .dash-sem-estado{color:var(--err-fg);}
+.dash-sem.amarillo .dash-sem-estado{color:var(--warn-fg);}
+.dash-sem.verde .dash-sem-estado{color:var(--ok-fg);}
+.dash-sem-resumen{font-size:13px;color:var(--text-muted);margin-top:3px;max-width:46ch;line-height:1.45;}
+.dash-donut{position:relative;width:112px;height:112px;flex-shrink:0;}
+.dash-donut svg{transform:rotate(-90deg);}
+.dash-donut .track{stroke:var(--surface-3);}
+.dash-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.dash-donut-center .pct{font-size:21px;font-weight:700;color:var(--text);line-height:1;}
+.dash-donut-center .cap{font-size:10px;color:var(--text-muted);margin-top:2px;}
+.dash-dleg{display:flex;flex-direction:column;gap:7px;}
+.dash-dleg .l{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text);}
+.dash-dleg .sw{width:10px;height:10px;border-radius:3px;}
+.dash-dleg b{margin-left:3px;}
+
+/* ----- Controles (rango de fechas) ----- */
+.dash-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.dash-seg{display:flex;background:var(--surface-2);border:.5px solid var(--border);border-radius:9px;padding:3px;gap:2px;}
+.dash-seg button{border:none;background:none;font-family:inherit;font-size:12px;font-weight:600;color:var(--text-muted);padding:6px 11px;border-radius:7px;cursor:pointer;}
+.dash-seg button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08);}
+
+/* ----- Grilla y tarjetas de gráficos ----- */
+.dash-grid2{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem;}
+@media(max-width:980px){.dash-grid2{grid-template-columns:1fr;}}
+.dash-card{background:var(--surface);border:.5px solid var(--border);border-radius:14px;padding:1.3rem 1.5rem;margin-bottom:1.2rem;}
+.dash-card h2{font-family:"Syne",sans-serif;font-size:15.5px;font-weight:700;margin-bottom:1.1rem;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.dash-card h2 .hint{font-size:11px;font-weight:500;color:var(--text-muted);}
+
+/* Donut con leyenda */
+.dash-dwrap{display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap;}
+.dash-dchart{position:relative;width:150px;height:150px;flex-shrink:0;}
+.dash-dchart svg{transform:rotate(-90deg);}
+.dash-dchart .track{stroke:var(--surface-3);}
+.dash-dchart .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.dash-dchart .tot{font-family:"Syne",sans-serif;font-size:26px;font-weight:700;line-height:1;}
+.dash-dchart .cap{font-size:10.5px;color:var(--text-muted);margin-top:3px;}
+.dash-legend{display:flex;flex-direction:column;gap:9px;flex:1;min-width:150px;}
+.dash-leg{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+.dash-leg .sw{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.dash-leg .lab{flex:1;color:var(--text);}.dash-leg .val{font-weight:700;}
+.dash-leg .pct{font-size:11px;color:var(--text-muted);width:34px;text-align:right;}
+
+/* Barras */
+.dash-bars{display:flex;flex-direction:column;gap:.75rem;}
+.dash-bar-row{display:grid;grid-template-columns:160px 1fr 44px;align-items:center;gap:12px;}
+.dash-bar-row.ag{grid-template-columns:170px 1fr 30px;}
+.dash-bar-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dash-bar-track{height:11px;border-radius:999px;background:var(--surface-3);overflow:hidden;}
+.dash-bar-fill{height:100%;border-radius:999px;transition:width .7s ease;}
+.dash-bar-fill.ok{background:var(--ok-fg);}.dash-bar-fill.warn{background:var(--warn-fg);}.dash-bar-fill.err{background:var(--err-fg);}.dash-bar-fill.acc{background:var(--primary);}
+.dash-bar-val{font-size:12px;font-weight:700;text-align:right;}
+.dash-bar-note{font-size:11px;color:var(--text-muted);margin-top:1rem;display:flex;gap:14px;flex-wrap:wrap;}
+.dash-bar-note span{display:inline-flex;align-items:center;gap:6px;}.dash-bar-note i{width:9px;height:9px;border-radius:3px;}
+
+/* Evolución (área) */
+.dash-area-x{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-muted);}
+
+/* Atención */
+.dash-att-row{display:grid;grid-template-columns:1fr auto auto 18px;align-items:center;gap:12px;padding:11px 4px;border-bottom:.5px solid var(--border-soft);cursor:pointer;}
+.dash-att-row:last-child{border-bottom:none;}
+.dash-att-row:hover{background:var(--surface-hover);}
+.dash-att-name{font-size:13px;font-weight:600;}
+.dash-att-name small{display:block;font-weight:400;color:var(--text-muted);font-size:11px;margin-top:1px;}
+.dash-att-go{color:var(--text-muted);display:flex;}.dash-att-go svg{width:16px;height:16px;}
+.dash-att-row:hover .dash-att-go{color:var(--primary);}
+
+/* Skeleton */
+.dash-sk{background:linear-gradient(90deg,var(--surface-3) 25%,var(--surface-2) 37%,var(--surface-3) 63%);background-size:400% 100%;animation:dash-sh 1.3s ease infinite;border-radius:8px;}
+@keyframes dash-sh{0%{background-position:100% 0;}100%{background-position:-100% 0;}}
+.dash-sk-line{height:12px;margin:8px 0;}.dash-sk-donut{width:150px;height:150px;border-radius:50%;}
+
+/* Botón secundario (Exportar PDF) */
+.btn-ghost{display:inline-flex;align-items:center;padding:9px 16px;border-radius:8px;border:0.5px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;}
+.btn-ghost:hover:not(:disabled){color:var(--text);}
+.btn-ghost:disabled{opacity:.55;cursor:default;}
 `;

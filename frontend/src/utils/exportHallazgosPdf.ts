@@ -1,4 +1,3 @@
-
 // ============================================================================
 //  Genera un PDF con la lista de hallazgos.
 //
@@ -14,7 +13,6 @@ import { jsPDF } from 'jspdf';
 import {
   type Hallazgo,
   TIPO_LABEL_LARGO,
-  ESTADO_LABEL,
 } from '../api/hallazgos';
 
 interface ExportOpts {
@@ -98,7 +96,7 @@ export function exportarHallazgosPdf({ hallazgos, generadoPor }: ExportOpts): vo
     doc.setFontSize(9);
     doc.setTextColor(123, 106, 170);
     doc.text(
-      `${TIPO_LABEL_LARGO[h.tipo]}  ·  ${ESTADO_LABEL[h.estado]}  ·  Proyecto: ${h.proyecto}`,
+      `${TIPO_LABEL_LARGO[h.tipo]}  ·  Proyecto: ${h.proyecto}`,
       margin + 3,
       y,
     );

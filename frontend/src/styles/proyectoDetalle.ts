@@ -112,4 +112,17 @@ export const proyectoDetalleCss = `
 .pd-modal-body{padding:16px 22px;overflow-y:auto;}
 .pd-contenido{font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,Menlo,monospace;}
 .pd-modal-foot{display:flex;justify-content:flex-end;padding:12px 22px 18px;border-top:0.5px solid var(--border-soft);}
+
+/* ----- Curva de evolución de ejecuciones ----- */
+.pd-evo-svg{display:block;overflow:visible;}
+.pd-evo-grid{stroke:var(--border-soft);stroke-width:1;}
+.pd-evo-thr{stroke:var(--border);stroke-width:1;stroke-dasharray:3 4;opacity:.7;}
+.pd-evo-axis{fill:var(--text-muted);font-size:10px;}
+.pd-evo-line{stroke:var(--accent);stroke-width:2.5;}
+.pd-evo-val{font-size:11px;font-weight:700;}
+.pd-evo-x{fill:var(--text);font-size:10.5px;font-weight:600;}
+.pd-evo-x2{fill:var(--text-muted);font-size:9.5px;}
+.pd-evo-pt{cursor:pointer;}
+.pd-evo-pt:hover circle{stroke-width:3.5;}
+.pd-evo-foot{font-size:11.5px;color:var(--text-muted);margin-top:.7rem;line-height:1.45;}
 `;

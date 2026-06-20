@@ -213,9 +213,9 @@ function SignUpForm({ onSwitchToSignIn }: { onSwitchToSignIn: () => void }) {
     <>
       <h2 className="login-formTitle">Crear cuenta</h2>
       <p className="login-formSub">Completá tus datos para registrarte</p>
-      <p style={{ fontSize: 13, color: 'var(--color-login-text-muted)', marginTop: '1rem' }}>
-        Funcionalidad en desarrollo.
-      </p>
+      <a href="mailto:soporte@bdtglobal.com" className="login-link">
+          Contactá a soporte
+      </a>
       <p className="login-switchText">
         ¿Ya tenés cuenta?{' '}
         <button className="login-switchBtn" onClick={onSwitchToSignIn} type="button">
