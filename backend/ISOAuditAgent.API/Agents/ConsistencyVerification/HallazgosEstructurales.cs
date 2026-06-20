@@ -44,7 +44,6 @@
 using ISOAuditAgent.API.Agents.Contracts;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Parsing;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Tailoring;
-using ISOAuditAgent.API.Models;
 
 namespace ISOAuditAgent.API.Agents.ConsistencyVerification;
 

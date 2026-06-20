@@ -1,0 +1,26 @@
+{
+  "AuditoriaId": 99,
+  "Hallazgos": [
+    {
+      "ArtefactoEsperadoId": 10,
+      "Tipo": "NC",
+      "Descripcion": "Artefacto faltante",
+      "Justificacion": "just proc",
+      "AgenteOrigen": "ComplianceValidation"
+    },
+    {
+      "ArtefactoEsperadoId": 11,
+      "Tipo": "OBS",
+      "Descripcion": "Sección ausente",
+      "Justificacion": "sección Entregables esencial",
+      "AgenteOrigen": "ConsistencyVerification"
+    },
+    {
+      "ArtefactoEsperadoId": 12,
+      "Tipo": "OM",
+      "Descripcion": "Incoherencia URL",
+      "Justificacion": "intento de NC en tailoring",
+      "AgenteOrigen": "ComplianceValidation"
+    }
+  ]
+}

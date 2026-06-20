@@ -28,7 +28,6 @@
 
 using System.Text.Json;
 using ISOAuditAgent.API.Agents.Contracts;
-using ISOAuditAgent.API.Models;
 
 namespace ISOAuditAgent.API.Agents.ComplianceValidation;
 

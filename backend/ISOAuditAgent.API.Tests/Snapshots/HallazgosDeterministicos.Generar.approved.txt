@@ -1,0 +1,38 @@
+[
+  {
+    "ArtefactoEsperadoId": 1,
+    "Descripcion": "Artefacto exigible 'ERS sin URL' no se encontró.",
+    "Justificacion": "El tailoring del proyecto declara 'ERS sin URL' como 'Aplica', comprometiendo su existencia para la etapa auditada. El sistema buscó la evidencia y no la encontró. El procedimiento PR 11-13 (Desarrollo de Software) exige que todo artefacto aplicable esté disponible o quede justificado en el tailoring; un artefacto comprometido y ausente sin justificación es una no conformidad directa.",
+    "OrigenRegla": "Procedimiento"
+  },
+  {
+    "ArtefactoEsperadoId": 2,
+    "Descripcion": "Artefacto exigible 'ERS con URL' no se encontró.",
+    "Justificacion": "El tailoring del proyecto declara 'ERS con URL' como 'Aplica', comprometiendo su existencia para la etapa auditada. El tailoring declara una URL de referencia para este artefacto, pero el sistema buscó la evidencia y no la encontró. El procedimiento PR 11-13 (Desarrollo de Software) exige que todo artefacto aplicable esté disponible o quede justificado en el tailoring; un artefacto comprometido y ausente sin justificación es una no conformidad directa.",
+    "OrigenRegla": "Procedimiento"
+  },
+  {
+    "ArtefactoEsperadoId": 3,
+    "Descripcion": "Artefacto 'Plan de pruebas' marcado como 'No aplica' sin justificación en el tailoring.",
+    "Justificacion": "El tailoring del proyecto declara 'Plan de pruebas' como 'No aplica', pero la justificación de esa exclusión está vacía. La política de tailoring acordada con el cliente exige que toda exclusión de un artefacto incluya una justificación textual que la sustente. Sin ella, la exclusión no puede validarse contra el procedimiento PR 11-13 (Desarrollo de Software) y constituye una no conformidad.",
+    "OrigenRegla": "Procedimiento"
+  },
+  {
+    "ArtefactoEsperadoId": 5,
+    "Descripcion": "Artefacto 'Diagrama nativo Google' encontrado en Drive pero no procesable (export fallido).",
+    "Justificacion": "El sistema encontró un archivo asociado al artefacto 'Diagrama nativo Google' en Google Drive, pero no pudo exportar su contenido para verificación. El archivo está almacenado en formato nativo de Google (Google Docs/Sheets/Slides) y probablemente supera el límite de 10 MB impuesto por la API de export de Drive, o la service account no tiene permisos suficientes sobre ese archivo. Sin acceso al contenido no es posible verificar la conformidad del artefacto con los requisitos del procedimiento PR 11-13 (Desarrollo de Software). Se requiere revisión manual o convertir el archivo a formato estándar (.docx / .xlsx / .pdf) en el Drive del proyecto.",
+    "OrigenRegla": "Procedimiento"
+  },
+  {
+    "ArtefactoEsperadoId": 6,
+    "Descripcion": "Artefacto 'Sign-Off' no figura en el tailoring del proyecto.",
+    "Justificacion": "El procedimiento PR 11-13 (Desarrollo de Software) exige que cada artefacto esperado tenga en el tailoring del proyecto una decisión explícita de aplicabilidad ('Aplica' o 'No aplica' con justificación). El tailoring no contiene ninguna entrada para FR-48 'Sign-Off', artefacto exigible y mandatorio en la etapa auditada. Al no haber decisión declarada, no puede determinarse si el artefacto debía producirse: la omisión es una no conformidad con el requisito de completitud del tailoring.",
+    "OrigenRegla": "Procedimiento"
+  },
+  {
+    "ArtefactoEsperadoId": 7,
+    "Descripcion": "Artefacto 'Minuta de reunión' no figura en el tailoring del proyecto.",
+    "Justificacion": "El procedimiento PR 11-13 (Desarrollo de Software) exige que cada artefacto esperado tenga en el tailoring del proyecto una decisión explícita de aplicabilidad ('Aplica' o 'No aplica' con justificación). El tailoring no contiene ninguna entrada para 'Minuta de reunión', artefacto exigible en la etapa auditada. Al no haber decisión declarada, no puede determinarse si el artefacto debía producirse: la omisión es una no conformidad con el requisito de completitud del tailoring.",
+    "OrigenRegla": "Procedimiento"
+  }
+]
