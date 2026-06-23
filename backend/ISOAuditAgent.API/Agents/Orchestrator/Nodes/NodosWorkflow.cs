@@ -136,14 +136,6 @@ public sealed class DocumentAnalysisNode
         IWorkflowContext context,
         CancellationToken ct = default)
     {
-        //-------------------TEST------------------
-        _logger.LogInformation(
-            "NODE DocumentAnalysis INICIO auditoria={AuditoriaId} artefactosEsperados={Count}",
-            message.AuditoriaId,
-            message.ArtefactosEsperados.Count
-            );
-        //-------------------------------------
-
         await _tracker.MarcarEnCursoAsync(
             message.AuditoriaId, NodoWorkflow.DocumentAnalysis, ct);
 
@@ -202,7 +194,7 @@ public sealed class DocumentAnalysisNode
             "DocumentAnalysis: LLM respondió ({Len} chars). Iniciando ArtefactosBuilder para {N} artefactos.",
             textoLlm.Length, llmOutput.Artefactos?.Count ?? 0);
         // 5. POST-LLM async: verificar artefactos físicamente y armar el contrato 3.
-        var artefactos = await DriveDtos
+        var artefactos = await ArtefactosBuilder
             .ConstruirAsync(message, llmOutput, _artefactoChecker, _trelloChecker, _clockifyChecker, ct)
             .ConfigureAwait(false);
 
@@ -220,14 +212,6 @@ public sealed class DocumentAnalysisNode
         // 6. Defensa en profundidad: validar invariantes del contrato 3 antes
         //    de emitir el DTO al grafo.
         InvariantsValidator.Validar(resultado);
-
-        // ------------------TEST--------------------------
-        _logger.LogInformation(
-            "NODE DocumentAnalysis FIN auditoria={AuditoriaId} artefactos={Count}",
-            resultado.AuditoriaId,
-            resultado.Artefactos.Count
-            );
-        // --------------------------------------------
 
         return resultado;
     }
@@ -466,10 +450,7 @@ public sealed class ComplianceValidationNode
     }
 
     protected override string ConstruirPrompt(DocumentosExtraidos input)
-    {
-        Console.WriteLine($"NODE ComplianceValidation INICIO auditoria={input.AuditoriaId} artefactos={input.Artefactos.Count}"); //test
-        return CompliancePromptBuilder.Construir(input);
-    }
+        => CompliancePromptBuilder.Construir(input);
 
     protected override HallazgosPreliminares ParsearRespuesta(
         DocumentosExtraidos input, string textoLlm)
@@ -490,18 +471,10 @@ public sealed class ComplianceValidationNode
             hallazgos.AddRange(hallazgosLlm);
         }
 
-        //return new HallazgosPreliminares(
-        //    input.AuditoriaId,
-        //    AgenteOrigen.ComplianceValidation,
-        //    hallazgos);
-        var resultado = new HallazgosPreliminares(
+        return new HallazgosPreliminares(
             input.AuditoriaId,
             AgenteOrigen.ComplianceValidation,
             hallazgos);
-
-        Console.WriteLine($"NODE ComplianceValidation FIN auditoria={resultado.AuditoriaId} hallazgos={resultado.Hallazgos.Count}");
-
-        return resultado;
     }
 }
 
@@ -543,10 +516,7 @@ public sealed class ConsistencyVerificationNode
     }
 
     protected override string ConstruirPrompt(DocumentosExtraidos input)
-    {
-        Console.WriteLine($"NODE ConsistencyVerification INICIO auditoria={input.AuditoriaId} artefactos={input.Artefactos.Count}"); //test
-        return ConsistencyPromptBuilder.Construir(input);
-    }
+        => ConsistencyPromptBuilder.Construir(input);
 
     protected override HallazgosPreliminares ParsearRespuesta(
         DocumentosExtraidos input, string textoLlm)
@@ -575,7 +545,6 @@ public sealed class ConsistencyVerificationNode
         }
         else
         {
-            Console.WriteLine($"NODE ConsistencyVerification FIN auditoria={input.AuditoriaId}");//test
             var parsed = HallazgosPreliminaresParser.Parsear(textoLlm, idsExpuestos, input.AuditoriaId);
             hallazgosLlm = parsed.Hallazgos.ToList();
         }
@@ -668,8 +637,6 @@ public sealed partial class FindingsClassificationNode : Executor
 
         _contextoDocumentos = message;
         await IntentarClasificarAsync(context);
-
-        Console.WriteLine($"NODE FindingsClassification RECIBE contexto auditoria={message.AuditoriaId} artefactos={message.Artefactos.Count}");//test
     }
 
     // --- Entrada B: cada lote de hallazgos, de a uno ------------------------
@@ -679,8 +646,6 @@ public sealed partial class FindingsClassificationNode : Executor
         IWorkflowContext context,
         CancellationToken cancellationToken = default)
     {
-        Console.WriteLine($"NODE FindingsClassification RECIBE hallazgos auditoria={message.AuditoriaId} origen={message.AgenteOrigen} count={message.Hallazgos.Count}");//test
-
         // Distinguir el lote por su AgenteOrigen y cachearlo en su slot.
         switch (message.AgenteOrigen)
         {
@@ -716,7 +681,6 @@ public sealed partial class FindingsClassificationNode : Executor
     // --- Disparo: clasifica cuando están los TRES elementos -----------------
     private async ValueTask IntentarClasificarAsync(IWorkflowContext context)
     {
-        Console.WriteLine($"NODE FindingsClassification ESPERA contexto={_contextoDocumentos is not null} compliance={_hallazgosCompliance is not null} consistency={_hallazgosConsistency is not null}");//test
         // Falta alguno de los tres -> esperar al próximo mensaje.
         if (_contextoDocumentos is null
             || _hallazgosCompliance is null
@@ -757,8 +721,6 @@ public sealed partial class FindingsClassificationNode : Executor
             var salida = new ResultadoClasificacionConContexto(
                 Clasificacion: clasificacion,
                 ContextoDocumentos: _contextoDocumentos);
-
-            Console.WriteLine($"NODE FindingsClassification FIN auditoria={salida.Clasificacion.AuditoriaId} hallazgos={salida.Clasificacion.Hallazgos.Count}");//test
 
             await context.SendMessageAsync(salida, CancellationToken.None);
 
@@ -871,11 +833,8 @@ public sealed class ConsolidadorResultadoNode
         IWorkflowContext context,
         CancellationToken ct = default)
     {
-        Console.WriteLine($"NODE ConsolidadorResultado INICIO auditoria={message.Clasificacion.AuditoriaId}");//test
-
         var resultado = ConsolidadorEnsamble.Ensamblar(
             message.ContextoDocumentos, message.Clasificacion);
-        Console.WriteLine($"NODE ConsolidadorResultado FIN auditoria={resultado.AuditoriaId}");//test
         return ValueTask.FromResult(resultado);
     }
 }

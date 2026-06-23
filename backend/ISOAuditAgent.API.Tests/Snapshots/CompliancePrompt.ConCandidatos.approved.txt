@@ -1,0 +1,35 @@
+Procedimiento que rige a este proyecto: PR 11-13 (Desarrollo de Software).
+
+Analizá los siguientes artefactos para detectar INCOHERENCIAS EVIDENTES entre la URL declarada en el tailoring y el archivo encontrado.
+
+ARTEFACTOS A ANALIZAR:
+
+--- ARTEFACTO ID: 1 ---
+  Nombre                  : ERS
+  Codigo                  : FR-30
+  UrlReferenciaTailoring  : https://drive.google.com/file/d/AAA/view
+  NombreArchivo encontrado: ERS_proyecto.docx
+
+--- ARTEFACTO ID: 2 ---
+  Nombre                  : Plan de proyecto
+  Codigo                  : FR-12
+  UrlReferenciaTailoring  : https://drive.google.com/file/d/BBB/view
+  NombreArchivo encontrado: Plan.xlsx
+
+Si no hay incoherencias evidentes, respondé {"hallazgos": []}.
+No inventes hallazgos sobre material que no tengas información para juzgar.
+
+El campo 'artefactoEsperadoId' debe ser uno de los IDs listados arriba.
+El campo 'origenRegla' debe ser exactamente 'Tailoring'.
+
+Respondé ÚNICAMENTE con este JSON, sin texto adicional ni backticks:
+{
+  "hallazgos": [
+    {
+      "artefactoEsperadoId": <int>,
+      "descripcion": "Incoherencia entre URL del tailoring y archivo encontrado",
+      "justificacion": "El tailoring declara URL '<url>' pero se encontró '<archivo>', que no corresponde al artefacto.",
+      "origenRegla": "Tailoring"
+    }
+  ]
+}

@@ -164,19 +164,4 @@ public sealed class ResolutorContextoService
             : ObligatoriedadArtefacto.EvaluarYJustificar;
     }
 
-    /// <summary>
-    /// Concatena la carpeta de templates con el nombre relativo del template
-    /// del artefacto. Devuelve null si el artefacto no tiene template
-    /// (path_template_relativo nullable: ej. tarjetas de Trello).
-    /// consultas_cliente.md, consulta 1.
-    /// </summary>
-    private static string? ResolverPathTemplate(
-        ArtefactoEsperado ae, string pathCarpetaTemplates)
-    {
-        if (string.IsNullOrWhiteSpace(ae.PathTemplateRelativo))
-            return null;
-
-        // Path.Combine maneja los separadores de forma portable.
-        return Path.Combine(pathCarpetaTemplates, ae.PathTemplateRelativo);
-    }
 }

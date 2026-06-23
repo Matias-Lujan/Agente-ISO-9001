@@ -1,0 +1,20 @@
+[
+  {
+    "ArtefactoEsperadoId": 1,
+    "Descripcion": "Artefacto 'Documento vacío' encontrado pero completamente vacío.",
+    "Justificacion": "El documento 'doc-vacio.docx' asociado al artefacto 'Documento vacío' fue encontrado, pero todas sus secciones (excluyendo la sección sintética de cabecera) están vacías. Un documento sin ningún contenido real no constituye evidencia válida del artefacto. El procedimiento PR 11-13 (Desarrollo de Software) exige que los artefactos documentados cuenten con contenido sustantivo.",
+    "OrigenRegla": "Procedimiento"
+  },
+  {
+    "ArtefactoEsperadoId": 2,
+    "Descripcion": "Sección 'Conclusiones' requerida por el template no está presente en el documento.",
+    "Justificacion": "El template del artefacto 'Documento incompleto' define la sección 'Conclusiones', pero esta sección no se encontró en el documento al comparar por título (tolerante a tildes y mayúsculas). La ausencia de una sección requerida puede indicar que el documento no sigue la estructura acordada en el template del PR 11-13.",
+    "OrigenRegla": "Template"
+  },
+  {
+    "ArtefactoEsperadoId": 4,
+    "Descripcion": "Sección 'Descripción' requerida por el template no está presente en el documento.",
+    "Justificacion": "El template del artefacto 'Template con duplicados' define la sección 'Descripción', pero esta sección no se encontró en el documento al comparar por título (tolerante a tildes y mayúsculas). La ausencia de una sección requerida puede indicar que el documento no sigue la estructura acordada en el template del PR 11-13.",
+    "OrigenRegla": "Template"
+  }
+]

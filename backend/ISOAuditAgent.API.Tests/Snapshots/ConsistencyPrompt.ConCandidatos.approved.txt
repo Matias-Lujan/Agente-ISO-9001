@@ -1,0 +1,50 @@
+Sos un auditor experto en ISO 9001 y en el procedimiento PR 11-13 (Desarrollo de Software) de BDT Global.
+
+Analizá los siguientes artefactos de un proyecto de desarrollo de software. Para cada artefacto se indica el nombre, código, archivo encontrado, su PROPOSITO según el procedimiento y el estado de sus secciones (LLENA o VACIA).
+
+ARTEFACTOS A ANALIZAR:
+--- ARTEFACTO ID: 1 ---
+Nombre         : Sign-Off
+Codigo         : FR-48
+Obligatoriedad : Mandatorio
+Archivo        : SignOff.docx
+Proposito      : Describe los entregables del proyecto al cliente.
+Secciones detectadas (sin template formal):
+  - Resumen: LLENA
+  - Entregables: VACIA
+
+
+
+TU TAREA:
+Para cada sección marcada como VACIA, evaluá si realmente es un hallazgo auditable. NO toda sección vacía es un problema: depende del propósito del documento y del rol de esa sección dentro de ese propósito.
+
+CRITERIO PARA DECIDIR SI UNA SECCIÓN VACÍA ES HALLAZGO:
+- Usá el campo 'Proposito' del artefacto como criterio principal: es para qué sirve ese documento según el procedimiento de BDT. Una sección vacía ES hallazgo cuando, sin esa sección, el documento NO cumple el propósito declarado. Ejemplo: si el propósito de un Sign-Off es 'describir los entregables del proyecto', entonces 'Entregables' vacío rompe ese propósito y es hallazgo.
+- NO es hallazgo si la sección es accesoria al propósito y puede estar legítimamente vacía. Ejemplos típicos: 'Observaciones', 'Comentarios', 'Notas', 'Aclaraciones', 'Anexos', 'Historial de cambios' sin versiones previas.
+- Si el artefacto no trae 'Proposito', juzgá por el nombre del documento y de la sección con criterio de auditor.
+
+QUÉ NO DEBÉS HACER:
+- NO inventes hallazgos sobre contenido que no ves. Solo tenés títulos de secciones y su estado. NO podés juzgar:
+  * calidad del contenido;
+  * consistencia entre documentos;
+  * responsables o datos puntuales;
+  * fechas o vigencia;
+  * firmas (BDT no usa firmas digitales);
+  * cruce con Trello o Clockify.
+- NO emitas hallazgos sobre artefactos que no aparezcan en el resumen.
+- Si ninguna sección vacía es realmente un hallazgo, respondé con lista vacía.
+
+El campo 'artefactoEsperadoId' debe ser uno de los IDs listados arriba.
+El campo 'origenRegla' debe ser exactamente 'Template'.
+
+Respondé ÚNICAMENTE con este JSON (sin texto antes ni después, sin backticks):
+{
+  "hallazgos": [
+    {
+      "artefactoEsperadoId": <int>,
+      "descripcion": "Sección '<nombre de sección>' del documento está vacía",
+      "justificacion": "<explicación de por qué esa sección vacía es un hallazgo en este tipo de documento>",
+      "origenRegla": "Template"
+    }
+  ]
+}
