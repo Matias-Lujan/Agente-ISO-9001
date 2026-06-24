@@ -241,7 +241,7 @@ export interface ProyectoCumpl {
   estadoUltima: EstadoAuditoria | 'SinAuditar';
   fecha: string | null;
 }
-export interface SerieMes { etiqueta: string; valor: number; orden: number; }
+export interface SerieEvolucion { etiqueta: string; valor: number; orden: number; fecha: string; }
 export interface ConteoAgente { agente: string; cantidad: number; }
 export interface CumplProc { procedimiento: string; pct: number; }
 export interface ProyectosPorEstado {
@@ -257,7 +257,7 @@ export interface DashboardCompleto {
   cumplPorProyecto: ProyectoCumpl[];
   cumplPorProcedimiento: CumplProc[];
   hallazgosPorAgente: ConteoAgente[];
-  evolucion: SerieMes[];
+  evolucion: SerieEvolucion[];
   atencion: ProyectoCumpl[];
 }
 
@@ -362,22 +362,22 @@ export async function cargarDashboardCompleto(): Promise<DashboardCompleto> {
     .map(([agente, cantidad]) => ({ agente, cantidad }))
     .sort((a, b) => b.cantidad - a.cantidad);
 
-  // Evolución de hallazgos por mes.
-  const porMes = new Map<string, number>();
+  // Evolución de hallazgos por día (cada día con auditorías = un punto).
+  const porDia = new Map<string, number>();
   for (const h of hallazgos) {
     const a = auditoriaPorId.get(h.auditoriaId);
     const ms = a ? Date.parse(a.fechaInicioUtc) : NaN;
     if (Number.isNaN(ms)) continue;
     const d = new Date(ms);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    porMes.set(key, (porMes.get(key) ?? 0) + 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    porDia.set(key, (porDia.get(key) ?? 0) + 1);
   }
-  const evolucion: SerieMes[] = [...porMes.entries()]
+  const evolucion: SerieEvolucion[] = [...porDia.entries()]
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
     .map(([key, valor], i) => {
-      const [y, mm] = key.split('-').map(Number);
-      const etiqueta = new Date(y, mm - 1, 1).toLocaleDateString('es-AR', { month: 'short' });
-      return { etiqueta, valor, orden: i };
+      const [y, mm, dd] = key.split('-').map(Number);
+      const etiqueta = new Date(y, mm - 1, dd).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+      return { etiqueta, valor, orden: i, fecha: key };
     });
 
   // Últimos hallazgos.

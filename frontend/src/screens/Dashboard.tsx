@@ -20,7 +20,7 @@ import {
   cargarDashboardCompleto,
   type DashboardCompleto,
   type ProyectoCumpl,
-  type SerieMes,
+  type SerieEvolucion,
   type TipoHallazgo,
 } from '../api/dashboard';
 
@@ -48,8 +48,7 @@ const COL = {
 };
 
 type Rango = '30' | 'trim' | 'todo';
-const RANGO_LABEL: Record<Rango, string> = { '30': 'Últimos 30 días', trim: 'Último trimestre', todo: 'Todo el período' };
-const RANGO_N: Record<Rango, number> = { '30': 2, trim: 3, todo: Infinity };
+const RANGO_DIAS: Record<Rango, number> = { '30': 30, trim: 90, todo: Infinity };
 
 // ── Sub-componentes de gráficos ──────────────────────────────────────────────
 
@@ -114,38 +113,74 @@ function BarsCumpl({ rows }: { rows: { name: string; pct: number }[] }) {
 
 function BarsAgente({ rows }: { rows: { name: string; value: number }[] }) {
   if (rows.length === 0) return <div className="dash-empty">Sin hallazgos registrados.</div>;
-  const max = Math.max(...rows.map((r) => r.value), 1);
+  // La barra se llena con la proporción que aporta cada agente sobre el total de hallazgos.
+  const total = rows.reduce((s, r) => s + r.value, 0) || 1;
   return (
     <div className="dash-bars">
-      {rows.map((b, i) => (
-        <div key={i} className="dash-bar-row ag">
-          <span className="dash-bar-name" title={b.name}>{b.name}</span>
-          <span className="dash-bar-track"><span className="dash-bar-fill acc" style={{ width: `${Math.round((b.value / max) * 100)}%` }} /></span>
-          <span className="dash-bar-val">{b.value}</span>
-        </div>
-      ))}
+      {rows.map((b, i) => {
+        const pct = Math.round((b.value / total) * 100);
+        return (
+          <div key={i} className="dash-bar-row ag">
+            <span className="dash-bar-name" title={b.name}>{b.name}</span>
+            <span className="dash-bar-track"><span className="dash-bar-fill acc" style={{ width: `${pct}%` }} /></span>
+            <span className="dash-bar-val" title={`${pct}% del total`}>{b.value}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function AreaEvolucion({ pts }: { pts: SerieMes[] }) {
+function AreaEvolucion({ pts }: { pts: SerieEvolucion[] }) {
   if (pts.length === 0) return <div className="dash-empty">Todavía no hay hallazgos para graficar.</div>;
-  const W = 640, H = 150, pad = 10;
-  const max = Math.max(...pts.map((p) => p.valor), 1);
-  const step = pts.length > 1 ? (W - pad * 2) / (pts.length - 1) : 0;
-  const xy = pts.map((p, i) => [pad + i * step, H - pad - (p.valor / max) * (H - pad * 2)] as const);
-  const line = xy.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
-  const area = `${line} L ${xy[xy.length - 1][0].toFixed(1)} ${H - pad} L ${xy[0][0].toFixed(1)} ${H - pad} Z`;
+  // viewBox en escala ~px reales: la tipografía SVG queda al mismo tamaño que el resto de la pantalla.
+  const W = 1480, H = 300, padL = 40, padR = 24, padT = 28, padB = 48;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const n = pts.length;
+  const top = Math.max(...pts.map((p) => p.valor), 1) + 1; // +1 de aire para que el pico no quede pegado al borde
+  const X = (i: number) => (n > 1 ? padL + i * (innerW / (n - 1)) : padL + innerW / 2);
+  const Y = (v: number) => padT + (1 - v / top) * innerH;
+  const baseY = padT + innerH;
+
+  const vp = pts.map((p, i) => ({ ...p, vx: X(i), vy: Y(p.valor) }));
+  const line = vp.map((p, k) => `${k ? 'L' : 'M'}${p.vx.toFixed(1)} ${p.vy.toFixed(1)}`).join(' ');
+  const area = `${line} L ${vp[n - 1].vx.toFixed(1)} ${baseY.toFixed(1)} L ${vp[0].vx.toFixed(1)} ${baseY.toFixed(1)} Z`;
+  // Eje Y entero: una marca por valor cuando hay pocos hallazgos, 0/mitad/máximo cuando hay muchos.
+  const guias = top <= 5 ? Array.from({ length: top + 1 }, (_, i) => i) : [0, Math.round(top / 2), top];
+
   return (
     <div>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block' }}>
-        {pts.length > 1 && <path d={area} fill="rgba(75,45,171,0.15)" />}
-        {pts.length > 1 && <path d={line} fill="none" stroke={COL.primary} strokeWidth="2.5" />}
-        {xy.map((p, i) => (
-          <circle key={i} cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r="3.5" fill={COL.surface} stroke={COL.primary} strokeWidth="2" />
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="dash-evo-svg">
+        <defs>
+          <linearGradient id="dashEvoGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={COL.primary} stopOpacity="0.20" />
+            <stop offset="100%" stopColor={COL.primary} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        {/* Guías horizontales + eje Y (el valor de cada punto se lee acá, a la izquierda) */}
+        {guias.map((g) => (
+          <g key={g}>
+            <line x1={padL} y1={Y(g)} x2={W - padR} y2={Y(g)} stroke={COL.track} strokeWidth="1" />
+            <text x={padL - 10} y={Y(g) + 4} className="dash-evo-axis" textAnchor="end" fill={COL.muted}>{g}</text>
+          </g>
+        ))}
+
+        {n > 1 && <path d={area} fill="url(#dashEvoGrad)" />}
+        {n > 1 && <path d={line} className="dash-evo-line" fill="none" stroke={COL.primary} />}
+
+        {vp.map((p) => (
+          <g key={p.fecha}>
+            <circle cx={p.vx} cy={p.vy} r="6" fill={COL.surface} stroke={COL.primary} strokeWidth="2.5" />
+            <text x={p.vx} y={baseY + 26} className="dash-evo-x" textAnchor="middle" fill={COL.muted}>{p.etiqueta}</text>
+          </g>
         ))}
       </svg>
-      <div className="dash-area-x">{pts.map((p, i) => <span key={i}>{p.etiqueta}</span>)}</div>
+      <div className="dash-evo-foot">
+        {n === 1
+          ? 'Hay un solo día con hallazgos. La curva se va a poblar a medida que registres auditorías en distintos días.'
+          : 'Cada punto es un día con auditorías; la altura indica cuántos hallazgos se registraron ese día.'}
+      </div>
     </div>
   );
 }
@@ -196,8 +231,10 @@ export default function Dashboard() {
 
   const evolucionVisible = useMemo(() => {
     if (!data) return [];
-    const n = RANGO_N[rango];
-    return n === Infinity ? data.evolucion : data.evolucion.slice(Math.max(0, data.evolucion.length - n));
+    const dias = RANGO_DIAS[rango];
+    if (dias === Infinity) return data.evolucion;
+    const limite = Date.now() - dias * 24 * 60 * 60 * 1000;
+    return data.evolucion.filter((p) => Date.parse(p.fecha) >= limite);
   }, [data, rango]);
 
   const irAInforme = (p: ProyectoCumpl) =>
@@ -248,7 +285,7 @@ export default function Dashboard() {
         const sem = nc > 0 ? 'rojo' : (ht.obs + ht.om) > 0 ? 'amarillo' : 'verde';
         const estado = nc > 0 ? 'Requiere atención' : (ht.obs + ht.om) > 0 ? 'Con observaciones' : 'Conforme';
         const totalHz = ht.nc + ht.obs + ht.om;
-        const DR = 56, DC = 2 * Math.PI * DR;
+        const DR = 45, DC = 2 * Math.PI * DR;
         const segConf = cg.revisados > 0 ? (cg.conformes / cg.revisados) * DC : 0;
 
         return (
@@ -331,7 +368,6 @@ export default function Dashboard() {
                 </span></span>
               </h2>
               <AreaEvolucion pts={evolucionVisible} />
-              <div className="dash-bar-note"><span style={{ color: 'var(--text-muted)' }}>{RANGO_LABEL[rango]}</span></div>
             </div>
 
             {/* POR AGENTE + POR PROCEDIMIENTO */}

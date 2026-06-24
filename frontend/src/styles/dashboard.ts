@@ -161,14 +161,18 @@ export const dashboardCss = `
 .dash-bar-row.ag{grid-template-columns:170px 1fr 30px;}
 .dash-bar-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .dash-bar-track{height:11px;border-radius:999px;background:var(--surface-3);overflow:hidden;}
-.dash-bar-fill{height:100%;border-radius:999px;transition:width .7s ease;}
+.dash-bar-fill{display:block;height:100%;border-radius:999px;transition:width .7s ease;}
 .dash-bar-fill.ok{background:var(--ok-fg);}.dash-bar-fill.warn{background:var(--warn-fg);}.dash-bar-fill.err{background:var(--err-fg);}.dash-bar-fill.acc{background:var(--primary);}
 .dash-bar-val{font-size:12px;font-weight:700;text-align:right;}
 .dash-bar-note{font-size:11px;color:var(--text-muted);margin-top:1rem;display:flex;gap:14px;flex-wrap:wrap;}
 .dash-bar-note span{display:inline-flex;align-items:center;gap:6px;}.dash-bar-note i{width:9px;height:9px;border-radius:3px;}
 
-/* Evolución (área) */
-.dash-area-x{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-muted);}
+/* Evolución (curva) */
+.dash-evo-svg{display:block;overflow:visible;}
+.dash-evo-line{stroke-width:2.5;}
+.dash-evo-axis{font-size:13px;}
+.dash-evo-x{font-size:13px;font-weight:600;}
+.dash-evo-foot{font-size:12px;color:var(--text-muted);margin-top:.6rem;line-height:1.45;}
 
 /* Atención */
 .dash-att-row{display:grid;grid-template-columns:1fr auto auto 18px;align-items:center;gap:12px;padding:11px 4px;border-bottom:.5px solid var(--border-soft);cursor:pointer;}
