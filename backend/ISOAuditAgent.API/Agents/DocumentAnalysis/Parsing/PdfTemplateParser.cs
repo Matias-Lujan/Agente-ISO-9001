@@ -1,25 +1,25 @@
 // ============================================================================
-//  PdfTemplateParser — Parser de PDF con PdfPig (D3.3)
+//  PdfTemplateParser ï¿½ Parser de PDF con PdfPig (D3.3)
 // ----------------------------------------------------------------------------
-//  Estrategia heurística: detectar headings por TAMAÑO DE FUENTE. Los PDFs
-//  no tienen estructura semántica como DOCX — son cajas de texto sobre una
-//  página. Un heurístico simple:
+//  Estrategia heurï¿½stica: detectar headings por TAMAï¿½O DE FUENTE. Los PDFs
+//  no tienen estructura semï¿½ntica como DOCX ï¿½ son cajas de texto sobre una
+//  pï¿½gina. Un heurï¿½stico simple:
 //
-//    1. Calcular la fontSize "típica" del documento (media o mediana).
-//    2. Una línea es candidata a heading si su fontSize > media * factor
+//    1. Calcular la fontSize "tï¿½pica" del documento (media o mediana).
+//    2. Una lï¿½nea es candidata a heading si su fontSize > media * factor
 //       Y tiene poco texto (1-2 palabras o frase corta).
-//    3. Las líneas que siguen al heading hasta el próximo heading o fin de
+//    3. Las lï¿½neas que siguen al heading hasta el prï¿½ximo heading o fin de
 //       documento aportan al TieneContenido.
 //
 //  LIMITACIONES CONOCIDAS:
-//   - PDFs con tipografía uniforme (todo mismo tamaño) van a devolver una
-//     sola sección "(Contenido inicial)".
-//   - PDFs generados desde scans (sin texto) van a devolver lista vacía.
+//   - PDFs con tipografï¿½a uniforme (todo mismo tamaï¿½o) van a devolver una
+//     sola secciï¿½n "(Contenido inicial)".
+//   - PDFs generados desde scans (sin texto) van a devolver lista vacï¿½a.
 //   - PDFs con tablas grandes pueden tener falsos positivos.
 //
 //  ACEPTABLE PARA MVP: el sistema audita estructura, no contenido. Si un
 //  PDF no expone secciones claras, el ConsistencyVerification simplemente
-//  no detectará secciones vacías ahí — no rompe nada.
+//  no detectarï¿½ secciones vacï¿½as ahï¿½ ï¿½ no rompe nada.
 // ============================================================================
 
 using ISOAuditAgent.API.Agents.Contracts;
@@ -32,15 +32,15 @@ namespace ISOAuditAgent.API.Agents.DocumentAnalysis.Parsing;
 public sealed class PdfTemplateParser : ITemplateParser
 {
     /// <summary>
-    /// Factor sobre la mediana de fontSize para considerar una línea heading.
-    /// 1.15 = 15% más grande. Conservador para no marcar texto ligeramente
-    /// más grande (negritas inline) como heading.
+    /// Factor sobre la mediana de fontSize para considerar una lï¿½nea heading.
+    /// 1.15 = 15% mï¿½s grande. Conservador para no marcar texto ligeramente
+    /// mï¿½s grande (negritas inline) como heading.
     /// </summary>
     private const double FactorHeading = 1.15;
 
     /// <summary>
-    /// Máxima cantidad de palabras para considerar una línea heading.
-    /// Headings típicos son cortos ("1. Introducción", "Conclusiones").
+    /// Mï¿½xima cantidad de palabras para considerar una lï¿½nea heading.
+    /// Headings tï¿½picos son cortos ("1. Introducciï¿½n", "Conclusiones").
     /// </summary>
     private const int MaxPalabrasHeading = 12;
 
@@ -50,14 +50,14 @@ public sealed class PdfTemplateParser : ITemplateParser
         if (bytes.Length == 0)
         {
             throw new InvalidOperationException(
-                "PdfTemplateParser: el archivo está vacío (0 bytes).");
+                "PdfTemplateParser: el archivo estï¿½ vacï¿½o (0 bytes).");
         }
 
         try
         {
             using var pdf = PdfDocument.Open(bytes);
 
-            // 1. Recolectar todas las líneas con su fontSize promedio.
+            // 1. Recolectar todas las lï¿½neas con su fontSize promedio.
             var lineas = new List<(string Texto, double FontSize)>();
             foreach (var page in pdf.GetPages())
             {
@@ -75,7 +75,7 @@ public sealed class PdfTemplateParser : ITemplateParser
             var mediana = MedianaFontSize(lineas);
             var umbralHeading = mediana * FactorHeading;
 
-            // 3. Recorrer las líneas marcando headings y acumulando contenido.
+            // 3. Recorrer las lï¿½neas marcando headings y acumulando contenido.
             return ExtraerSeccionesDeLineas(lineas, umbralHeading);
         }
         catch (InvalidOperationException)
@@ -90,13 +90,41 @@ public sealed class PdfTemplateParser : ITemplateParser
     }
 
     /// <summary>
-    /// Agrupa las letras de una página en "líneas" aproximadas usando la
-    /// coordenada Y de baseline. Devuelve para cada línea el texto y el
+    /// Devuelve el texto de cada pÃ¡gina como bloque. PDFs sin texto extraÃ­ble
+    /// (ej. una imagen escaneada) devuelven lista vacÃ­a.
+    /// </summary>
+    public IReadOnlyList<string> ExtraerBloquesVigencia(byte[] bytes)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        if (bytes.Length == 0) return Array.Empty<string>();
+
+        try
+        {
+            using var pdf = PdfDocument.Open(bytes);
+
+            var bloques = new List<string>();
+            foreach (var page in pdf.GetPages())
+            {
+                if (!string.IsNullOrWhiteSpace(page.Text))
+                    bloques.Add(page.Text);
+            }
+
+            return bloques;
+        }
+        catch
+        {
+            return Array.Empty<string>();
+        }
+    }
+
+    /// <summary>
+    /// Agrupa las letras de una pï¿½gina en "lï¿½neas" aproximadas usando la
+    /// coordenada Y de baseline. Devuelve para cada lï¿½nea el texto y el
     /// fontSize promedio.
     /// </summary>
     private static IEnumerable<(string Texto, double FontSize)> AgruparLineasDePagina(Page page)
     {
-        // Tolerancia vertical para considerar dos letras en la misma línea.
+        // Tolerancia vertical para considerar dos letras en la misma lï¿½nea.
         const double tolerancia = 2.0;
 
         var letras = page.Letters

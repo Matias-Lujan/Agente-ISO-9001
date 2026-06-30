@@ -1,40 +1,4 @@
-﻿// ============================================================================
-//  OrchestratorServiceCollectionExtensions — Wiring completo del workflow (D5)
-// ----------------------------------------------------------------------------
-//  Una sola extensión: AddAuditoriaOrchestrator. Registra cuatro capas:
-//
-//   A. Persistencia
-//      IAuditoriaPersistenceService → AuditoriaPersistenceService (Scoped).
-//
-//   B. Nodos del workflow (6 en total, Scoped):
-//        - ResolutorContextoNode        (determinista)
-//        - DocumentAnalysisNode         (LLM + I/O async)
-//        - ComplianceValidationNode     (LLM)
-//        - ConsistencyVerificationNode  (LLM)
-//        - FindingsClassificationNode   (LLM)
-//        - ConsolidadorResultadoNode    (determinista)
-//      Los 4 LLM resuelven su AIAgent vía GetRequiredKeyedService<AIAgent>(key).
-//      El wiring keyed vive acá (no en el constructor del nodo) para no atar
-//      los nodos a la abstracción keyed-services de Microsoft.DI.
-//
-//   C. Cola + Runner
-//      IAuditoriaQueue → AuditoriaQueue (Singleton, Channel ilimitado).
-//      AuditoriaRunner (Singleton, sin estado; crea scope por auditoría).
-//
-//   D. Worker
-//      AuditoriaWorkerService (BackgroundService, Singleton implícito).
-//
-//  LIFETIMES:
-//   - Nodos Scoped porque el runner crea un scope por auditoría y resuelve
-//     cada nodo desde ese scope. Si fueran Singleton no podrían depender de
-//     servicios Scoped (repos, persistencia, tailoring).
-//   - Queue + Runner Singleton porque el worker (Singleton via AddHostedService)
-//     los toma por constructor. Ambos son sin estado por-auditoría.
-//
-//  ALCANCE D5: este registro deja la cadena DI completa. Endpoints REST reales
-//  (POST /api/auditorias) y E2E son D6 / D7.
-// ============================================================================
-
+﻿
 using ISOAuditAgent.API.Agents.DocumentAnalysis;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Clockify;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Trello;

@@ -265,6 +265,33 @@ namespace ISOAuditAgent.API.Migrations
                     b.ToTable("etapas", (string)null);
                 });
 
+            modelBuilder.Entity("ISOAuditAgent.API.Models.FormularioCalidad", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CodigoFormulario")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Nombre")
+                        .HasColumnType("longtext");
+
+                    b.Property<DateOnly>("VigenciaVigente")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodigoFormulario")
+                        .IsUnique();
+
+                    b.ToTable("formularios_calidad", (string)null);
+                });
+
             modelBuilder.Entity("ISOAuditAgent.API.Models.Hallazgo", b =>
                 {
                     b.Property<int>("Id")

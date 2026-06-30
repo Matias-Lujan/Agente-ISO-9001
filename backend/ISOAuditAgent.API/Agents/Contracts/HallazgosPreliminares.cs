@@ -1,25 +1,25 @@
 
 // ============================================================================
-//  Contrato 4 — Salida de ComplianceValidation y ConsistencyVerification
+//  Contrato 4 ï¿½ Salida de ComplianceValidation y ConsistencyVerification
 //  (contratos_agentes.md v2.2)
 // ----------------------------------------------------------------------------
 //  Lo producen ComplianceValidation y ConsistencyVerification, cada uno por
 //  separado. Cada instancia del DTO corresponde a un solo agente; el
-//  AgenteOrigen va en la raíz, no por hallazgo.
+//  AgenteOrigen va en la raï¿½z, no por hallazgo.
 //
 //  Lo consume FindingsClassification, que recibe los dos lotes por separado
 //  (fan-in barrier de MAF) y los distingue por su AgenteOrigen.
 //
-//  Invariantes (contratos_agentes.md, contrato 4) — las respetan los agentes
+//  Invariantes (contratos_agentes.md, contrato 4) ï¿½ las respetan los agentes
 //  al construir el DTO, no se codifican en el record:
 //   - ArtefactoEsperadoId debe corresponder a un artefacto presente en el
 //     DocumentosExtraidos recibido por el validador.
 //   - Los hallazgos solo se generan sobre artefactos exigibles.
-//   - Descripcion y Justificacion son requeridos (no null, no vacío).
-//   - Lista Hallazgos vacía es válida: validación sin hallazgos.
+//   - Descripcion y Justificacion son requeridos (no null, no vacï¿½o).
+//   - Lista Hallazgos vacï¿½a es vï¿½lida: validaciï¿½n sin hallazgos.
 //
 //  Enums:
-//   - OrigenRegla: propio del workflow, se define acá.
+//   - OrigenRegla: propio del workflow, se define acï¿½.
 //   - AgenteOrigen: enum compartido con las entidades EF, vive en
 //     ISOAuditAgent.API.Models.
 // ============================================================================
@@ -44,8 +44,8 @@ public sealed record HallazgosPreliminares(
 );
 
 /// <summary>
-/// Un problema detectado sobre un artefacto. Descripcion: qué se detectó.
-/// Justificacion: por qué es un problema y qué regla se incumple.
+/// Un problema detectado sobre un artefacto. Descripcion: quï¿½ se detectï¿½.
+/// Justificacion: por quï¿½ es un problema y quï¿½ regla se incumple.
 /// </summary>
 public sealed record HallazgoPreliminar(
     int ArtefactoEsperadoId,
@@ -55,16 +55,24 @@ public sealed record HallazgoPreliminar(
 );
 
 // ----------------------------------------------------------------------------
-//  Enum propio del workflow — definido una sola vez, acá
+//  Enum propio del workflow ï¿½ definido una sola vez, acï¿½
 // ----------------------------------------------------------------------------
 
 /// <summary>
-/// De dónde sale la regla incumplida. FindingsClassification lo usa para
-/// aplicar la regla "si no está escrito en el procedimiento -> como mucho OM".
+/// De dï¿½nde sale la regla incumplida. FindingsClassification lo usa para
+/// aplicar la regla "si no estï¿½ escrito en el procedimiento -> como mucho OM".
 /// </summary>
 public enum OrigenRegla
 {
     Procedimiento,
     Template,
-    Tailoring
+    Tailoring,
+
+    /// <summary>
+    /// DesvÃ­o de vigencia/versionado del formulario: la vigencia detectada en el
+    /// documento no coincide con la vigente en la referencia de Calidad. Techo de
+    /// clasificaciÃ³n OBS (lo fuerza ClasificacionResponseParser): usar un
+    /// formulario desactualizado es un desvÃ­o formal, no incumplimiento de fondo.
+    /// </summary>
+    Vigencia
 }

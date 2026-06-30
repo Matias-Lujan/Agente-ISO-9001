@@ -81,7 +81,28 @@ public sealed record ArtefactoExtraido(
     /// FindingsClassification como anclaje para juzgar la esencialidad de una
     /// sección vacía contra para qué sirve el documento. Nullable.
     /// </summary>
-    string? Descripcion
+    string? Descripcion,
+
+    /// <summary>
+    /// Vigencia detectada en el documento real (etiqueta "Vigencia" en
+    /// header/footer del FR). La extrae el parser en DocumentAnalysis. null si el
+    /// documento no se encontró, el formato no es parseable, o no se detectó la
+    /// etiqueta.
+    /// </summary>
+    DateOnly? VigenciaDetectada,
+
+    /// <summary>
+    /// Vigencia esperada del formulario según Calidad, propagada desde el
+    /// contrato 2. null si Calidad no tiene entrada para este FR.
+    /// </summary>
+    DateOnly? VigenciaEsperada,
+
+    /// <summary>
+    /// true si el documento encontrado pudo parsearse (formato soportado:
+    /// docx/xlsx/pdf). Distingue "parseable pero sin Vigencia detectada" (→ OBS)
+    /// de "formato no soportado" (→ solo log). false cuando no hay documento.
+    /// </summary>
+    bool DocumentoParseable
 );
 
 /// <summary>

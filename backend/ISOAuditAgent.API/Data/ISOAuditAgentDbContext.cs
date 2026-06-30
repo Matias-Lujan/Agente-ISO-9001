@@ -27,6 +27,7 @@ public class ISOAuditAgentDbContext : DbContext
     public DbSet<DocumentoAnalizado> DocumentosAnalizados => Set<DocumentoAnalizado>();
     public DbSet<Informe> Informes => Set<Informe>();
     public DbSet<ConfiguracionSistema> ConfiguracionesSistema => Set<ConfiguracionSistema>();
+    public DbSet<FormularioCalidad> FormulariosCalidad => Set<FormularioCalidad>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -107,6 +108,15 @@ public class ISOAuditAgentDbContext : DbContext
         modelBuilder.Entity<DocumentoAnalizado>().ToTable("documentos_analizados");
         modelBuilder.Entity<Informe>().ToTable("informes");
         modelBuilder.Entity<ConfiguracionSistema>().ToTable("configuraciones_sistema");
+
+        // Referencia del Departamento de Calidad: vigencia vigente por formulario.
+        modelBuilder.Entity<FormularioCalidad>().ToTable("formularios_calidad");
+        modelBuilder.Entity<FormularioCalidad>()
+            .Property(f => f.CodigoFormulario)
+            .HasMaxLength(20);
+        modelBuilder.Entity<FormularioCalidad>()
+            .HasIndex(f => f.CodigoFormulario)
+            .IsUnique();
 
         // ── Relaciones ────────────────────────────────────────────────────────
         modelBuilder.Entity<ProyectoUsuario>()

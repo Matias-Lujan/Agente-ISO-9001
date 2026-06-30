@@ -73,6 +73,74 @@ public sealed class XlsxTemplateParser : ITemplateParser
     }
 
     /// <summary>
+    /// En XLSX la vigencia del formulario suele estar en el HEADER/FOOTER de
+    /// impresión (no en celdas), o bien en alguna celda de la cabecera. Se
+    /// devuelven, por hoja: (1) el texto del header/footer de impresión y (2) el
+    /// texto de las celdas usadas (normalizando fechas a dd/MM/yyyy). El escaneo
+    /// del label "Vigencia" + fecha lo hace VigenciaScanner.
+    /// </summary>
+    public IReadOnlyList<string> ExtraerBloquesVigencia(byte[] bytes)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        if (bytes.Length == 0) return Array.Empty<string>();
+
+        var bloques = new List<string>();
+        try
+        {
+            using var ms = new MemoryStream(bytes, writable: false);
+            using var workbook = new XLWorkbook(ms);
+
+            foreach (var hoja in workbook.Worksheets)
+            {
+                // 1. Header/footer de impresión (Excel pone ahí código + vigencia).
+                try
+                {
+                    AgregarSiNoVacio(bloques, TextoHeaderFooter(hoja.PageSetup.Header));
+                    AgregarSiNoVacio(bloques, TextoHeaderFooter(hoja.PageSetup.Footer));
+                }
+                catch { /* PageSetup ausente o no soportado: se ignora */ }
+
+                // 2. Celdas usadas (todas, no solo la cabecera): la vigencia puede
+                //    estar en cualquier fila según el formulario.
+                var rango = hoja.RangeUsed();
+                if (rango is null) continue;
+
+                var sb = new System.Text.StringBuilder();
+                foreach (var celda in rango.CellsUsed())
+                {
+                    if (celda.DataType == XLDataType.DateTime
+                        && celda.TryGetValue<DateTime>(out var dt))
+                        sb.Append(dt.ToString("dd/MM/yyyy"));
+                    else
+                        sb.Append(celda.GetString());
+                    sb.Append(' ');
+                }
+                AgregarSiNoVacio(bloques, sb.ToString());
+            }
+        }
+        catch
+        {
+            // Robusto: devolvemos lo que se haya podido juntar.
+        }
+
+        return bloques;
+    }
+
+    private static string TextoHeaderFooter(IXLHeaderFooter? hf)
+    {
+        if (hf is null) return string.Empty;
+        return string.Join(" ",
+            hf.Left.GetText(XLHFOccurrence.AllPages),
+            hf.Center.GetText(XLHFOccurrence.AllPages),
+            hf.Right.GetText(XLHFOccurrence.AllPages));
+    }
+
+    private static void AgregarSiNoVacio(List<string> bloques, string texto)
+    {
+        if (!string.IsNullOrWhiteSpace(texto)) bloques.Add(texto);
+    }
+
+    /// <summary>
     /// Extrae SeccionDetectadas por columna de encabezado. Si no se detecta
     /// fila de encabezados, cae a sección-por-hoja (comportamiento anterior).
     /// </summary>

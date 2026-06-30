@@ -1,38 +1,4 @@
-﻿// ============================================================================
-//  Nodos del workflow de auditoría — 6 nodos (contratos_agentes.md v2.2)
-// ----------------------------------------------------------------------------
-//  Grafo:
-//
-//    [1] ResolutorContextoNode        Executor<IniciarAuditoriaWorkflowInput,
-//                                              ContextoAuditoria>      sin LLM
-//    [2] DocumentAnalysisNode         Executor<ContextoAuditoria,
-//                                              DocumentosExtraidos>    con LLM
-//    [3] ComplianceValidationNode     Executor<DocumentosExtraidos,
-//                                              HallazgosPreliminares>  con LLM
-//    [4] ConsistencyVerificationNode  Executor<DocumentosExtraidos,
-//                                              HallazgosPreliminares>  con LLM
-//    [5] FindingsClassificationNode   Executor (3 entradas cacheadas)  con LLM
-//    [6] ConsolidadorResultadoNode    Executor<ResultadoClasificacion
-//                                              ConContexto,
-//                                              AuditoriaResultado>     sin LLM
-//
-//  Aristas:
-//    [1] -> [2]                                  (AddEdge)
-//    [2] -> [3]  y  [2] -> [4]                   (AddFanOutEdge)
-//    [2] -> [5]                                  (AddEdge: DocumentosExtraidos)
-//    [3] -> [5]  y  [4] -> [5]                   (AddFanInBarrierEdge)
-//    [5] -> [6]                                  (AddEdge)
-//    salida desde [6]                            (WithOutputFrom)
-//
-//  Carril de DocumentosExtraidos: [2] -> [5] -> [6]. Un solo carril. No pasa
-//  por los validadores. El LLM de [5] no lo toca: lo conserva el executor C#.
-//
-//  PATRONES DE EXECUTOR (los dos válidos, cada uno para su caso):
-//   - Executor<TIn,TOut> + HandleAsync  -> nodo de UN input. Usan [1][2][3][4][6].
-//   - Executor + [MessageHandler]       -> nodo de VARIOS inputs. Usa [5].
-// ============================================================================
-
-using ISOAuditAgent.API.Agents.Contracts;
+﻿using ISOAuditAgent.API.Agents.Contracts;
 using ISOAuditAgent.API.Models;
 using ISOAuditAgent.API.Services;
 using Microsoft.Agents.AI;
@@ -73,34 +39,6 @@ public sealed class ResolutorContextoNode
 // ============================================================================
 //  [2] DocumentAnalysisNode — agente con LLM + I/O async pre y post LLM
 // ----------------------------------------------------------------------------
-//  EXCEPCIÓN LOCAL AL TEMPLATE METHOD DE AgenteExecutorBase.
-//
-//  Por qué overridea HandleAsync:
-//   - PRE-LLM: necesita descargar el FR-29 (tailoring) de Drive vía MCP
-//     (ITailoringSource.ObtenerAsync, async).
-//   - POST-LLM: por cada artefacto Aplica+Exigible debe descargar el archivo
-//     físico, calcular su hash y parsear secciones (IArtefactoFisicoChecker.
-//     VerificarAsync, async).
-//   Ninguna de las dos cosas encaja en ConstruirPrompt(string) ni en
-//   ParsearRespuesta(string) que son sync por diseño de la base. Y no usamos
-//   .Result ni .GetAwaiter().GetResult() — bloquearían el worker.
-//
-//   La asimetría con los otros 3 nodos LLM es real pero está acotada a este
-//   nodo. El resto sigue heredando el template method de AgenteExecutorBase
-//   sin override.
-//
-//  Dependencias adicionales por constructor:
-//    ITailoringSource         (Chat D §5.3: descarga + parseo del FR-29 XLSX).
-//    IArtefactoFisicoChecker  (Chat D §5.3: descarga + hash + secciones de
-//                              cada artefacto).
-//   Ambas son interfaces definidas en Agents/DocumentAnalysis/. Las
-//   implementaciones, su registro en DI y el cableado MCP los hace Chat D.
-//
-//  ConstruirPrompt / ParsearRespuesta no aplican acá. Lanzan
-//  NotSupportedException con mensaje explícito si alguien los llama por error
-//  (no debería pasar — la base ya no los invoca porque HandleAsync overridea
-//  el template completo).
-// ============================================================================
 public sealed class DocumentAnalysisNode
     : AgenteExecutorBase<ContextoAuditoria, DocumentosExtraidos>
 {
@@ -401,22 +339,7 @@ public sealed class DocumentAnalysisNode
             "respuesta del LLM vive en ParsearJsonLlm y se invoca desde HandleAsync.");
 }
 
-// ============================================================================
-//  [3] ComplianceValidationNode — agente con LLM + determinísticos pre-LLM.
-//
-//  ARQUITECTURA D2 — DETERMINÍSTICOS FUERA DEL LLM:
-//
-//  Los 3 desvíos determinísticos los genera HallazgosDeterministicos sobre el
-//  DTO de entrada, ANTES de invocar al LLM. No requieren razonamiento: son
-//  chequeos directos sobre el contrato 3.
-//
-//  Al LLM le queda una tarea acotada: detectar incoherencias evidentes entre
-//  URL declarada en tailoring y NombreArchivo encontrado, sobre artefactos
-//  Exigibles + Aplica + Encontrado, siempre que tenga URL y nombre de archivo
-//  para comparar.
-//
-//  ParsearRespuesta fusiona determinísticos primero y luego hallazgos del LLM.
-// ============================================================================
+
 public sealed class ComplianceValidationNode
     : AgenteExecutorBase<DocumentosExtraidos, HallazgosPreliminares>
 {
@@ -531,6 +454,11 @@ public sealed class ConsistencyVerificationNode
         var hallazgosEstructurales = HallazgosEstructurales.Generar(
             conTemplate, input.ProcedimientoCodigo, input.ProcedimientoNombre);
 
+        // Vigencia del formulario usado vs. la vigente en Calidad (determinístico,
+        // OrigenRegla.Vigencia → OBS). Filtra internamente: Exigible + Encontrado +
+        // parseable + con referencia cargada.
+        var hallazgosVigencia = HallazgosVigencia.Generar(input.Artefactos);
+
         // Replicar el filtrado del prompt: el LLM vio los artefactos Exigibles +
         // Encontrados con al menos una sección vacía (mismo criterio que el builder).
         var idsExpuestos = input.Artefactos
@@ -549,8 +477,10 @@ public sealed class ConsistencyVerificationNode
             hallazgosLlm = parsed.Hallazgos.ToList();
         }
 
-        var todos = new List<HallazgoPreliminar>(hallazgosEstructurales.Count + hallazgosLlm.Count);
+        var todos = new List<HallazgoPreliminar>(
+            hallazgosEstructurales.Count + hallazgosVigencia.Count + hallazgosLlm.Count);
         todos.AddRange(hallazgosEstructurales);
+        todos.AddRange(hallazgosVigencia);
         todos.AddRange(hallazgosLlm);
 
         // Dedup defensivo: misma clave que HallazgosPreliminaresParser.
@@ -567,31 +497,6 @@ public sealed class ConsistencyVerificationNode
 
 // ============================================================================
 //  [5] FindingsClassificationNode — agente con LLM, TRES entradas cacheadas
-// ----------------------------------------------------------------------------
-//  Recibe tres mensajes, por aristas distintas y en momentos distintos:
-//    - DocumentosExtraidos        edge directo desde DocumentAnalysis [2]
-//    - HallazgosPreliminares (de ComplianceValidation)    fan-in desde [3]
-//    - HallazgosPreliminares (de ConsistencyVerification) fan-in desde [4]
-//
-//  DISEÑO DE CACHEO — robusto ante la incógnita del barrier:
-//  No se asume que AddFanInBarrierEdge agrupe los dos HallazgosPreliminares en
-//  una lista. Se asume el caso conservador: el barrier entrega los mensajes
-//  DE A UNO. El handler de HallazgosPreliminares cachea cada lote por separado,
-//  distinguiéndolos por su AgenteOrigen. La clasificación se dispara recién
-//  cuando están los TRES elementos cacheados (los 2 lotes + DocumentosExtraidos).
-//  En runtime, los HallazgosPreliminares llegan como mensajes individuales.
-//  El nodo cachea cada lote por AgenteOrigen hasta tener ambos.
-//
-//  Distinguir los lotes por AgenteOrigen NO es "validar la estructura del
-//  grafo": es mecánica necesaria del cacheo. Sin distinguirlos no se puede
-//  saber si llegaron dos lotes distintos o el mismo dos veces.
-//
-//  Estado interno: SEGURO solo si se instancia un nodo nuevo por ejecución de
-//  workflow. NO registrar como Singleton. El worker arma el workflow fresco
-//  por auditoría -> garantizado.
-//
-//  El LLM clasifica los hallazgos. NO ve ni produce DocumentosExtraidos: lo
-//  conserva este executor C# y lo pega en ResultadoClasificacionConContexto.
 // ============================================================================
 
 // Declara que este executor emite ResultadoClasificacionConContexto.
@@ -819,9 +724,6 @@ public sealed partial class FindingsClassificationNode : Executor
 // ============================================================================
 //  [6] ConsolidadorResultadoNode — nodo determinista final, sin LLM
 // ----------------------------------------------------------------------------
-//  Executor<TIn,TOut> simple: una sola entrada. Sin cache, sin estado mutable.
-//  Ensambla el AuditoriaResultado. Lógica en ConsolidadorResultado.Ensamble.cs.
-// ============================================================================
 
 public sealed class ConsolidadorResultadoNode
     : Executor<ResultadoClasificacionConContexto, AuditoriaResultado>
