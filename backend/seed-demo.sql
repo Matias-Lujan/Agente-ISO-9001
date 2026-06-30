@@ -163,3 +163,27 @@ INSERT INTO configuraciones_sistema (Id, Clave, Valor, Descripcion) VALUES
 UPDATE artefactos_esperados SET FuenteVerificacion = 'Trello'   WHERE Id = 7;
 UPDATE artefactos_esperados SET FuenteVerificacion = 'Clockify'  WHERE Id = 8;
 UPDATE artefactos_esperados SET FuenteVerificacion = 'Trello'   WHERE Id = 9;
+
+-- ----------------------------------------------------------------------------
+-- 9. Referencia del Departamento de Calidad — vigencia vigente por formulario
+-- ----------------------------------------------------------------------------
+-- Fuente de la "vigencia esperada". El sistema compara la Vigencia detectada en
+-- el documento del proyecto contra la vigente acá registrada:
+--   - difieren (o el documento no declara vigencia) → hallazgo OBS (formulario
+--     desactualizado);
+--   - coinciden → Conforme;
+--   - el FR no figura acá → no se valida la vigencia (solo log/warning).
+--
+-- ILUSTRATIVA hasta que BDT comparta el registro real del Depto. de Calidad. Se
+-- cargan las vigencias reales conocidas de los formularios del 30.052: coinciden
+-- con los documentos del proyecto, así que por defecto dan Conforme (sin falsos
+-- positivos). Para ver el OBS en una demo, basta modificar una vigencia acá para
+-- que difiera de la del documento (el cliente pidió justamente poder "modificar
+-- datos para ver el comportamiento"). Agregar más FRs a medida que Calidad provea
+-- sus vigencias.
+-- Fechas escritas en dd-mm-yyyy (como aparecen en los formularios). STR_TO_DATE
+-- las convierte a la columna DATE (vigencia_vigente); el comparador interno usa
+-- DateOnly, no texto, así que el formato de acá es solo para legibilidad del seed.
+INSERT INTO formularios_calidad (Id, CodigoFormulario, Nombre, VigenciaVigente) VALUES
+  (1, 'FR 30', 'Especificaciones de Requerimiento de Software (ERS)', STR_TO_DATE('13-08-2020', '%d-%m-%Y')),
+  (2, 'FR 48', 'Sign-Off', STR_TO_DATE('01-07-2021', '%d-%m-%Y'));

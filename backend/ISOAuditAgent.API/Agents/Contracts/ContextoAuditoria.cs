@@ -94,7 +94,15 @@ public sealed record ArtefactoEsperadoContexto(
     /// sección vacía contra para qué sirve el documento. Nullable: no todos los
     /// artefactos tienen descripción cargada.
     /// </summary>
-    string? Descripcion
+    string? Descripcion,
+
+    /// <summary>
+    /// Vigencia vigente del formulario según la referencia de Calidad
+    /// (IReferenciaCalidad). La resuelve ResolutorContexto; DocumentAnalysis la
+    /// propaga. null si Calidad no tiene entrada para este formulario o si el
+    /// artefacto no es un FR formal (sin código).
+    /// </summary>
+    DateOnly? VigenciaEsperada
 );
 
 // ----------------------------------------------------------------------------

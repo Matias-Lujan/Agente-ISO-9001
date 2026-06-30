@@ -45,15 +45,21 @@ public sealed class ResolutorContextoService
     private readonly IProyectoRepository _proyectoRepo;
     private readonly IProcedimientoRepository _procedimientoRepo;
     private readonly IConfiguracionRepository _configuracionRepo;
+    private readonly IReferenciaCalidad _referencia;
+    private readonly ILogger<ResolutorContextoService> _logger;
 
     public ResolutorContextoService(
         IProyectoRepository proyectoRepo,
         IProcedimientoRepository procedimientoRepo,
-        IConfiguracionRepository configuracionRepo)
+        IConfiguracionRepository configuracionRepo,
+        IReferenciaCalidad referencia,
+        ILogger<ResolutorContextoService> logger)
     {
         _proyectoRepo = proyectoRepo;
         _procedimientoRepo = procedimientoRepo;
         _configuracionRepo = configuracionRepo;
+        _referencia = referencia;
+        _logger = logger;
     }
 
     /// <summary>
@@ -89,10 +95,13 @@ public sealed class ResolutorContextoService
         var artefactosEsperados = await _procedimientoRepo
             .ObtenerArtefactosEsperadosAsync(proyecto.ProcedimientoId, ct);
 
+        // --- 4.5. Referencia de Calidad: vigencias vigentes por formulario --
+        var vigencias = await _referencia.ObtenerAsync(ct);
+
         // --- 5. Precálculo, artefacto por artefacto -------------------------
         var artefactosContexto = artefactosEsperados
             .Select(ae => ConstruirArtefactoContexto(
-                ae, etapaAuditada, proyecto.TipoProyecto, pathCarpetaTemplates))
+                ae, etapaAuditada, proyecto.TipoProyecto, pathCarpetaTemplates, vigencias))
             .ToList();
 
         // --- 6. Ensamblar el ContextoAuditoria ------------------------------
@@ -114,22 +123,39 @@ public sealed class ResolutorContextoService
     //  Precálculo de un artefacto
     // ------------------------------------------------------------------------
 
-    private static ArtefactoEsperadoContexto ConstruirArtefactoContexto(
+    private ArtefactoEsperadoContexto ConstruirArtefactoContexto(
         ArtefactoEsperado ae,
         Etapa etapaAuditada,
         TipoProyecto tipoProyecto,
-        string pathCarpetaTemplates)
+        string pathCarpetaTemplates,
+        ReferenciaCalidadVigencias vigencias)
     {
+        var exigibilidad = ResolverExigibilidad(ae.Etapa, etapaAuditada);
+        var vigenciaEsperada = vigencias.VigenciaEsperada(ae.Codigo);
+
+        // Sin referencia para un FR exigible: log/warning, no se valida su vigencia
+        // (regla acordada: "sin referencia → solo log, no hallazgo").
+        if (exigibilidad == ExigibilidadArtefacto.Exigible
+            && !string.IsNullOrWhiteSpace(ae.Codigo)
+            && vigenciaEsperada is null)
+        {
+            _logger.LogWarning(
+                "Calidad no tiene vigencia cargada para el formulario '{Codigo}' " +
+                "({Nombre}); no se validará la vigencia de ese artefacto.",
+                ae.Codigo, ae.Nombre);
+        }
+
         return new ArtefactoEsperadoContexto(
             ArtefactoEsperadoId: ae.Id,
             CodigoArtefacto: ae.Codigo,
             NombreArtefacto: ae.Nombre,
             EtapaArtefactoId: ae.EtapaId,
-            Exigibilidad: ResolverExigibilidad(ae.Etapa, etapaAuditada),
+            Exigibilidad: exigibilidad,
             Obligatoriedad: ResolverObligatoriedad(ae, tipoProyecto),
             NombreTemplateArchivo: ae.PathTemplateRelativo,
             FuenteVerificacion: ae.FuenteVerificacion,
-            Descripcion: ae.Descripcion);
+            Descripcion: ae.Descripcion,
+            VigenciaEsperada: vigenciaEsperada);
     }
 
     /// <summary>

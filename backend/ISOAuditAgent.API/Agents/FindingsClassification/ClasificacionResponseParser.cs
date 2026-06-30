@@ -121,7 +121,9 @@ internal static class ClasificacionResponseParser
                     ArtefactoEsperadoId: hallazgoOriginal.ArtefactoEsperadoId,
                     Tipo: ResolverTipo(tipoStr, hallazgoOriginal.OrigenRegla),
                     Descripcion: hallazgoOriginal.Descripcion,
-                    Justificacion: hallazgoOriginal.OrigenRegla == OrigenRegla.Procedimiento
+                    // Procedimiento y Vigencia traen justificación determinística (C#):
+                    // se conserva verbatim, no la pisa el LLM.
+                    Justificacion: hallazgoOriginal.OrigenRegla is OrigenRegla.Procedimiento or OrigenRegla.Vigencia
                         ? hallazgoOriginal.Justificacion
                         : string.IsNullOrWhiteSpace(justificacionLlm)
                             ? hallazgoOriginal.Justificacion
@@ -163,6 +165,14 @@ internal static class ClasificacionResponseParser
             // Si el LLM devuelve algo no reconocido, default conservador a OBS.
             _ => TipoHallazgo.OBS
         };
+
+        // Vigencia/versionado del formulario: SIEMPRE OBS. Usar un formulario
+        // desactualizado es un desvío formal, no un incumplimiento de fondo; la
+        // severidad no se delega al LLM (determinística).
+        if (origenRegla == OrigenRegla.Vigencia)
+        {
+            return TipoHallazgo.OBS;
+        }
 
         // Regla de oro determinística: degradar NC a OM solo para OrigenRegla.Tailoring.
         // Procedimiento y Template pueden producir NC (ERS 4.2).

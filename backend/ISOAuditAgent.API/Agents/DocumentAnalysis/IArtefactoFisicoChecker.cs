@@ -117,4 +117,9 @@ public sealed record VerificacionFisica(
     IReadOnlyList<SeccionDetectada> Secciones,
     IReadOnlyList<SeccionDetectada> SeccionesTemplate,
     string? NombreTemplateArchivo,
-    bool ExportFallido = false);
+    bool ExportFallido = false,
+    // Vigencia detectada en el documento (etiqueta "Vigencia" en header/footer).
+    // null si no se detectó o el formato no es parseable. Solo aplica a Drive.
+    DateOnly? VigenciaDetectada = null,
+    // true si un parser soportado (docx/xlsx/pdf) corrió sobre el documento.
+    bool DocumentoParseable = false);

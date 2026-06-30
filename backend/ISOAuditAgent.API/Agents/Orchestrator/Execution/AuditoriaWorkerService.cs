@@ -1,26 +1,3 @@
-// ============================================================================
-//  AuditoriaWorkerService — Worker en background que procesa auditorías
-// ----------------------------------------------------------------------------
-//  IHostedService (BackgroundService) que corre durante toda la vida del
-//  proceso. Es una CÁSCARA FINA: su única responsabilidad es el loop
-//
-//      tomar un AuditoriaId de la cola  ->  delegar en el AuditoriaRunner
-//
-//  Toda la lógica de ejecución (scope, workflow, persistencia, manejo de
-//  errores) vive en AuditoriaRunner. Esta separación deja el runner testeable
-//  sin levantar el host.
-//
-//  Procesamiento secuencial: el worker procesa una auditoría por vez. Es
-//  suficiente para el MVP (las auditorías son acciones manuales de un auditor,
-//  no hay alto volumen) y evita problemas de concurrencia sobre Gemini free
-//  tier (rate limits) y sobre la BD. Si en el futuro se necesita paralelismo,
-//  se procesa el canal con varias tareas concurrentes — sin tocar el runner.
-//
-//  Relación con el ciclo de vida del host:
-//   - ExecuteAsync corre hasta que el host se apaga (stoppingToken se cancela).
-//   - Una auditoría en curso al momento del apagado: ver nota en el catch de
-//     OperationCanceledException.
-// ============================================================================
 
 namespace ISOAuditAgent.API.Agents.Orchestrator;
 

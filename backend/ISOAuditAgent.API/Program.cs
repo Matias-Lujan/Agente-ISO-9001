@@ -141,6 +141,10 @@ builder.Services.AddScoped<IDocumentoAnalizadoRepository, DocumentoAnalizadoRepo
 builder.Services.AddScoped<IAuditoriaProgresoRepository, AuditoriaProgresoRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
+// Referencia del Departamento de Calidad (vigencia vigente por formulario).
+// Aislada detrás de IReferenciaCalidad: hoy MySQL, reemplazable sin tocar el workflow.
+builder.Services.AddScoped<IReferenciaCalidad, ReferenciaCalidadMySql>();
+
 // Tracker de progreso (Singleton: crea su propio scope/DbContext por operación)
 builder.Services.AddSingleton<IAuditoriaProgresoTracker, AuditoriaProgresoTracker>();
 

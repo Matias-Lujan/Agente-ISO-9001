@@ -1,16 +1,16 @@
 // ============================================================================
-//  ITemplateParser — Contrato de los parsers de documentos (D3.3)
+//  ITemplateParser ï¿½ Contrato de los parsers de documentos (D3.3)
 // ----------------------------------------------------------------------------
 //  Devuelve la lista de secciones del documento. La forma del DTO de salida
-//  ya está fijada por el contrato 3 (SeccionDetectada: Titulo + TieneContenido).
+//  ya estï¿½ fijada por el contrato 3 (SeccionDetectada: Titulo + TieneContenido).
 //
-//  Sincrónico a propósito: OpenXml, ClosedXML y PdfPig son APIs sync que
+//  Sincrï¿½nico a propï¿½sito: OpenXml, ClosedXML y PdfPig son APIs sync que
 //  trabajan en memoria. Async ceremonial no aporta. Cuando D3.5 los invoque
-//  desde HandleAsync del nodo, ya está en contexto async.
+//  desde HandleAsync del nodo, ya estï¿½ en contexto async.
 //
 //  Sin dispatcher por MIME en D3.3: el caller elige el parser concreto. El
-//  switch por MIME aparecerá en D3.5 (ArtefactoFisicoChecker) o en el smoke
-//  /api/_smoke/parse-file — donde tenga más sentido funcional.
+//  switch por MIME aparecerï¿½ en D3.5 (ArtefactoFisicoChecker) o en el smoke
+//  /api/_smoke/parse-file ï¿½ donde tenga mï¿½s sentido funcional.
 // ============================================================================
 
 using ISOAuditAgent.API.Agents.Contracts;
@@ -24,7 +24,21 @@ public interface ITemplateParser
     /// </summary>
     /// <exception cref="ArgumentNullException">bytes es null.</exception>
     /// <exception cref="InvalidOperationException">
-    /// El documento está vacío o no es del formato esperado por este parser.
+    /// El documento estï¿½ vacï¿½o o no es del formato esperado por este parser.
     /// </exception>
     IReadOnlyList<SeccionDetectada> Parsear(byte[] bytes);
+
+    /// <summary>
+    /// Devuelve los bloques de texto donde puede estar la fecha de Vigencia,
+    /// segÃºn el formato: DOCX â†’ cada header, cada footer y el cuerpo; XLSX â†’ el
+    /// header/footer de impresiÃ³n de cada hoja y sus celdas; PDF â†’ cada pÃ¡gina.
+    ///
+    /// La DETECCIÃ“N del label "Vigencia" + fecha la hace <c>VigenciaScanner</c>
+    /// sobre estos bloques. Separar "extraer texto" (acÃ¡) de "detectar" (scanner)
+    /// permite, cuando no se encuentra la vigencia, loguear EXACTAMENTE quÃ© texto
+    /// se escaneÃ³ â€” y asÃ­ diagnosticar cualquier documento sin adivinar.
+    ///
+    /// NO lanza: ante cualquier error devuelve lo que haya podido juntar (o vacÃ­o).
+    /// </summary>
+    IReadOnlyList<string> ExtraerBloquesVigencia(byte[] bytes);
 }

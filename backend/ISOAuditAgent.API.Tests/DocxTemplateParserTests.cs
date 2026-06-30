@@ -184,6 +184,9 @@ public class DocxTemplateParserTests
                 $"{nombre}.docx", FuenteDocumento.Drive, new string('a', 64)),
             SeccionesDetectadas: seccionesDoc,
             SeccionesTemplate: seccionesTemplate,
-            Descripcion: null);
+            Descripcion: null,
+            VigenciaDetectada: null,
+            VigenciaEsperada: null,
+            DocumentoParseable: true);
     }
 }
