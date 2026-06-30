@@ -23,6 +23,7 @@ import {
   type Hallazgo,
   type TipoHallazgo,
   type ItemConforme,
+  type AlcanceRevision,
   TIPO_LABEL,
   cargarRevision,
 } from '../api/hallazgos';
@@ -58,16 +59,19 @@ export default function Hallazgos() {
 
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<FiltroTipo>('Todos');
+  const [scope, setScope] = useState<AlcanceRevision>('actual');
   const [pagina, setPagina] = useState(1);
 
   const [seleccionado, setSeleccionado] = useState<Hallazgo | null>(null);
   const [exportando, setExportando] = useState(false);
   const [conformesAbierto, setConformesAbierto] = useState(false);
 
-  // Carga inicial
+  // Carga (re-ejecuta al cambiar el alcance actual/histórico).
   useEffect(() => {
     let activo = true;
-    cargarRevision()
+    setCargando(true);
+    setError('');
+    cargarRevision(scope)
       .then((rev) => {
         if (!activo) return;
         setHallazgos(rev.hallazgos);
@@ -81,7 +85,7 @@ export default function Hallazgos() {
       })
       .finally(() => { if (activo) setCargando(false); });
     return () => { activo = false; };
-  }, []);
+  }, [scope]);
 
   // Conteos por tipo
   const stats = useMemo(() => ({
@@ -141,19 +145,37 @@ export default function Hallazgos() {
       <div className="hz-header">
         <div>
           <h1 className="hz-header-title">Hallazgos</h1>
-          <p className="hz-header-sub">Resultado de la última revisión del agente por proyecto</p>
+          <p className="hz-header-sub">
+            {scope === 'actual'
+              ? 'Última revisión de cada proyecto · estado actual'
+              : 'Todas las ejecuciones completadas · histórico'}
+          </p>
         </div>
-        <button
-          className="btn-pri"
-          onClick={handleExport}
-          disabled={exportando || cargando || hallazgos.length === 0}
-          type="button"
-        >
-          Exportar informe
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
-            <path d="M5 11l6-6M5 5h6v6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          </svg>
-        </button>
+        <div className="hz-header-actions">
+          <div className="hz-pills" role="group" aria-label="Alcance">
+            {([['actual', 'Actual'], ['historico', 'Histórico']] as [AlcanceRevision, string][]).map(([val, lbl]) => (
+              <button
+                key={val}
+                type="button"
+                className={`hz-pill ${scope === val ? 'active' : ''}`}
+                onClick={() => setScope(val)}
+              >
+                {lbl}
+              </button>
+            ))}
+          </div>
+          <button
+            className="btn-pri"
+            onClick={handleExport}
+            disabled={exportando || cargando || hallazgos.length === 0}
+            type="button"
+          >
+            Exportar informe
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M5 11l6-6M5 5h6v6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Error (distinto del vacío-OK) */}

@@ -12,6 +12,7 @@ export const hallazgosCss = `
 }
 .hz-header-title{font-size:22px;font-weight:600;color:var(--text);margin:0;}
 .hz-header-sub{font-size:13px;color:var(--text-muted);margin-top:4px;}
+.hz-header-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;}
 /* El botón "Exportar informe" usa .btn-pri (shared) para que sea idéntico a los
    de Nueva auditoría / Nuevo usuario en tamaño, posición y color. */
 

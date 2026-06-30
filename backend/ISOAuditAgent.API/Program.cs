@@ -126,6 +126,9 @@ builder.Services.AddScoped<ProcedimientoService>();
 builder.Services.AddScoped<IHallazgoRepository, HallazgoRepository>();
 builder.Services.AddScoped<HallazgoService>();
 
+// Analitica — única fuente de verdad del dashboard y la revisión de hallazgos
+builder.Services.AddScoped<AnalyticsService>();
+
 // Modulo 2.5 — Informes
 builder.Services.AddScoped<IInformeRepository, InformeRepository>();
 builder.Services.AddScoped<InformeService>();

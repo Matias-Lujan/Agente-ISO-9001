@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useInjectStyle } from '../utils/useInjectStyle';
 import { informesCss } from '../styles/informes';
-import { descargarInformePdf } from '../utils/exportInformePdf';
+import { descargarInformePdf, previsualizarInformePdf } from '../utils/exportInformePdf';
 import { useAuth } from '../login/AuthContext';
 import {
   listarInformes,
@@ -48,6 +48,11 @@ export default function Informes() {
   const [error, setError]       = useState('');
   const [filtro, setFiltro]     = useState<Filtro>('Todos');
   const [verInforme, setVerInforme] = useState<Informe | null>(null);
+
+  // Vista previa del PDF (blob embebido en iframe) + estado de descarga.
+  const [pdfUrl, setPdfUrl]         = useState<string | null>(null);
+  const [pdfError, setPdfError]     = useState(false);
+  const [descargando, setDescargando] = useState<number | null>(null);
 
   // Filtro por proyecto vía query param (?proyecto=Nombre), usado al venir
   // desde "Proyectos que requieren atención" en el Dashboard.
@@ -107,6 +112,33 @@ export default function Informes() {
     if (filtro !== 'Todos') res = res.filter((i) => i.tipo === filtro);
     return res;
   }, [informes, filtro, proyectoFiltro]);
+
+  // Al abrir el modal, generamos el PDF y lo embebemos como blob. Se revoca al
+  // cerrar/cambiar para no filtrar memoria.
+  useEffect(() => {
+    if (!verInforme) { setPdfUrl(null); setPdfError(false); return; }
+    let activo = true;
+    let url: string | null = null;
+    setPdfUrl(null); setPdfError(false);
+    previsualizarInformePdf(verInforme)
+      .then((u) => {
+        if (activo) { url = u; setPdfUrl(u); }
+        else URL.revokeObjectURL(u);
+      })
+      .catch(() => { if (activo) setPdfError(true); });
+    return () => { activo = false; if (url) URL.revokeObjectURL(url); };
+  }, [verInforme]);
+
+  const handleDescargar = async (inf: Informe) => {
+    setDescargando(inf.id);
+    try {
+      await descargarInformePdf(inf);
+    } catch {
+      alert('No se pudo generar el PDF del informe.');
+    } finally {
+      setDescargando((d) => (d === inf.id ? null : d));
+    }
+  };
 
   return (
     <>
@@ -173,11 +205,11 @@ export default function Informes() {
                         </svg>
                         Ver
                       </button>
-                      <button className="in-link" onClick={() => descargarInformePdf(inf)}>
+                      <button className="in-link" onClick={() => handleDescargar(inf)} disabled={descargando === inf.id}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                           <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
                         </svg>
-                        PDF
+                        {descargando === inf.id ? 'Generando…' : 'PDF'}
                       </button>
                     </div>
                   </td>
@@ -202,14 +234,20 @@ export default function Informes() {
               <button className="in-modal-close" onClick={() => setVerInforme(null)} aria-label="Cerrar">×</button>
             </div>
             <div className="in-modal-body">
-              <div className="in-contenido">{verInforme.contenido || '(sin contenido)'}</div>
+              {pdfError ? (
+                <div className="in-empty">No se pudo generar la vista previa del PDF.</div>
+              ) : pdfUrl ? (
+                <iframe className="in-pdf-frame" src={pdfUrl} title="Vista previa del informe" />
+              ) : (
+                <div className="in-empty">Generando vista previa…</div>
+              )}
             </div>
             <div className="in-modal-foot">
-              <button className="btn-pri" onClick={() => descargarInformePdf(verInforme)}>
+              <button className="btn-pri" onClick={() => handleDescargar(verInforme)} disabled={descargando === verInforme.id}>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="15" height="15">
                   <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
                 </svg>
-                Descargar PDF
+                {descargando === verInforme.id ? 'Generando…' : 'Descargar PDF'}
               </button>
             </div>
           </div>
