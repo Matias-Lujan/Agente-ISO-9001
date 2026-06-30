@@ -1,0 +1,13 @@
+{
+  "conHallazgo": [
+    {
+      "ArtefactoEsperadoId": 2,
+      "Descripcion": "El tailoring del proyecto no tiene responsable asignado.",
+      "Justificacion": "La portada del tailoring (FR 29) tiene el campo 'Responsable' vacío. Ese campo identifica quién definió el alcance del proyecto en el tailoring; dejarlo en blanco es un desvío de completitud del tailoring. Se reporta como observación.",
+      "OrigenRegla": "Responsable"
+    }
+  ],
+  "conResponsable": [],
+  "sinFr29": [],
+  "fr29NoAplica": []
+}
