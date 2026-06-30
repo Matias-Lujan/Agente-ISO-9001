@@ -1,0 +1,14 @@
+[
+  {
+    "ArtefactoEsperadoId": 1,
+    "Descripcion": "El formulario de FR 30 'ERS' no usa la versión vigente según Calidad.",
+    "Justificacion": "El documento de FR 30 'ERS' declara vigencia 13/08/2020, pero la versión vigente del formulario según el Departamento de Calidad es 15/01/2025. Usar una versión desactualizada del formulario es un desvío formal respecto del estándar vigente.",
+    "OrigenRegla": "Vigencia"
+  },
+  {
+    "ArtefactoEsperadoId": 3,
+    "Descripcion": "No se detectó la fecha de vigencia en el documento de FR 31 'Matriz de Riesgo'.",
+    "Justificacion": "El documento del artefacto FR 31 'Matriz de Riesgo' no declara una fecha de vigencia detectable, por lo que no puede verificarse que use la versión vigente del formulario según Calidad (vigente: 01/03/2022). Se reporta como observación para revisión manual del formulario usado.",
+    "OrigenRegla": "Vigencia"
+  }
+]
