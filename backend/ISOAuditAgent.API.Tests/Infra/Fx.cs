@@ -33,7 +33,10 @@ internal static class Fx
         DocumentoEncontrado? doc = null,
         IReadOnlyList<SeccionDetectada>? seccionesDetectadas = null,
         IReadOnlyList<SeccionDetectada>? seccionesTemplate = null,
-        string? descripcion = null) => new(
+        string? descripcion = null,
+        DateOnly? vigenciaDetectada = null,
+        DateOnly? vigenciaEsperada = null,
+        bool documentoParseable = false) => new(
             ArtefactoEsperadoId: id,
             CodigoArtefacto: codigo,
             NombreArtefacto: nombre,
@@ -48,7 +51,10 @@ internal static class Fx
             DocumentoEncontrado: doc,
             SeccionesDetectadas: seccionesDetectadas ?? [],
             SeccionesTemplate: seccionesTemplate ?? [],
-            Descripcion: descripcion);
+            Descripcion: descripcion,
+            VigenciaDetectada: vigenciaDetectada,
+            VigenciaEsperada: vigenciaEsperada,
+            DocumentoParseable: documentoParseable);
 
     public static DocumentoEncontrado Doc(
         string nombre,

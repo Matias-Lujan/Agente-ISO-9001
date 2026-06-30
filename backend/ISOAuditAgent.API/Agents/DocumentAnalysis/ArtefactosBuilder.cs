@@ -56,6 +56,8 @@ internal static class ArtefactosBuilder
             DocumentoEncontrado? doc;
             IReadOnlyList<SeccionDetectada> secciones;
             IReadOnlyList<SeccionDetectada> seccionesTemplate;
+            DateOnly? vigenciaDetectada = null;
+            bool documentoParseable = false;
 
             var debeBuscarFisicamente =
                 view.Exigibilidad == ExigibilidadArtefacto.Exigible
@@ -114,6 +116,8 @@ internal static class ArtefactosBuilder
                         ver.HashContenido ?? string.Empty);
                     secciones = ver.Secciones;
                     seccionesTemplate = ver.SeccionesTemplate;
+                    vigenciaDetectada = ver.VigenciaDetectada;
+                    documentoParseable = ver.DocumentoParseable;
                 }
                 else
                 {
@@ -139,7 +143,10 @@ internal static class ArtefactosBuilder
                 DocumentoEncontrado: doc,
                 SeccionesDetectadas: secciones,
                 SeccionesTemplate: seccionesTemplate,
-                Descripcion: view.Descripcion));
+                Descripcion: view.Descripcion,
+                VigenciaDetectada: vigenciaDetectada,
+                VigenciaEsperada: view.VigenciaEsperada,
+                DocumentoParseable: documentoParseable));
         }
 
         return resultado;

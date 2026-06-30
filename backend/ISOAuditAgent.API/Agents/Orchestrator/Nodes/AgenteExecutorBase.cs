@@ -1,31 +1,4 @@
-﻿// ============================================================================
-//  AgenteExecutorBase — Patrón común de los 4 nodos-agente del workflow
-// ----------------------------------------------------------------------------
-//  Los 4 agentes especializados (DocumentAnalysis, ComplianceValidation,
-//  ConsistencyVerification, FindingsClassification) NO van al grafo como
-//  AIAgent crudos.
-//
-//  Razón: cuando se agrega un AIAgent directo a un workflow, MAF lo envuelve
-//  en un host executor que normaliza el input a IList<ChatMessage>. Eso sirve
-//  para agentes-pasándose-texto, pero nuestros contratos son DTOs tipados
-//  fuertes (ContextoAuditoria, DocumentosExtraidos, etc.). Para que entre un
-//  DTO y salga un DTO, cada agente va envuelto en un Executor<TIn, TOut>
-//  custom: el AIAgent es un campo privado, un detalle de implementación.
-//
-//  El HandleAsync de cada nodo-agente sigue siempre los mismos 4 pasos:
-//    1. Recibe el DTO de entrada.
-//    2. Construye el prompt a partir del DTO (ConstruirPrompt).
-//    3. Llama al LLM vía el AIAgent.
-//    4. Parsea la respuesta del LLM al DTO de salida (ParsearRespuesta).
-//
-//  Esta clase base fija ese esqueleto (template method). Cada nodo concreto
-//  solo implementa ConstruirPrompt y ParsearRespuesta.
-//
-//  NOTA DE API (MAF): el AIAgent se invoca con RunAsync(prompt,
-//  cancellationToken). La respuesta se toma como texto y cada nodo concreto
-//  la parsea a su DTO de salida.
-// ============================================================================
-
+﻿
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 

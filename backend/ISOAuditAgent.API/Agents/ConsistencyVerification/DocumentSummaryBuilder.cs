@@ -59,10 +59,16 @@ internal static class DocumentSummaryBuilder
                 // Con template: mostrar el estado de cada sección del template en
                 // el documento. El LLM necesita ver qué secciones el procedimiento
                 // definió como parte del artefacto para razonar sobre su vacuidad.
+                // El documento puede repetir una sección que normaliza a la misma
+                // clave (ej. "Probabilidad" en una matriz de riesgos). ToDictionary
+                // explotaría con "clave duplicada"; agrupamos y nos quedamos con una
+                // ocurrencia LLENA si existe — basta una llena para considerar la
+                // sección presente y con contenido.
                 var docPorClave = a.SeccionesDetectadas
+                    .GroupBy(s => TailoringColumnMapper.NormalizeHeaderKey(s.Titulo))
                     .ToDictionary(
-                        s => TailoringColumnMapper.NormalizeHeaderKey(s.Titulo),
-                        s => s);
+                        g => g.Key,
+                        g => g.FirstOrDefault(s => s.TieneContenido) ?? g.First());
 
                 sb.AppendLine("Secciones del template (estado en el documento):");
                 foreach (var st in a.SeccionesTemplate)

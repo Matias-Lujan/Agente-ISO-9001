@@ -268,7 +268,7 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
             }
 
             var content = await _drive.GetFileContentAsync(match.Id, ct);
-            var secciones = ParsearSeccionesSeguro(content);
+            var secciones = ParsearSeccionesSeguro(content, CrearParser(content.MimeType));
 
             _logger.LogInformation(
                 "Template '{Nombre}' obtenido: {Count} secciones.",
@@ -292,7 +292,9 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
         string? nombreTemplateArchivo)
     {
         var hash = ContentHasher.Sha256Hex(content.Bytes);
-        var secciones = ParsearSeccionesSeguro(content);
+        var parser = CrearParser(content.MimeType);
+        var secciones = ParsearSeccionesSeguro(content, parser);
+        var (vigencia, parseable) = ExtraerVigenciaSegura(content, parser);
 
         return new VerificacionFisica(
             Encontrado: true,
@@ -301,7 +303,9 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
             HashContenido: hash,
             Secciones: secciones,
             SeccionesTemplate: seccionesTemplate,
-            NombreTemplateArchivo: nombreTemplateArchivo);
+            NombreTemplateArchivo: nombreTemplateArchivo,
+            VigenciaDetectada: vigencia,
+            DocumentoParseable: parseable);
     }
 
     /// <summary>
@@ -310,16 +314,20 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
     /// existe; las secciones son input para ConsistencyVerification que puede
     /// tolerar ausencia.
     /// </summary>
-    private IReadOnlyList<SeccionDetectada> ParsearSeccionesSeguro(DriveFileContent content)
+    /// <summary>
+    /// Crea el parser según el MIME, o null si el formato no es soportado.
+    /// </summary>
+    private static ITemplateParser? CrearParser(string mimeType) => mimeType switch
     {
-        ITemplateParser? parser = content.MimeType switch
-        {
-            MimeDocx => new DocxTemplateParser(),
-            MimeXlsx => new XlsxTemplateParser(),
-            MimePdf => new PdfTemplateParser(),
-            _ => null
-        };
+        MimeDocx => new DocxTemplateParser(),
+        MimeXlsx => new XlsxTemplateParser(),
+        MimePdf => new PdfTemplateParser(),
+        _ => null
+    };
 
+    private IReadOnlyList<SeccionDetectada> ParsearSeccionesSeguro(
+        DriveFileContent content, ITemplateParser? parser)
+    {
         if (parser is null)
         {
             _logger.LogDebug(
@@ -338,6 +346,55 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
                 "La verificación física sigue siendo Encontrado=true.",
                 content.MimeType, content.Name);
             return Array.Empty<SeccionDetectada>();
+        }
+    }
+
+    /// <summary>
+    /// Extrae la vigencia del documento y reporta si el formato es parseable.
+    /// - parser null (formato no soportado) → (null, false) + log/warning: no se
+    ///   valida vigencia (regla acordada: "formato no parseable → solo log").
+    /// - parser presente → (vigencia detectada o null, true). Que sea parseable y
+    ///   no tenga vigencia detectada lo resuelve aguas abajo como OBS.
+    /// </summary>
+    private (DateOnly? Vigencia, bool Parseable) ExtraerVigenciaSegura(
+        DriveFileContent content, ITemplateParser? parser)
+    {
+        if (parser is null)
+        {
+            _logger.LogWarning(
+                "Documento '{Archivo}': formato '{Mime}' no soportado; no se valida " +
+                "la vigencia del formulario.",
+                content.Name, content.MimeType);
+            return (null, false);
+        }
+
+        try
+        {
+            var bloques = parser.ExtraerBloquesVigencia(content.Bytes);
+            var vigencia = VigenciaScanner.Detectar(bloques);
+
+            if (vigencia is null)
+            {
+                // Diagnóstico: dejamos en el log el texto que efectivamente se
+                // escaneó, para poder ver SIN adivinar por qué no se detectó la
+                // vigencia en este documento (¿falta el label? ¿la fecha está en
+                // otro formato/lugar?). Recortado para no inundar el log.
+                var muestra = string.Join(" ⏐ ", bloques).ReplaceLineEndings(" ");
+                if (muestra.Length > 800) muestra = muestra[..800] + "…";
+                _logger.LogWarning(
+                    "No se detectó la vigencia en '{Archivo}' ({Mime}). " +
+                    "Texto escaneado (recortado): «{Texto}»",
+                    content.Name, content.MimeType, muestra);
+            }
+
+            return (vigencia, true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Error extrayendo vigencia de '{Archivo}' ({Mime}); continúo sin vigencia.",
+                content.Name, content.MimeType);
+            return (null, true); // formato soportado pero falló → parseable, sin vigencia
         }
     }
 

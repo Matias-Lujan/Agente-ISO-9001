@@ -1,32 +1,4 @@
-﻿// ============================================================================
-//  AuditoriaRunner — Ejecución de una auditoría de punta a punta
-// ----------------------------------------------------------------------------
-//  Recibe un AuditoriaId (de una auditoría ya creada en estado EnCurso por la
-//  API) y la ejecuta completa:
-//
-//    1. Crea un IServiceScope propio de esta auditoría.
-//    2. Resuelve los 6 nodos DENTRO del scope (instancias frescas).
-//    3. Consulta la Auditoria para armar el IniciarAuditoriaWorkflowInput.
-//    4. Arma el workflow con AuditoriaWorkflowFactory.
-//    5. Lo corre y consume el stream de eventos.
-//    6. Éxito  -> AuditoriaPersistenceService persiste y marca Completada.
-//       Error  -> marca Fallida.
-//
-//  Por qué un scope nuevo por auditoría:
-//   - FindingsClassificationNode cachea estado: necesita instancia fresca.
-//   - El DbContext de EF Core y los repositorios son Scoped.
-//   El worker corre fuera de un request HTTP, así que no hay un scope
-//   ambiente: hay que crearlo explícitamente con IServiceScopeFactory.
-//
-//  INVARIANTE DURO: ninguna auditoría queda colgada en EnCurso. Pase lo que
-//  pase —excepción en un nodo, WorkflowErrorEvent, fallo de persistencia— la
-//  auditoría termina en Completada o Fallida.
-//
-//  API MAF validada — InProcessExecution.RunStreamingAsync, WatchStreamAsync
-//  y los tipos de evento WorkflowOutputEvent / WorkflowErrorEvent funcionan
-//  con el paquete usado en runtime.
-// ============================================================================
-
+﻿
 using ISOAuditAgent.API.Agents.Contracts;
 using ISOAuditAgent.API.Repositories;
 using ISOAuditAgent.API.Services;

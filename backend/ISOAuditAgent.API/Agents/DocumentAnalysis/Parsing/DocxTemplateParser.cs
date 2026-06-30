@@ -99,6 +99,56 @@ public sealed class DocxTemplateParser : ITemplateParser
         }
     }
 
+    /// <summary>
+    /// La vigencia vive en el header (ej. FR 48) o el footer (ej. FR 30), junto al
+    /// código del formulario; algunos documentos la ponen en el cuerpo. Se devuelven
+    /// los tres orígenes como bloques (headers y footers primero, cuerpo al final).
+    /// </summary>
+    public IReadOnlyList<string> ExtraerBloquesVigencia(byte[] bytes)
+    {
+        ArgumentNullException.ThrowIfNull(bytes);
+        if (bytes.Length == 0) return Array.Empty<string>();
+
+        try
+        {
+            using var ms = new MemoryStream(bytes, writable: false);
+            using var doc = WordprocessingDocument.Open(ms, isEditable: false);
+
+            var main = doc.MainDocumentPart;
+            if (main is null) return Array.Empty<string>();
+
+            var bloques = new List<string>();
+            foreach (var h in main.HeaderParts) bloques.Add(TextoDeElemento(h.Header));
+            foreach (var f in main.FooterParts) bloques.Add(TextoDeElemento(f.Footer));
+            bloques.Add(TextoDeElemento(main.Document?.Body));
+            return bloques;
+        }
+        catch
+        {
+            // Robusto: la vigencia es accesoria; si el paquete falla devolvemos vacío.
+            return Array.Empty<string>();
+        }
+    }
+
+    private static string TextoDeElemento(DocumentFormat.OpenXml.OpenXmlElement? root)
+    {
+        if (root is null) return string.Empty;
+        var sb = new System.Text.StringBuilder();
+        // Concatenar los runs DENTRO de cada párrafo SIN separador: un run es un
+        // corte arbitrario de texto y Word parte un token (ej. una fecha) en varios
+        // runs al editarlo a mano. Meter un espacio entre runs rompería
+        // "01/07/2021" → "01/07/ 2021" y la regex no la reconocería. Los párrafos y
+        // celdas SÍ se separan con espacio, para no fusionar bloques distintos (ej.
+        // la etiqueta "Vigencia" y la fecha en celdas vecinas del header).
+        foreach (var parrafo in root.Descendants<Paragraph>())
+        {
+            foreach (var t in parrafo.Descendants<Text>())
+                sb.Append(t.Text);
+            sb.Append(' ');
+        }
+        return sb.ToString();
+    }
+
     private static IReadOnlyList<SeccionDetectada> ExtraerSecciones(Body body)
     {
         var resultado = new List<SeccionDetectada>();
