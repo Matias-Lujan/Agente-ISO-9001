@@ -110,6 +110,10 @@ builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
 // Servicios
 builder.Services.AddScoped<AuthService>();
 
+// System prompts de los agentes (versionados en BD). Lo consume el factory de
+// los AIAgent para leer el prompt activo en cada auditoría, y el ConfigController.
+builder.Services.AddScoped<IPromptStore, PromptStore>();
+
 // Modulo 2.2 — Proyectos
 builder.Services.AddScoped<IProyectoRepository, ProyectoRepository>();
 builder.Services.AddScoped<ProyectoService>();
@@ -142,6 +146,7 @@ builder.Services.AddScoped<IConfiguracionRepository, ConfiguracionRepository>();
 builder.Services.AddScoped<IArtefactoEvaluadoRepository, ArtefactoEvaluadoRepository>();
 builder.Services.AddScoped<IDocumentoAnalizadoRepository, DocumentoAnalizadoRepository>();
 builder.Services.AddScoped<IAuditoriaProgresoRepository, AuditoriaProgresoRepository>();
+builder.Services.AddScoped<IConsumoTokensRepository, ConsumoTokensRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Referencia del Departamento de Calidad (vigencia vigente por formulario).
@@ -150,6 +155,9 @@ builder.Services.AddScoped<IReferenciaCalidad, ReferenciaCalidadMySql>();
 
 // Tracker de progreso (Singleton: crea su propio scope/DbContext por operación)
 builder.Services.AddSingleton<IAuditoriaProgresoTracker, AuditoriaProgresoTracker>();
+
+// Log durable de errores de auditoría (Singleton, mismo patrón que el tracker)
+builder.Services.AddSingleton<IRegistroErrorAuditoriaWriter, RegistroErrorAuditoriaWriter>();
 
 // Server MCP de Google Drive + cliente (config "GoogleDrive" y "Mcp:Drive")
 builder.Services.AddGoogleDriveMcpServer(builder.Configuration);

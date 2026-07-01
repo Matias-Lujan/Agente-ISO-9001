@@ -203,6 +203,28 @@ public class AuditoriaService
             a.FechaInicioUtc,
             a.FechaFinalizacionUtc,
             // El estado ahora es un enum — lo convertimos a string para el DTO
-            a.Estado.ToString());
+            a.Estado.ToString(),
+            a.CategoriaError?.ToString(),
+            a.MensajeError);
+    }
+
+    /// <summary>
+    /// Devuelve el log de errores de una auditoría (más reciente primero) para
+    /// mostrarle al auditor qué falló y en qué nodo. Null si la auditoría no existe.
+    /// </summary>
+    public async Task<IReadOnlyList<RegistroErrorResponse>?> ObtenerErroresAsync(int id)
+    {
+        var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(id);
+        if (auditoria == null) return null;
+
+        var errores = await _auditoriaRepo.ObtenerErroresAsync(id, CancellationToken.None);
+        return errores
+            .Select(e => new RegistroErrorResponse(
+                e.Id,
+                e.Nodo?.ToString(),
+                e.Categoria.ToString(),
+                e.Mensaje,
+                e.FechaUtc))
+            .ToList();
     }
 }

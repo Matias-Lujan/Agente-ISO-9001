@@ -64,6 +64,12 @@ export interface ResetearPasswordRequest {
   passwordNueva: string;
 }
 
+// El usuario logueado cambia SU propia contraseña: exige la actual.
+export interface CambiarPasswordRequest {
+  passwordActual: string;
+  passwordNueva: string;
+}
+
 // ── Endpoints de auth ────────────────────────────────────────────────────────
 
 export function login(req: LoginRequest): Promise<LoginResponse> {
@@ -82,6 +88,11 @@ export function logout(): Promise<void> {
 // Guarda la preferencia de tema del usuario logueado (se persiste por usuario).
 export function guardarTema(tema: Tema): Promise<void> {
   return api.put<void>('/api/auth/me/tema', { tema });
+}
+
+// El usuario logueado cambia su propia contraseña (verifica la actual en el backend).
+export function cambiarPassword(req: CambiarPasswordRequest): Promise<void> {
+  return api.put<void>('/api/auth/me/password', req);
 }
 
 // ── Endpoints del ABM (solo Administrador) ───────────────────────────────────

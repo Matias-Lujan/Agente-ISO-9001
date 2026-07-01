@@ -1,3 +1,4 @@
+using ISOAuditAgent.API.Agents.DocumentAnalysis;
 using ISOAuditAgent.API.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -65,6 +66,45 @@ public static class DataSeeder
                 usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(PasswordDemo, workFactor: 11);
                 logger.LogWarning("Hash reparado para el usuario demo: {Email}", email);
             }
+        }
+
+        await db.SaveChangesAsync();
+
+        await SeedPromptsAsync(db, logger);
+    }
+
+    /// <summary>
+    /// Siembra la versión 1 (activa) del system prompt de cada agente desde el
+    /// default en código, si el agente todavía no tiene ninguna versión en BD.
+    /// Idempotente: no pisa ediciones ni historial existentes. Corre siempre (no
+    /// solo en dev) porque el pipeline de auditoría lee estos prompts de la BD.
+    /// </summary>
+    private static async Task SeedPromptsAsync(ISOAuditAgentDbContext db, ILogger logger)
+    {
+        var keysExistentes = await db.PromptsAgente
+            .Select(p => p.AgenteKey)
+            .Distinct()
+            .ToListAsync();
+
+        var faltantes = SystemPrompts.Defaults.Keys
+            .Where(k => !keysExistentes.Contains(k))
+            .ToList();
+
+        if (faltantes.Count == 0) return;
+
+        foreach (var key in faltantes)
+        {
+            db.PromptsAgente.Add(new PromptAgente
+            {
+                AgenteKey              = key,
+                Version                = 1,
+                Contenido              = SystemPrompts.Defaults[key],
+                EsActiva               = true,
+                ModificadoPorUsuarioId = null, // seed del sistema
+                FechaCreacion          = DateTime.UtcNow,
+                Comentario             = "Versión inicial (default del sistema)",
+            });
+            logger.LogInformation("System prompt sembrado para el agente: {Agente}", key);
         }
 
         await db.SaveChangesAsync();

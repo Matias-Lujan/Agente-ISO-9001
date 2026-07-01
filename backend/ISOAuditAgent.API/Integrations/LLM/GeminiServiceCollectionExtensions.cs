@@ -1,13 +1,13 @@
 // ============================================================================
-//  GeminiServiceCollectionExtensions — Wiring de Gemini en DI (D4)
+//  GeminiServiceCollectionExtensions ï¿½ Wiring de Gemini en DI (D4)
 // ----------------------------------------------------------------------------
-//  Una extensión: AddGeminiAndAgents.
+//  Una extensiï¿½n: AddGeminiAndAgents.
 //
 //  Registra:
 //   - GeminiOptions bindeado a "Gemini".
-//   - IChatClient Singleton: la conexión real con Gemini. El nodo NO ve
+//   - IChatClient Singleton: la conexiï¿½n real con Gemini. El nodo NO ve
 //     "GeminiChatClient"; solo IChatClient. Cambiar provider = cambiar este
-//     método, sin tocar nodos.
+//     mï¿½todo, sin tocar nodos.
 //   - 4 AIAgent como keyed Singletons (uno por nodo LLM). Cada uno con su
 //     SystemPrompts.<NodoName> como instructions.
 //
@@ -15,7 +15,7 @@
 //   - NO registra los nodos del workflow. Eso es D5.
 //   - NO arma el workflow. Eso es D5.
 //   - Solo deja IChatClient y 4 AIAgent disponibles en DI para que los
-//     smokes /api/_smoke/llm y /api/_smoke/agent validen la conexión real
+//     smokes /api/_smoke/llm y /api/_smoke/agent validen la conexiï¿½n real
 //     contra Gemini.
 //
 //  KEYS DE LOS AIAGENT:
@@ -29,6 +29,10 @@ using Microsoft.Extensions.AI;
 using Mscc.GenerativeAI.Microsoft;
 
 using Microsoft.Extensions.Options;
+
+using ISOAuditAgent.API.Agents.DocumentAnalysis;
+using ISOAuditAgent.API.Agents.Orchestrator;
+using ISOAuditAgent.API.Services;
 
 namespace ISOAuditAgent.API.Integrations.LLM;
 
@@ -44,11 +48,11 @@ public static class GeminiServiceCollectionExtensions
         services.Configure<GeminiOptions>(
             configuration.GetSection(GeminiOptions.SectionName));
 
-        // 2. IChatClient Singleton — la conexión real con Gemini.
+        // 2. IChatClient Singleton ï¿½ la conexiï¿½n real con Gemini.
         //
         // Mscc.GenerativeAI.Microsoft 3.1.0 expone GeminiChatClient con un
         // constructor que toma apiKey + model. .AsIChatClient(modelId)
-        // devuelve la implementación IChatClient compatible con MAF.
+        // devuelve la implementaciï¿½n IChatClient compatible con MAF.
         //
         // Singleton: la doc de Microsoft.Extensions.AI requiere que IChatClient
         // sea seguro para uso concurrente. Si en runtime aparece un problema
@@ -60,52 +64,50 @@ public static class GeminiServiceCollectionExtensions
             if (string.IsNullOrWhiteSpace(opts.ApiKey))
             {
                 throw new InvalidOperationException(
-                    "Gemini:ApiKey no está configurada. Setear con: " +
+                    "Gemini:ApiKey no estï¿½ configurada. Setear con: " +
                     "dotnet user-secrets set \"Gemini:ApiKey\" \"<tu-api-key>\"");
             }
 
-            // Construcción del cliente Gemini real, expuesto como IChatClient.
-            // Si la firma del paquete cambia en una versión menor, este es el
-            // único punto a tocar
+            // Construcciï¿½n del cliente Gemini real, expuesto como IChatClient.
+            // Si la firma del paquete cambia en una versiï¿½n menor, este es el
+            // ï¿½nico punto a tocar
             return new GeminiChatClient(apiKey: opts.ApiKey, model: opts.ModelId);
         });
+
+        // 2.b Colector de consumo de tokens â€” Scoped: uno por auditorÃ­a. Lo
+        // comparten los 4 AIAgent de ese scope (vÃ­a ChatClientConMetricas) y lo
+        // drena el AuditoriaRunner al terminar para persistir el consumo.
+        services.AddScoped<ColectorConsumoTokens>();
 
         // 3. 4 AIAgent keyed, uno por nodo LLM.
         //
         // Cada AIAgent comparte el mismo IChatClient pero tiene instructions
-        // distintas (su SystemPrompt). MAF maneja la conversación con esas
-        // instructions como contexto del sistema en cada call.
-        services.AddKeyedSingleton<AIAgent>("DocumentAnalysis", (sp, _) =>
+        // distintas (su system prompt). El prompt ya NO se hornea acÃ¡: se lee del
+        // IPromptStore (versiÃ³n activa en BD, con fallback al default en cÃ³digo).
+        //
+        // Por eso son Scoped, no Singleton: cada auditorÃ­a corre en su propio
+        // scope (AuditoriaRunner.CreateScope) y resuelve estos agentes ahÃ­, asÃ­
+        // toma el prompt guardado mÃ¡s reciente sin reiniciar el backend. Los
+        // Ãºnicos consumidores son los nodos (tambiÃ©n Scoped): no hay captura de
+        // dependencia scoped por un singleton.
+        foreach (var agenteKey in SystemPrompts.Defaults.Keys)
         {
-            var chat = sp.GetRequiredService<IChatClient>();
-            return new ChatClientAgent(
-                chat,
-                instructions: ISOAuditAgent.API.Agents.DocumentAnalysis.SystemPrompts.AnalizadorDocumental);
-        });
+            var key = agenteKey; // captura por iteraciÃ³n
+            services.AddKeyedScoped<AIAgent>(key, (sp, _) =>
+            {
+                var chat = sp.GetRequiredService<IChatClient>();
+                var prompts = sp.GetRequiredService<IPromptStore>();
 
-        services.AddKeyedSingleton<AIAgent>("ComplianceValidation", (sp, _) =>
-        {
-            var chat = sp.GetRequiredService<IChatClient>();
-            return new ChatClientAgent(
-                chat,
-                instructions: "Sos el agente ComplianceValidation. Validás tailoring/procedimiento contra ejecución real.");
-        });
+                // Decorar el chat client para medir el consumo de tokens de este
+                // agente. El wrapper conoce su key -> atribuciÃ³n por agente sin
+                // contexto ambiental. El modelo sale de la config de Gemini.
+                var modelo = sp.GetRequiredService<IOptions<GeminiOptions>>().Value.ModelId;
+                var colector = sp.GetRequiredService<ColectorConsumoTokens>();
+                var chatMedido = new ChatClientConMetricas(chat, key, modelo, colector);
 
-        services.AddKeyedSingleton<AIAgent>("ConsistencyVerification", (sp, _) =>
-        {
-            var chat = sp.GetRequiredService<IChatClient>();
-            return new ChatClientAgent(
-                chat,
-                instructions: "Sos el agente ConsistencyVerification. Validás consistencia formal y estructural entre artefactos.");
-        });
-
-        services.AddKeyedSingleton<AIAgent>("FindingsClassification", (sp, _) =>
-        {
-            var chat = sp.GetRequiredService<IChatClient>();
-            return new ChatClientAgent(
-                chat,
-                instructions: "Sos el agente FindingsClassification. Clasificás hallazgos en NC, OBS u OM.");
-        });
+                return new ChatClientAgent(chatMedido, instructions: prompts.ObtenerActivo(key));
+            });
+        }
 
         return services;
     }

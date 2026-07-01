@@ -24,6 +24,18 @@ export interface AuditoriaResumen {
   estado: EstadoAuditoria;
   fechaInicioUtc: string;
   fechaFinalizacionUtc: string | null;
+  // Resumen del fallo cuando estado === 'Fallida' (null en otros casos).
+  categoriaError: string | null;
+  mensajeError: string | null;
+}
+
+// Una entrada del log durable de errores de una auditoría.
+export interface RegistroError {
+  id: number;
+  nodo: NodoWorkflow | null;
+  categoria: string;
+  mensaje: string;
+  fechaUtc: string;
 }
 
 export interface CrearAuditoriaResponse {
@@ -67,6 +79,9 @@ export interface AuditoriaDeProyecto {
   fechaInicioUtc: string;
   fechaFinalizacionUtc: string | null;
   estado: EstadoAuditoria;
+  // Resumen del fallo cuando estado === 'Fallida' (null en otros casos).
+  categoriaError: string | null;
+  mensajeError: string | null;
 }
 
 export function listarAuditoriasDeProyecto(
@@ -125,4 +140,10 @@ export function obtenerResultado(id: number): Promise<AuditoriaResultado> {
 
 export function obtenerProgreso(id: number): Promise<ProgresoNodo[]> {
   return api.get<ProgresoNodo[]>(`/api/auditorias/${id}/progreso`);
+}
+
+// Log de errores de una auditoría (motivo del fallo y en qué nodo). Más
+// reciente primero. Lista vacía si la auditoría no tuvo errores.
+export function obtenerErrores(id: number): Promise<RegistroError[]> {
+  return api.get<RegistroError[]>(`/api/auditorias/${id}/errores`);
 }

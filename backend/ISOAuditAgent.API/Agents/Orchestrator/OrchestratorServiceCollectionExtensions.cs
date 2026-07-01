@@ -30,20 +30,26 @@ public static class OrchestratorServiceCollectionExtensions
             sp.GetRequiredService<TrelloChecker>(),
             sp.GetRequiredService<ClockifyChecker>(),
             sp.GetRequiredService<IAuditoriaProgresoTracker>(),
+            sp.GetRequiredService<IRegistroErrorAuditoriaWriter>(),
             sp.GetRequiredService<ILogger<DocumentAnalysisNode>>()));
 
-        // LLM puro: solo el AIAgent keyed + el tracker de progreso.
+        // LLM puro: AIAgent keyed + tracker de progreso + writer de errores.
         services.AddScoped<ComplianceValidationNode>(sp => new ComplianceValidationNode(
             sp.GetRequiredKeyedService<AIAgent>("ComplianceValidation"),
-            sp.GetRequiredService<IAuditoriaProgresoTracker>()));
+            sp.GetRequiredService<IAuditoriaProgresoTracker>(),
+            sp.GetRequiredService<IRegistroErrorAuditoriaWriter>(),
+            sp.GetRequiredService<ILogger<ComplianceValidationNode>>()));
 
         services.AddScoped<ConsistencyVerificationNode>(sp => new ConsistencyVerificationNode(
             sp.GetRequiredKeyedService<AIAgent>("ConsistencyVerification"),
-            sp.GetRequiredService<IAuditoriaProgresoTracker>()));
+            sp.GetRequiredService<IAuditoriaProgresoTracker>(),
+            sp.GetRequiredService<IRegistroErrorAuditoriaWriter>(),
+            sp.GetRequiredService<ILogger<ConsistencyVerificationNode>>()));
 
         services.AddScoped<FindingsClassificationNode>(sp => new FindingsClassificationNode(
             sp.GetRequiredKeyedService<AIAgent>("FindingsClassification"),
             sp.GetRequiredService<IAuditoriaProgresoTracker>(),
+            sp.GetRequiredService<IRegistroErrorAuditoriaWriter>(),
             sp.GetRequiredService<ILogger<FindingsClassificationNode>>()));
 
         // Determinista, sin dependencias.

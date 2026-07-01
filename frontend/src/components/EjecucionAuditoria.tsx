@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   obtenerAuditoria,
+  obtenerErrores,
   obtenerProgreso,
   obtenerResultado,
   type AuditoriaResultado,
@@ -9,6 +10,7 @@ import {
   type EstadoNodo,
   type NodoWorkflow,
   type ProgresoNodo,
+  type RegistroError,
 } from '../api/auditorias';
 
 interface Props {
@@ -39,6 +41,13 @@ const AGENTES: { nodo: NodoWorkflow; icono: string; label: string }[] = [
   { nodo: 'FindingsClassification', icono: '🏷️', label: 'Clasificación de hallazgos' },
 ];
 
+// Etiqueta humana de un nodo. Los errores fuera de nodo (resolución de contexto,
+// persistencia) llegan con nodo === null y se muestran como "Preparación".
+function labelNodo(nodo: NodoWorkflow | null): string {
+  if (nodo === null) return 'Preparación de la auditoría';
+  return AGENTES.find((a) => a.nodo === nodo)?.label ?? nodo;
+}
+
 const POLL_INTERVAL_MS = 2000;
 
 export default function EjecucionAuditoria({ auditoriaId }: Props) {
@@ -46,6 +55,10 @@ export default function EjecucionAuditoria({ auditoriaId }: Props) {
   const [estadoAuditoria, setEstadoAuditoria] = useState<EstadoAuditoria>('EnCurso');
   const [progreso, setProgreso] = useState<ProgresoNodo[]>([]);
   const [errorPolling, setErrorPolling] = useState<string | null>(null);
+
+  // Detalle del fallo (cuando la auditoría termina en Fallida).
+  const [mensajeError, setMensajeError] = useState<string | null>(null);
+  const [errores, setErrores] = useState<RegistroError[]>([]);
 
   // Para poder viajar al detalle del proyecto y mostrar el resumen al terminar.
   const [proyectoId, setProyectoId] = useState<number | null>(null);
@@ -71,6 +84,7 @@ export default function EjecucionAuditoria({ auditoriaId }: Props) {
           setProgreso(prog);
           setEstadoAuditoria(audi.estado);
           setProyectoId(audi.proyectoId);
+          setMensajeError(audi.mensajeError);
           setErrorPolling(null);
 
           // Corte: si la auditoría llegó a estado terminal, salimos del loop.
@@ -97,6 +111,16 @@ export default function EjecucionAuditoria({ auditoriaId }: Props) {
       cancelado.current = true;
     };
   }, [auditoriaId]);
+
+  // Al fallar, traemos el log de errores para mostrar qué falló y en qué nodo.
+  useEffect(() => {
+    if (estadoAuditoria !== 'Fallida') return;
+    let activo = true;
+    obtenerErrores(auditoriaId)
+      .then((e) => { if (activo) setErrores(e); })
+      .catch(() => { /* el detalle es opcional; igual mostramos el mensaje resumen */ });
+    return () => { activo = false; };
+  }, [estadoAuditoria, auditoriaId]);
 
   // Al completarse, traemos el resultado para mostrar un resumen.
   useEffect(() => {
@@ -185,9 +209,24 @@ export default function EjecucionAuditoria({ auditoriaId }: Props) {
           </span>
           <div>
             <div className="ea-result-title">La auditoría falló</div>
-            <div className="ea-result-sub">Ocurrió un error durante la ejecución. Revisá la configuración del proyecto e intentá de nuevo.</div>
+            <div className="ea-result-sub">
+              {mensajeError ??
+                'Ocurrió un error durante la ejecución. Revisá la configuración del proyecto e intentá de nuevo.'}
+            </div>
           </div>
         </div>
+
+        {errores.length > 0 && (
+          <ul className="ea-error-list">
+            {errores.map((e) => (
+              <li key={e.id} className="ea-error-item">
+                <span className="ea-error-nodo">{labelNodo(e.nodo)}</span>
+                <span className="ea-error-msg">{e.mensaje}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <div className="ea-actions">
           {proyectoId != null && (
             <button type="button" className="btn-sec" onClick={() => navigate(`/proyectos/${proyectoId}`)}>
