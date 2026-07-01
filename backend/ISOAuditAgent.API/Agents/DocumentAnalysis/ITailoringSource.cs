@@ -50,6 +50,8 @@ public interface ITailoringSource
     /// </exception>
     ValueTask<TailoringExtraido> ObtenerAsync(
         string driveFolderId,
+        string? tailoringCodigo,
+        string tailoringNombre,
         CancellationToken ct);
 }
 

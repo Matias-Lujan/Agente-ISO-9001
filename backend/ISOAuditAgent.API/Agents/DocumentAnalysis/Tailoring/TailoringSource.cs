@@ -20,8 +20,10 @@ public sealed class TailoringSource : ITailoringSource
     }
 
     public async ValueTask<TailoringExtraido> ObtenerAsync(
-        string driveFolderId, CancellationToken ct)
+        string driveFolderId, string? tailoringCodigo, string tailoringNombre, CancellationToken ct)
     {
-        return await _reader.LeerAsync(driveFolderId, ct).ConfigureAwait(false);
+        return await _reader
+            .LeerAsync(driveFolderId, tailoringCodigo, tailoringNombre, ct)
+            .ConfigureAwait(false);
     }
 }

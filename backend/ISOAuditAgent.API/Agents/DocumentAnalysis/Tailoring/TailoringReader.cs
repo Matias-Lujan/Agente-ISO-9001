@@ -11,7 +11,6 @@
 
 using ClosedXML.Excel;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Drive;
-using System.Text.RegularExpressions;
 
 namespace ISOAuditAgent.API.Agents.DocumentAnalysis.Tailoring;
 
@@ -22,11 +21,6 @@ public sealed class TailoringReader
 
     private const string GoogleSheetsMime =
         "application/vnd.google-apps.spreadsheet";
-
-    private static readonly Regex Fr29EnNombre = new(
-        @"FR[\s._-]*29",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-        TimeSpan.FromMilliseconds(200));
 
     private const int MaxFilasParaBuscarHeader = 15;
 
@@ -42,7 +36,7 @@ public sealed class TailoringReader
     }
 
     public async Task<TailoringExtraido> LeerAsync(
-        string driveFolderId, CancellationToken ct)
+        string driveFolderId, string? tailoringCodigo, string tailoringNombre, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(driveFolderId);
 
@@ -51,8 +45,8 @@ public sealed class TailoringReader
             .ConfigureAwait(false);
 
         var candidatos = listing.Files
-            .Where(EsCandidatoFr29)
-            .OrderByDescending(f => ScoreFr29(f.Name))
+            .Where(f => EsCandidato(f, tailoringCodigo, tailoringNombre))
+            .OrderByDescending(f => TailoringFileMatcher.Score(f.Name, tailoringCodigo, tailoringNombre))
             .ThenBy(f => f.Name.Length)
             .ToList();
 
@@ -101,7 +95,7 @@ public sealed class TailoringReader
         return tailoring;
     }
 
-    private static bool EsCandidatoFr29(DriveFile f)
+    private static bool EsCandidato(DriveFile f, string? tailoringCodigo, string tailoringNombre)
     {
         bool esXlsx = string.Equals(f.MimeType, XlsxMime, StringComparison.OrdinalIgnoreCase);
         bool esGoogleSheets = string.Equals(f.MimeType, GoogleSheetsMime, StringComparison.OrdinalIgnoreCase);
@@ -109,18 +103,15 @@ public sealed class TailoringReader
         if (!esXlsx && !esGoogleSheets)
             return false;
 
-        return ScoreFr29(f.Name) > 0;
-    }
+        // Si el tailoring tiene código formal, se EXIGE en el nombre del archivo:
+        // uno sin ese código no es el tailoring aunque el nombre coincida (mismo
+        // criterio que ArtefactoFisicoChecker con los demás FR). El nombre queda
+        // como desempate en el score, no como pase de entrada. Sin código formal,
+        // se cae al match por nombre.
+        if (!string.IsNullOrWhiteSpace(tailoringCodigo))
+            return TailoringFileMatcher.CoincideCodigo(f.Name, tailoringCodigo);
 
-    private static int ScoreFr29(string nombre)
-    {
-        var n = nombre?.Trim() ?? string.Empty;
-        var score = 0;
-
-        if (Fr29EnNombre.IsMatch(n)) score += 10;
-        if (n.Contains("tailoring", StringComparison.OrdinalIgnoreCase)) score += 5;
-
-        return score;
+        return TailoringFileMatcher.Score(f.Name, tailoringCodigo, tailoringNombre) > 0;
     }
 
     private static TailoringExtraido ParsearWorkbook(byte[] bytes, string nombreArchivo)

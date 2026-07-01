@@ -103,7 +103,15 @@ public sealed record ArtefactoEsperadoContexto(
     /// propaga. null si Calidad no tiene entrada para este formulario o si el
     /// artefacto no es un FR formal (sin código).
     /// </summary>
-    DateOnly? VigenciaEsperada
+    DateOnly? VigenciaEsperada,
+
+    /// <summary>
+    /// True si este artefacto ES el tailoring del procedimiento (FR 29 en
+    /// PR 11-13). Viene del marco (ArtefactoEsperado.EsTailoring). DocumentAnalysis
+    /// lo usa para localizar el archivo de tailoring por su codigo/nombre, sin
+    /// hardcodear "FR 29". Default false para el resto de los artefactos.
+    /// </summary>
+    bool EsTailoring = false
 );
 
 // ----------------------------------------------------------------------------

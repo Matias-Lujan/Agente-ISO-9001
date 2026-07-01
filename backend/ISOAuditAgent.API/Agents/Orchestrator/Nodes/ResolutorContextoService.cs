@@ -156,7 +156,8 @@ public sealed class ResolutorContextoService
             NombreTemplateArchivo: ae.PathTemplateRelativo,
             FuenteVerificacion: ae.FuenteVerificacion,
             Descripcion: ae.Descripcion,
-            VigenciaEsperada: vigenciaEsperada);
+            VigenciaEsperada: vigenciaEsperada,
+            EsTailoring: ae.EsTailoring);
     }
 
     /// <summary>

@@ -60,7 +60,7 @@ public sealed class GoogleDriveClient : IDisposable
         };
 
     private static readonly string FileFields =
-        "id, name, mimeType, webViewLink, size";
+        "id, name, mimeType, webViewLink, size, trashed";
 
     private static readonly string ListFields =
         $"nextPageToken, files({FileFields})";
@@ -281,6 +281,15 @@ public sealed class GoogleDriveClient : IDisposable
         metadataRequest.Fields = FileFields;
         metadataRequest.SupportsAllDrives = true;
         var metadata = await metadataRequest.ExecuteAsync(ct).ConfigureAwait(false);
+
+        // No usamos archivos en la papelera como evidencia: aunque el listado del
+        // folder ya los excluye, una URL del tailoring puede apuntar a una copia que
+        // fue mandada a la papelera. Tirar acá hace que el checker (PASO 1) caiga a
+        // buscar el archivo real por código, en vez de auditar un archivo borrado.
+        if (metadata.Trashed == true)
+            throw new InvalidOperationException(
+                $"El archivo '{metadata.Name}' ({fileId}) está en la papelera de Drive; " +
+                "no se usa como evidencia.");
 
         var mimeType = metadata.MimeType ?? string.Empty;
 

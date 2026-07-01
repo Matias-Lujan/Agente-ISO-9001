@@ -165,6 +165,14 @@ UPDATE artefactos_esperados SET FuenteVerificacion = 'Clockify'  WHERE Id = 8;
 UPDATE artefactos_esperados SET FuenteVerificacion = 'Trello'   WHERE Id = 9;
 
 -- ----------------------------------------------------------------------------
+-- 8.b Artefacto de tailoring (FR 29)
+-- ----------------------------------------------------------------------------
+-- Marca cuál artefacto ES el tailoring del procedimiento. TailoringReader lo usa
+-- para ubicar el archivo en Drive por su código/nombre, en vez de un "FR 29"
+-- hardcodeado. Debe haber exactamente uno por procedimiento.
+UPDATE artefactos_esperados SET EsTailoring = TRUE WHERE Id = 2;
+
+-- ----------------------------------------------------------------------------
 -- 9. Referencia del Departamento de Calidad — vigencia vigente por formulario
 -- ----------------------------------------------------------------------------
 -- Fuente de la "vigencia esperada". El sistema compara la Vigencia detectada en

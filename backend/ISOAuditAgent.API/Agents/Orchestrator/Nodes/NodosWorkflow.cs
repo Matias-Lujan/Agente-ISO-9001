@@ -107,8 +107,20 @@ public sealed class DocumentAnalysisNode
                 "para descargar el FR-29.");
         }
 
+        // El artefacto de tailoring viene marcado en el marco (EsTailoring), no
+        // hardcodeado. De ahí sacamos el código/nombre con que TailoringReader lo
+        // ubica en el Drive del proyecto.
+        var artefactoTailoring = message.ArtefactosEsperados.FirstOrDefault(a => a.EsTailoring)
+            ?? throw new InvalidOperationException(
+                $"Proyecto {message.ProyectoId}: ningún ArtefactoEsperado está marcado " +
+                "como EsTailoring. Revisá el seed (artefactos_esperados.EsTailoring).");
+
         var tailoring = await _tailoringSource
-            .ObtenerAsync(driveFolderId, ct)
+            .ObtenerAsync(
+                driveFolderId,
+                artefactoTailoring.CodigoArtefacto,
+                artefactoTailoring.NombreArtefacto,
+                ct)
             .ConfigureAwait(false);
 
         // 2. Armar el prompt (sync, sin I/O).
