@@ -122,4 +122,8 @@ public sealed record VerificacionFisica(
     // null si no se detectó o el formato no es parseable. Solo aplica a Drive.
     DateOnly? VigenciaDetectada = null,
     // true si un parser soportado (docx/xlsx/pdf) corrió sobre el documento.
-    bool DocumentoParseable = false);
+    bool DocumentoParseable = false,
+    // Código del formulario detectado en el encabezado (ej. "FR 48-01"). null si no se detectó.
+    string? CodigoDetectado = null,
+    // Proyecto detectado en el documento (campo "Proyecto:"/"Nombre del proyecto:"). null si no.
+    string? ProyectoDetectado = null);

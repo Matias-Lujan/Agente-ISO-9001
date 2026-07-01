@@ -19,7 +19,7 @@ public sealed class TailoringSource : ITailoringSource
         _reader = reader ?? throw new ArgumentNullException(nameof(reader));
     }
 
-    public async ValueTask<IReadOnlyList<FilaTailoring>> ObtenerAsync(
+    public async ValueTask<TailoringExtraido> ObtenerAsync(
         string driveFolderId, CancellationToken ct)
     {
         return await _reader.LeerAsync(driveFolderId, ct).ConfigureAwait(false);

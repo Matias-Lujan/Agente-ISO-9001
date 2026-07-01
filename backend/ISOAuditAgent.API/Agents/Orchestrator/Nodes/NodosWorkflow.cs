@@ -112,7 +112,7 @@ public sealed class DocumentAnalysisNode
             .ConfigureAwait(false);
 
         // 2. Armar el prompt (sync, sin I/O).
-        var prompt = ConstruirPromptInterno(message, tailoring);
+        var prompt = ConstruirPromptInterno(message, tailoring.Filas);
 
         // 3. Llamar al LLM con reintentos. La base no se usa porque HandleAsync
         //    overridea el template completo.
@@ -145,7 +145,9 @@ public sealed class DocumentAnalysisNode
             message.EtapaId,
             message.ProcedimientoCodigo,
             message.ProcedimientoNombre,
-            artefactos);
+            artefactos,
+            tailoring.ResponsableProyecto,
+            message.NombreProyecto);
 
         // 6. Defensa en profundidad: validar invariantes del contrato 3 antes
         //    de emitir el DTO al grafo.
@@ -379,6 +381,13 @@ public sealed class ComplianceValidationNode
         DocumentosExtraidos input, string textoLlm)
     {
         var hallazgos = HallazgosDeterministicos.Generar(input);
+
+        // Completitud del tailoring: responsable de la portada vacío → OBS (FR 29).
+        hallazgos.AddRange(HallazgosResponsable.Generar(input));
+
+        // Identidad del documento: código FR interno ≠ esperado, o proyecto interno
+        // ≠ auditado → NC (evidencia equivocada).
+        hallazgos.AddRange(HallazgosIdentidad.Generar(input));
 
         var idsExpuestos = input.Artefactos
             .Where(CompliancePromptBuilder.EsCandidatoLlm)

@@ -12,13 +12,34 @@ namespace ISOAuditAgent.API.Tests.Infra;
 // ============================================================================
 internal static class Fx
 {
-    public static DocumentosExtraidos Docs(params ArtefactoExtraido[] artefactos) => new(
-        AuditoriaId: 100,
-        ProyectoId: 200,
-        EtapaId: 300,
-        ProcedimientoCodigo: "PR 11-13",
-        ProcedimientoNombre: "Desarrollo de Software",
-        Artefactos: artefactos);
+    public static DocumentosExtraidos Docs(params ArtefactoExtraido[] artefactos) =>
+        DocsResp("Responsable Demo", artefactos);
+
+    // Variante que controla el Responsable de la portada del tailoring (para los
+    // tests de HallazgosResponsable). Docs() usa un responsable no vacío por default.
+    public static DocumentosExtraidos DocsResp(
+        string? responsableTailoring, params ArtefactoExtraido[] artefactos) => new(
+            AuditoriaId: 100,
+            ProyectoId: 200,
+            EtapaId: 300,
+            ProcedimientoCodigo: "PR 11-13",
+            ProcedimientoNombre: "Desarrollo de Software",
+            Artefactos: artefactos,
+            ResponsableTailoring: responsableTailoring,
+            NombreProyecto: "App Productores");
+
+    // Variante que controla el nombre del proyecto auditado (para los tests de
+    // proyecto-match en HallazgosIdentidad).
+    public static DocumentosExtraidos DocsProyecto(
+        string nombreProyecto, params ArtefactoExtraido[] artefactos) => new(
+            AuditoriaId: 100,
+            ProyectoId: 200,
+            EtapaId: 300,
+            ProcedimientoCodigo: "PR 11-13",
+            ProcedimientoNombre: "Desarrollo de Software",
+            Artefactos: artefactos,
+            ResponsableTailoring: "Responsable Demo",
+            NombreProyecto: nombreProyecto);
 
     public static ArtefactoExtraido Artefacto(
         int id,
@@ -36,7 +57,9 @@ internal static class Fx
         string? descripcion = null,
         DateOnly? vigenciaDetectada = null,
         DateOnly? vigenciaEsperada = null,
-        bool documentoParseable = false) => new(
+        bool documentoParseable = false,
+        string? codigoDetectado = null,
+        string? proyectoDetectado = null) => new(
             ArtefactoEsperadoId: id,
             CodigoArtefacto: codigo,
             NombreArtefacto: nombre,
@@ -54,7 +77,9 @@ internal static class Fx
             Descripcion: descripcion,
             VigenciaDetectada: vigenciaDetectada,
             VigenciaEsperada: vigenciaEsperada,
-            DocumentoParseable: documentoParseable);
+            DocumentoParseable: documentoParseable,
+            CodigoDetectado: codigoDetectado,
+            ProyectoDetectado: proyectoDetectado);
 
     public static DocumentoEncontrado Doc(
         string nombre,

@@ -58,6 +58,8 @@ internal static class ArtefactosBuilder
             IReadOnlyList<SeccionDetectada> seccionesTemplate;
             DateOnly? vigenciaDetectada = null;
             bool documentoParseable = false;
+            string? codigoDetectado = null;
+            string? proyectoDetectado = null;
 
             var debeBuscarFisicamente =
                 view.Exigibilidad == ExigibilidadArtefacto.Exigible
@@ -118,6 +120,8 @@ internal static class ArtefactosBuilder
                     seccionesTemplate = ver.SeccionesTemplate;
                     vigenciaDetectada = ver.VigenciaDetectada;
                     documentoParseable = ver.DocumentoParseable;
+                    codigoDetectado = ver.CodigoDetectado;
+                    proyectoDetectado = ver.ProyectoDetectado;
                 }
                 else
                 {
@@ -146,7 +150,9 @@ internal static class ArtefactosBuilder
                 Descripcion: view.Descripcion,
                 VigenciaDetectada: vigenciaDetectada,
                 VigenciaEsperada: view.VigenciaEsperada,
-                DocumentoParseable: documentoParseable));
+                DocumentoParseable: documentoParseable,
+                CodigoDetectado: codigoDetectado,
+                ProyectoDetectado: proyectoDetectado));
         }
 
         return resultado;

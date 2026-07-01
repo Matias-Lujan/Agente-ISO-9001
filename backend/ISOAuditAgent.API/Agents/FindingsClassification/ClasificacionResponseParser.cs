@@ -121,9 +121,9 @@ internal static class ClasificacionResponseParser
                     ArtefactoEsperadoId: hallazgoOriginal.ArtefactoEsperadoId,
                     Tipo: ResolverTipo(tipoStr, hallazgoOriginal.OrigenRegla),
                     Descripcion: hallazgoOriginal.Descripcion,
-                    // Procedimiento y Vigencia traen justificación determinística (C#):
-                    // se conserva verbatim, no la pisa el LLM.
-                    Justificacion: hallazgoOriginal.OrigenRegla is OrigenRegla.Procedimiento or OrigenRegla.Vigencia
+                    // Procedimiento, Vigencia, Responsable e Identidad traen justificación
+                    // determinística (C#): se conserva verbatim, no la pisa el LLM.
+                    Justificacion: hallazgoOriginal.OrigenRegla is OrigenRegla.Procedimiento or OrigenRegla.Vigencia or OrigenRegla.Responsable or OrigenRegla.Identidad
                         ? hallazgoOriginal.Justificacion
                         : string.IsNullOrWhiteSpace(justificacionLlm)
                             ? hallazgoOriginal.Justificacion
@@ -166,10 +166,17 @@ internal static class ClasificacionResponseParser
             _ => TipoHallazgo.OBS
         };
 
-        // Vigencia/versionado del formulario: SIEMPRE OBS. Usar un formulario
-        // desactualizado es un desvío formal, no un incumplimiento de fondo; la
-        // severidad no se delega al LLM (determinística).
-        if (origenRegla == OrigenRegla.Vigencia)
+        // Identidad (formulario equivocado / documento de otro proyecto): SIEMPRE NC.
+        // Es evidencia equivocada — incumplimiento, no desvío formal.
+        if (origenRegla == OrigenRegla.Identidad)
+        {
+            return TipoHallazgo.NC;
+        }
+
+        // Vigencia y Responsable: SIEMPRE OBS. Son desvíos formales de completitud
+        // (formulario desactualizado / responsable sin asignar), no incumplimientos
+        // de fondo; la severidad es determinística, no se delega al LLM.
+        if (origenRegla is OrigenRegla.Vigencia or OrigenRegla.Responsable)
         {
             return TipoHallazgo.OBS;
         }

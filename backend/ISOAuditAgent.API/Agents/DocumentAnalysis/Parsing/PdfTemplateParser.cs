@@ -93,7 +93,7 @@ public sealed class PdfTemplateParser : ITemplateParser
     /// Devuelve el texto de cada página como bloque. PDFs sin texto extraíble
     /// (ej. una imagen escaneada) devuelven lista vacía.
     /// </summary>
-    public IReadOnlyList<string> ExtraerBloquesVigencia(byte[] bytes)
+    public IReadOnlyList<string> ExtraerBloquesMetadata(byte[] bytes)
     {
         ArgumentNullException.ThrowIfNull(bytes);
         if (bytes.Length == 0) return Array.Empty<string>();

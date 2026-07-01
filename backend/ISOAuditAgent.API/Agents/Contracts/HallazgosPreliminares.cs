@@ -74,5 +74,20 @@ public enum OrigenRegla
     /// clasificación OBS (lo fuerza ClasificacionResponseParser): usar un
     /// formulario desactualizado es un desvío formal, no incumplimiento de fondo.
     /// </summary>
-    Vigencia
+    Vigencia,
+
+    /// <summary>
+    /// Completitud del tailoring: el campo "Responsable" de la portada del FR 29
+    /// está vacío. Techo de clasificación OBS (lo fuerza ClasificacionResponseParser):
+    /// es un desvío formal de completitud, no un incumplimiento de fondo.
+    /// </summary>
+    Responsable,
+
+    /// <summary>
+    /// Identidad del documento: el código FR detectado dentro del documento no
+    /// coincide con el esperado (formulario equivocado), o el proyecto declarado en
+    /// el documento no es el auditado (documento de otro proyecto). Es evidencia
+    /// equivocada → ClasificacionResponseParser lo fuerza a NC.
+    /// </summary>
+    Identidad
 }
