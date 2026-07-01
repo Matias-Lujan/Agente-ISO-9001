@@ -33,12 +33,12 @@ public interface ITemplateParser
     /// según el formato: DOCX → cada header, cada footer y el cuerpo; XLSX → el
     /// header/footer de impresión de cada hoja y sus celdas; PDF → cada página.
     ///
-    /// La DETECCIÓN del label "Vigencia" + fecha la hace <c>VigenciaScanner</c>
-    /// sobre estos bloques. Separar "extraer texto" (acá) de "detectar" (scanner)
-    /// permite, cuando no se encuentra la vigencia, loguear EXACTAMENTE qué texto
-    /// se escaneó — y así diagnosticar cualquier documento sin adivinar.
+    /// La DETECCIÓN de vigencia / código / proyecto sobre estos bloques la hace
+    /// <c>MetadataScanner</c>. Separar "extraer texto" (acá) de "detectar" (scanner)
+    /// permite, cuando algo no se detecta, loguear EXACTAMENTE qué texto se escaneó
+    /// — y así diagnosticar cualquier documento sin adivinar.
     ///
     /// NO lanza: ante cualquier error devuelve lo que haya podido juntar (o vacío).
     /// </summary>
-    IReadOnlyList<string> ExtraerBloquesVigencia(byte[] bytes);
+    IReadOnlyList<string> ExtraerBloquesMetadata(byte[] bytes);
 }

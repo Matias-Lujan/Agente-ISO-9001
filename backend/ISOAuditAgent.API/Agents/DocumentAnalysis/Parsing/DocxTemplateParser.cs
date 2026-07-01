@@ -104,7 +104,7 @@ public sealed class DocxTemplateParser : ITemplateParser
     /// código del formulario; algunos documentos la ponen en el cuerpo. Se devuelven
     /// los tres orígenes como bloques (headers y footers primero, cuerpo al final).
     /// </summary>
-    public IReadOnlyList<string> ExtraerBloquesVigencia(byte[] bytes)
+    public IReadOnlyList<string> ExtraerBloquesMetadata(byte[] bytes)
     {
         ArgumentNullException.ThrowIfNull(bytes);
         if (bytes.Length == 0) return Array.Empty<string>();

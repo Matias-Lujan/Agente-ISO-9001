@@ -36,7 +36,8 @@ public sealed record ContextoAuditoria(
     string ProcedimientoCodigo,
     string ProcedimientoNombre,
     IntegracionesProyecto Integraciones,
-    IReadOnlyList<ArtefactoEsperadoContexto> ArtefactosEsperados
+    IReadOnlyList<ArtefactoEsperadoContexto> ArtefactosEsperados,
+    string NombreProyecto   // nombre del proyecto auditado (BD); referencia para proyecto-match
 );
 
 /// <summary>

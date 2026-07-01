@@ -116,7 +116,8 @@ public sealed class ResolutorContextoService
                 TrelloBoardId: proyecto.TrelloBoardId,
                 ClockifyProjectId: proyecto.ClockifyProjectId,
                 TemplatesFolderId: pathCarpetaTemplates),
-            ArtefactosEsperados: artefactosContexto);
+            ArtefactosEsperados: artefactosContexto,
+            NombreProyecto: proyecto.Nombre);
     }
 
     // ------------------------------------------------------------------------

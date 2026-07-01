@@ -294,7 +294,7 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
         var hash = ContentHasher.Sha256Hex(content.Bytes);
         var parser = CrearParser(content.MimeType);
         var secciones = ParsearSeccionesSeguro(content, parser);
-        var (vigencia, parseable) = ExtraerVigenciaSegura(content, parser);
+        var (vigencia, codigo, proyecto, parseable) = ExtraerMetadataSegura(content, parser);
 
         return new VerificacionFisica(
             Encontrado: true,
@@ -305,7 +305,9 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
             SeccionesTemplate: seccionesTemplate,
             NombreTemplateArchivo: nombreTemplateArchivo,
             VigenciaDetectada: vigencia,
-            DocumentoParseable: parseable);
+            DocumentoParseable: parseable,
+            CodigoDetectado: codigo,
+            ProyectoDetectado: proyecto);
     }
 
     /// <summary>
@@ -356,29 +358,30 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
     /// - parser presente → (vigencia detectada o null, true). Que sea parseable y
     ///   no tenga vigencia detectada lo resuelve aguas abajo como OBS.
     /// </summary>
-    private (DateOnly? Vigencia, bool Parseable) ExtraerVigenciaSegura(
+    private (DateOnly? Vigencia, string? Codigo, string? Proyecto, bool Parseable) ExtraerMetadataSegura(
         DriveFileContent content, ITemplateParser? parser)
     {
         if (parser is null)
         {
             _logger.LogWarning(
                 "Documento '{Archivo}': formato '{Mime}' no soportado; no se valida " +
-                "la vigencia del formulario.",
+                "vigencia/código/proyecto del formulario.",
                 content.Name, content.MimeType);
-            return (null, false);
+            return (null, null, null, false);
         }
 
         try
         {
-            var bloques = parser.ExtraerBloquesVigencia(content.Bytes);
-            var vigencia = VigenciaScanner.Detectar(bloques);
+            var bloques = parser.ExtraerBloquesMetadata(content.Bytes);
+            var vigencia = MetadataScanner.DetectarVigencia(bloques);
+            var codigo = MetadataScanner.DetectarCodigo(bloques);
+            var proyecto = MetadataScanner.DetectarProyecto(bloques);
 
             if (vigencia is null)
             {
                 // Diagnóstico: dejamos en el log el texto que efectivamente se
                 // escaneó, para poder ver SIN adivinar por qué no se detectó la
-                // vigencia en este documento (¿falta el label? ¿la fecha está en
-                // otro formato/lugar?). Recortado para no inundar el log.
+                // vigencia (¿falta el label? ¿la fecha está en otro formato/lugar?).
                 var muestra = string.Join(" ⏐ ", bloques).ReplaceLineEndings(" ");
                 if (muestra.Length > 800) muestra = muestra[..800] + "…";
                 _logger.LogWarning(
@@ -387,14 +390,21 @@ public sealed class ArtefactoFisicoChecker : IArtefactoFisicoChecker
                     content.Name, content.MimeType, muestra);
             }
 
-            return (vigencia, true);
+            _logger.LogInformation(
+                "Metadata de '{Archivo}': vigencia={Vig}, código={Cod}, proyecto={Proy}.",
+                content.Name,
+                vigencia?.ToString("dd/MM/yyyy") ?? "(no detectada)",
+                codigo ?? "(no detectado)",
+                proyecto ?? "(no detectado)");
+
+            return (vigencia, codigo, proyecto, true);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex,
-                "Error extrayendo vigencia de '{Archivo}' ({Mime}); continúo sin vigencia.",
+                "Error extrayendo metadata de '{Archivo}' ({Mime}); continúo sin metadata.",
                 content.Name, content.MimeType);
-            return (null, true); // formato soportado pero falló → parseable, sin vigencia
+            return (null, null, null, true); // formato soportado pero falló → parseable, sin metadata
         }
     }
 

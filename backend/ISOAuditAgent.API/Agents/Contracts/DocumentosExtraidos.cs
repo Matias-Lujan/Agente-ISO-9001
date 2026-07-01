@@ -45,7 +45,21 @@ public sealed record DocumentosExtraidos(
     int EtapaId,
     string ProcedimientoCodigo,
     string ProcedimientoNombre,
-    IReadOnlyList<ArtefactoExtraido> Artefactos
+    IReadOnlyList<ArtefactoExtraido> Artefactos,
+
+    /// <summary>
+    /// Responsable del proyecto declarado en la PORTADA del tailoring (campo único
+    /// "Responsable:", no la columna por artefacto). null/vacío si no está cargado.
+    /// Lo lee DocumentAnalysis del FR-29; ComplianceValidation genera un OBS sobre
+    /// el FR 29 si está vacío.
+    /// </summary>
+    string? ResponsableTailoring,
+
+    /// <summary>
+    /// Nombre del proyecto auditado (de BD, vía ResolutorContexto). Lo usa
+    /// proyecto-match como referencia contra el proyecto declarado en cada documento.
+    /// </summary>
+    string NombreProyecto
 );
 
 /// <summary>
@@ -102,7 +116,21 @@ public sealed record ArtefactoExtraido(
     /// docx/xlsx/pdf). Distingue "parseable pero sin Vigencia detectada" (→ OBS)
     /// de "formato no soportado" (→ solo log). false cuando no hay documento.
     /// </summary>
-    bool DocumentoParseable
+    bool DocumentoParseable,
+
+    /// <summary>
+    /// Código del formulario detectado DENTRO del documento (encabezado, ej.
+    /// "FR 48-01"). Lo usa código-match contra el CodigoArtefacto esperado para
+    /// detectar "el archivo encontrado es otro formulario". null si no se detectó.
+    /// </summary>
+    string? CodigoDetectado,
+
+    /// <summary>
+    /// Proyecto declarado DENTRO del documento (campo "Proyecto:" / "Nombre del
+    /// proyecto:"). Lo usa proyecto-match contra el proyecto auditado para detectar
+    /// "el documento es de otro proyecto". null si no se detectó.
+    /// </summary>
+    string? ProyectoDetectado
 );
 
 /// <summary>

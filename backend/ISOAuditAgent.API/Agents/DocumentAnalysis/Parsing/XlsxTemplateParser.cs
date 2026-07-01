@@ -77,9 +77,9 @@ public sealed class XlsxTemplateParser : ITemplateParser
     /// impresión (no en celdas), o bien en alguna celda de la cabecera. Se
     /// devuelven, por hoja: (1) el texto del header/footer de impresión y (2) el
     /// texto de las celdas usadas (normalizando fechas a dd/MM/yyyy). El escaneo
-    /// del label "Vigencia" + fecha lo hace VigenciaScanner.
+    /// de vigencia / código / proyecto lo hace MetadataScanner.
     /// </summary>
-    public IReadOnlyList<string> ExtraerBloquesVigencia(byte[] bytes)
+    public IReadOnlyList<string> ExtraerBloquesMetadata(byte[] bytes)
     {
         ArgumentNullException.ThrowIfNull(bytes);
         if (bytes.Length == 0) return Array.Empty<string>();

@@ -187,6 +187,8 @@ public class DocxTemplateParserTests
             Descripcion: null,
             VigenciaDetectada: null,
             VigenciaEsperada: null,
-            DocumentoParseable: true);
+            DocumentoParseable: true,
+            CodigoDetectado: null,
+            ProyectoDetectado: null);
     }
 }

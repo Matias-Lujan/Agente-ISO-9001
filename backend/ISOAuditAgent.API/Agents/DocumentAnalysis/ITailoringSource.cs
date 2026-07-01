@@ -48,10 +48,24 @@ public interface ITailoringSource
     /// <exception cref="InvalidOperationException">
     /// El FR-29 no se encuentra en el folder, o el workbook está corrupto.
     /// </exception>
-    ValueTask<IReadOnlyList<FilaTailoring>> ObtenerAsync(
+    ValueTask<TailoringExtraido> ObtenerAsync(
         string driveFolderId,
         CancellationToken ct);
 }
+
+/// <summary>
+/// Resultado de leer el FR-29: las filas de la tabla + datos de la portada que
+/// no son por-artefacto. Hoy lleva el Responsable del proyecto (campo único de
+/// la portada). Contrato interno del agente — no sale al contrato 3 tal cual.
+/// </summary>
+public sealed record TailoringExtraido(
+    /// <summary>
+    /// Responsable del proyecto declarado en la portada del tailoring (campo
+    /// "Responsable:"). null/vacío si no está cargado. NO confundir con la
+    /// columna "Responsable" por artefacto de la tabla.
+    /// </summary>
+    string? ResponsableProyecto,
+    IReadOnlyList<FilaTailoring> Filas);
 
 /// <summary>
 /// Una fila del FR-29 ya parseada. Contrato interno del agente — no sale al

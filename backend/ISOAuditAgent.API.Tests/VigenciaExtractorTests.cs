@@ -16,8 +16,8 @@ public class VigenciaExtractorTests
     {
         var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", fixture);
         var bytes = File.ReadAllBytes(path);
-        var bloques = new DocxTemplateParser().ExtraerBloquesVigencia(bytes);
-        return VigenciaScanner.Detectar(bloques);
+        var bloques = new DocxTemplateParser().ExtraerBloquesMetadata(bytes);
+        return MetadataScanner.DetectarVigencia(bloques);
     }
 
     [Fact]

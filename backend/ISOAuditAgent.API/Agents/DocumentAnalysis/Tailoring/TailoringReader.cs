@@ -41,7 +41,7 @@ public sealed class TailoringReader
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<IReadOnlyList<FilaTailoring>> LeerAsync(
+    public async Task<TailoringExtraido> LeerAsync(
         string driveFolderId, CancellationToken ct)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(driveFolderId);
@@ -90,11 +90,15 @@ public sealed class TailoringReader
         _logger.LogInformation(
             "TailoringReader: descargado {Nombre} ({Bytes} bytes). Iniciando ParsearWorkbook.",
             content.Name, content.Bytes.Length);
-        var filas = ParsearWorkbook(content.Bytes, content.Name);
+        var tailoring = ParsearWorkbook(content.Bytes, content.Name);
         _logger.LogInformation(
-            "TailoringReader: ParsearWorkbook completado — {N} filas de tailoring.",
-            filas.Count);
-        return filas;
+            "TailoringReader: ParsearWorkbook completado — {N} filas de tailoring, " +
+            "responsable de portada: {Responsable}.",
+            tailoring.Filas.Count,
+            string.IsNullOrWhiteSpace(tailoring.ResponsableProyecto)
+                ? "(vacío)"
+                : tailoring.ResponsableProyecto);
+        return tailoring;
     }
 
     private static bool EsCandidatoFr29(DriveFile f)
@@ -119,7 +123,7 @@ public sealed class TailoringReader
         return score;
     }
 
-    private static IReadOnlyList<FilaTailoring> ParsearWorkbook(byte[] bytes, string nombreArchivo)
+    private static TailoringExtraido ParsearWorkbook(byte[] bytes, string nombreArchivo)
     {
         try
         {
@@ -135,12 +139,14 @@ public sealed class TailoringReader
 
             var rango = hoja.RangeUsed();
             if (rango is null)
-                return Array.Empty<FilaTailoring>();
+                return new TailoringExtraido(null, Array.Empty<FilaTailoring>());
 
             var (headerRowNumber, columnMap) =
                 DetectarHeaderConArtefactoYAplica(rango, nombreArchivo);
 
-            return LeerFilasDeDatos(hoja, headerRowNumber, columnMap);
+            var responsable = ExtraerResponsablePortada(hoja, headerRowNumber);
+            var filas = LeerFilasDeDatos(hoja, headerRowNumber, columnMap);
+            return new TailoringExtraido(responsable, filas);
         }
         catch (InvalidOperationException)
         {
@@ -254,6 +260,59 @@ public sealed class TailoringReader
         }
 
         return filas;
+    }
+
+    /// <summary>
+    /// Extrae el "Responsable" del proyecto de la PORTADA del tailoring (filas
+    /// anteriores al encabezado de la tabla). Es un campo único, NO la columna
+    /// "Responsable" por artefacto. Busca una celda que empiece con "Responsable"
+    /// y toma su valor: lo que sigue al ":" en la misma celda, la celda de la
+    /// derecha, o la de abajo. Devuelve null si no hay valor cargado.
+    /// </summary>
+    private static string? ExtraerResponsablePortada(IXLWorksheet hoja, int headerRowNumber)
+    {
+        var rango = hoja.RangeUsed();
+        if (rango is null) return null;
+
+        int primeraCol = rango.FirstColumn().ColumnNumber();
+        int ultimaCol = rango.LastColumn().ColumnNumber();
+
+        // Solo la portada: filas anteriores al encabezado de la tabla. Así no se
+        // confunde la etiqueta de portada con la COLUMNA "Responsable" (fila header).
+        for (int r = 1; r < headerRowNumber; r++)
+        {
+            for (int c = primeraCol; c <= ultimaCol; c++)
+            {
+                var texto = hoja.Cell(r, c).GetString();
+                var norm = TailoringColumnMapper.NormalizeHeaderKey(texto);
+                if (!norm.StartsWith("responsable", StringComparison.Ordinal))
+                    continue;
+
+                // (1) Valor después de ":" en la misma celda ("Responsable: Juan").
+                var idx = texto.IndexOf(':');
+                if (idx >= 0)
+                {
+                    var despues = texto[(idx + 1)..].Trim();
+                    if (despues.Length > 0) return despues;
+                }
+
+                // (2) Celda de la derecha.
+                if (c < ultimaCol)
+                {
+                    var derecha = hoja.Cell(r, c + 1).GetString().Trim();
+                    if (derecha.Length > 0) return derecha;
+                }
+
+                // (3) Celda de abajo.
+                var abajo = hoja.Cell(r + 1, c).GetString().Trim();
+                if (abajo.Length > 0) return abajo;
+
+                // Etiqueta encontrada pero sin valor → responsable vacío.
+                return null;
+            }
+        }
+
+        return null; // no se encontró la etiqueta en la portada
     }
 
     private static bool EsHeaderArtefacto(string norm) =>
