@@ -122,28 +122,88 @@ export const configuracionCss = `
 .cfg-toggle-name{font-size:13px;color:var(--text);font-weight:500;}
 .cfg-toggle-desc{font-size:11px;color:var(--text-muted);margin-top:2px;}
 
-/*  INTEGRACIONES  */
-.cfg-int-list{display:flex;flex-direction:column;gap:8px;}
-.cfg-int-row{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;
-  border:0.5px solid var(--border-soft);background:var(--surface-2);
+/*  FORM DE CAMBIO DE CONTRASEÑA  */
+.cfg-form-actions{display:flex;justify-content:flex-end;margin-top:0.5rem;}
+.cfg-btn{
+  padding:9px 18px;border-radius:8px;border:none;
+  background:var(--primary);color:var(--on-primary);
+  font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;
+  transition:opacity .15s;
 }
-.cfg-int-icon{
-  width:32px;height:32px;border-radius:8px;
-  display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;
+.cfg-btn:hover:not(:disabled){opacity:0.9;}
+.cfg-btn:disabled{opacity:0.6;cursor:not-allowed;}
+.cfg-pass-show{
+  display:flex;align-items:center;gap:7px;
+  font-size:12px;color:var(--text-muted);cursor:pointer;user-select:none;
+  margin-top:-4px;margin-bottom:6px;
 }
-.cfg-int-detail{flex:1;min-width:0;}
-.cfg-int-detail-name{font-size:13px;font-weight:500;color:var(--text);}
-.cfg-int-detail-sub{
-  font-size:11px;color:var(--text-muted);margin-top:1px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+.cfg-pass-show input{cursor:pointer;}
+.cfg-feedback{
+  font-size:12px;padding:9px 12px;border-radius:8px;margin-bottom:1rem;
+  border:0.5px solid var(--border-soft);
 }
-.cfg-status-pill{
-  font-size:11px;font-weight:500;padding:3px 8px;border-radius:20px;
+.cfg-feedback.error{background:var(--err-bg);color:var(--err-fg);}
+.cfg-feedback.success{background:var(--ok-bg);color:var(--ok-fg);}
+
+/*  AVISO "PRÓXIMAS FUNCIONES" (roadmap)  */
+.cfg-roadmap-note{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;margin-bottom:1rem;border-radius:10px;
+  background:var(--info-bg);border:0.5px solid var(--border-soft);
+}
+.cfg-roadmap-tag{
+  font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;
+  background:var(--info-fg);color:var(--surface);white-space:nowrap;flex-shrink:0;
+}
+.cfg-roadmap-text{font-size:12px;color:var(--info-fg);line-height:1.45;}
+
+/*  EDITOR DE SYSTEM PROMPT (admin)  */
+.cfg-prompt-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:12px;}
+.cfg-prompt-tag{
+  font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;
   white-space:nowrap;flex-shrink:0;
 }
-.cfg-status-ok{background:var(--ok-bg);color:var(--ok-fg);}
-.cfg-status-err{background:var(--err-bg);color:var(--err-fg);}
+.cfg-prompt-tag.is-default{background:var(--ok-bg);color:var(--ok-fg);}
+.cfg-prompt-tag.is-mod{background:var(--warn-bg);color:var(--warn-fg);}
+.cfg-prompt-warn{
+  font-size:12px;line-height:1.5;padding:10px 12px;border-radius:8px;margin-bottom:12px;
+  background:var(--warn-bg);color:var(--warn-fg);border:0.5px solid var(--border-soft);
+}
+.cfg-prompt-textarea{
+  width:100%;min-height:320px;resize:vertical;
+  padding:12px;border-radius:8px;border:0.5px solid var(--border);
+  background:var(--surface-2);color:var(--text);outline:none;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12px;line-height:1.5;white-space:pre;overflow:auto;
+  transition:border-color .15s,background-color .2s;
+}
+.cfg-prompt-textarea:focus{border-color:var(--accent);background:var(--surface);}
+.cfg-prompt-textarea:disabled{opacity:0.7;cursor:not-allowed;}
+.cfg-prompt-actions{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.cfg-btn-sec{
+  padding:9px 14px;border-radius:8px;border:0.5px solid var(--border);
+  background:var(--surface-2);color:var(--text);
+  font-size:13px;font-weight:500;font-family:inherit;cursor:pointer;
+  transition:background-color .15s,border-color .15s;
+}
+.cfg-btn-sec:hover:not(:disabled){border-color:var(--accent);color:var(--primary);}
+.cfg-btn-sec:disabled{opacity:0.5;cursor:not-allowed;}
+.cfg-btn-sec.sm{padding:5px 10px;font-size:12px;}
+.cfg-prompt-hist{
+  margin-top:14px;border-top:0.5px solid var(--border-soft);padding-top:10px;
+  display:flex;flex-direction:column;gap:2px;
+}
+.cfg-prompt-hist-row{
+  display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  padding:8px 0;border-bottom:0.5px solid var(--border-soft);
+}
+.cfg-prompt-hist-row:last-child{border-bottom:none;}
+.cfg-prompt-hist-info{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.cfg-prompt-hist-ver{font-size:12px;font-weight:600;color:var(--text);}
+.cfg-prompt-hist-meta{
+  font-size:11px;color:var(--text-muted);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
 
 /*  AGENTE IA — modelo actual  */
 .cfg-model-current{
@@ -159,4 +219,33 @@ export const configuracionCss = `
 }
 .cfg-model-name{font-size:13px;color:var(--text);font-weight:500;}
 .cfg-model-meta{font-size:11px;color:var(--text-muted);margin-top:1px;}
+
+/*  KPI DE CONSUMO DE TOKENS (admin)  */
+.cfg-kpi-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+  gap:10px;margin-bottom:1rem;
+}
+.cfg-kpi{
+  padding:12px 14px;border-radius:8px;
+  background:var(--surface-2);border:0.5px solid var(--border);
+}
+.cfg-kpi-value{font-size:20px;font-weight:600;color:var(--text);line-height:1.1;}
+.cfg-kpi-label{font-size:11px;color:var(--text-muted);margin-top:4px;}
+
+.cfg-consumo-tabla{
+  border-top:0.5px solid var(--border-soft);padding-top:8px;
+  display:flex;flex-direction:column;
+}
+.cfg-consumo-row{
+  display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 0.9fr;gap:8px;
+  padding:8px 0;border-bottom:0.5px solid var(--border-soft);
+  font-size:12px;color:var(--text);align-items:center;
+}
+.cfg-consumo-row:last-child{border-bottom:none;}
+.cfg-consumo-row span:not(.cfg-consumo-agente){text-align:right;font-variant-numeric:tabular-nums;}
+.cfg-consumo-head{
+  font-size:11px;font-weight:600;color:var(--text-muted);
+  text-transform:uppercase;letter-spacing:0.03em;
+}
+.cfg-consumo-agente{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 `;

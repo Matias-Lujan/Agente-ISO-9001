@@ -24,10 +24,13 @@ public class ISOAuditAgentDbContext : DbContext
     public DbSet<ArtefactoEvaluado> ArtefactosEvaluados => Set<ArtefactoEvaluado>();
     public DbSet<Hallazgo> Hallazgos => Set<Hallazgo>();
     public DbSet<AuditoriaProgreso> AuditoriaProgresos => Set<AuditoriaProgreso>();
+    public DbSet<RegistroErrorAuditoria> RegistrosErrorAuditoria => Set<RegistroErrorAuditoria>();
     public DbSet<DocumentoAnalizado> DocumentosAnalizados => Set<DocumentoAnalizado>();
     public DbSet<Informe> Informes => Set<Informe>();
     public DbSet<ConfiguracionSistema> ConfiguracionesSistema => Set<ConfiguracionSistema>();
     public DbSet<FormularioCalidad> FormulariosCalidad => Set<FormularioCalidad>();
+    public DbSet<PromptAgente> PromptsAgente => Set<PromptAgente>();
+    public DbSet<ConsumoTokens> ConsumosTokens => Set<ConsumoTokens>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -55,6 +58,12 @@ public class ISOAuditAgentDbContext : DbContext
         modelBuilder.Entity<Auditoria>()
             .Property(a => a.Estado)
             .HasConversion<string>();
+
+        // Categoría del fallo guardada como texto legible en la BD (null si no falló).
+        modelBuilder.Entity<Auditoria>()
+            .Property(a => a.CategoriaError)
+            .HasConversion<string>()
+            .HasMaxLength(40);
 
         modelBuilder.Entity<ArtefactoEvaluado>()
             .Property(a => a.Aplica)
@@ -95,6 +104,20 @@ public class ISOAuditAgentDbContext : DbContext
             .HasIndex(p => new { p.AuditoriaId, p.Nodo }).IsUnique();
         modelBuilder.Entity<AuditoriaProgreso>().ToTable("auditoria_progreso");
 
+        // ── Registro durable de errores de auditoría ──────────────────────────
+        modelBuilder.Entity<RegistroErrorAuditoria>().ToTable("registros_error_auditoria");
+        modelBuilder.Entity<RegistroErrorAuditoria>()
+            .Property(r => r.Nodo).HasConversion<string>().HasMaxLength(40);
+        modelBuilder.Entity<RegistroErrorAuditoria>()
+            .Property(r => r.Categoria).HasConversion<string>().HasMaxLength(40);
+        modelBuilder.Entity<RegistroErrorAuditoria>()
+            .HasIndex(r => r.AuditoriaId);
+        modelBuilder.Entity<RegistroErrorAuditoria>()
+            .HasOne(r => r.Auditoria)
+            .WithMany(a => a.RegistrosError)
+            .HasForeignKey(r => r.AuditoriaId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         // ── Nombres de tablas en plural ───────────────────────────────────────
         modelBuilder.Entity<Usuario>().ToTable("usuarios");
         modelBuilder.Entity<Proyecto>().ToTable("proyectos");
@@ -108,6 +131,37 @@ public class ISOAuditAgentDbContext : DbContext
         modelBuilder.Entity<DocumentoAnalizado>().ToTable("documentos_analizados");
         modelBuilder.Entity<Informe>().ToTable("informes");
         modelBuilder.Entity<ConfiguracionSistema>().ToTable("configuraciones_sistema");
+
+        // ── System prompts de los agentes (versionado append-only) ────────────
+        modelBuilder.Entity<PromptAgente>().ToTable("prompts_agente");
+        modelBuilder.Entity<PromptAgente>()
+            .Property(p => p.AgenteKey)
+            .HasMaxLength(60);
+        // Una sola versión por (AgenteKey, Version).
+        modelBuilder.Entity<PromptAgente>()
+            .HasIndex(p => new { p.AgenteKey, p.Version })
+            .IsUnique();
+        // Búsqueda del prompt en uso: por key + activa.
+        modelBuilder.Entity<PromptAgente>()
+            .HasIndex(p => new { p.AgenteKey, p.EsActiva });
+        modelBuilder.Entity<PromptAgente>()
+            .HasOne(p => p.ModificadoPor)
+            .WithMany()
+            .HasForeignKey(p => p.ModificadoPorUsuarioId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // ── Consumo de tokens del LLM (una fila por llamada) ──────────────────
+        // Tabla standalone: AuditoriaId es informativa y sin FK, para conservar
+        // el histórico de consumo aunque la auditoría se borre.
+        modelBuilder.Entity<ConsumoTokens>().ToTable("consumo_tokens");
+        modelBuilder.Entity<ConsumoTokens>()
+            .Property(c => c.AgenteKey).HasMaxLength(60);
+        modelBuilder.Entity<ConsumoTokens>()
+            .Property(c => c.Modelo).HasMaxLength(100);
+        modelBuilder.Entity<ConsumoTokens>()
+            .HasIndex(c => c.FechaHoraUtc);
+        modelBuilder.Entity<ConsumoTokens>()
+            .HasIndex(c => c.AgenteKey);
 
         // Referencia del Departamento de Calidad: vigencia vigente por formulario.
         modelBuilder.Entity<FormularioCalidad>().ToTable("formularios_calidad");

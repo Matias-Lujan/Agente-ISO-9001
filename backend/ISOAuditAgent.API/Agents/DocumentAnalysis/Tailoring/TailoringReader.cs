@@ -11,6 +11,7 @@
 
 using ClosedXML.Excel;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Drive;
+using ISOAuditAgent.API.Agents.Shared;
 using System.Text.RegularExpressions;
 
 namespace ISOAuditAgent.API.Agents.DocumentAnalysis.Tailoring;
@@ -58,9 +59,21 @@ public sealed class TailoringReader
 
         if (candidatos.Count == 0)
         {
-            throw new InvalidOperationException(
-                $"No se encontró un archivo FR-29 (tailoring XLSX) bajo el " +
-                $"folder de Drive '{driveFolderId}'.");
+            // Log técnico con lo que SÍ había en la carpeta, para diagnosticar
+            // rápido (típicamente el archivo fue renombrado o está en otra carpeta).
+            var nombresEnCarpeta = listing.Files.Count == 0
+                ? "(carpeta vacía)"
+                : string.Join(", ", listing.Files.Select(f => $"'{f.Name}'"));
+            _logger.LogWarning(
+                "TailoringReader: no hay candidato a FR-29 en el folder {FolderId}. " +
+                "Archivos presentes: {Archivos}.", driveFolderId, nombresEnCarpeta);
+
+            throw new DocumentoDriveNoEncontradoException(
+                "planilla de tailoring (FR-29)",
+                "No se pudo encontrar la planilla de tailoring (FR-29) en la carpeta de " +
+                "Drive del proyecto. Verificá que el archivo esté en esa carpeta y que su " +
+                "nombre incluya 'FR 29' o 'tailoring', y que sea un Excel (.xlsx) o una " +
+                "Hoja de cálculo de Google.");
         }
 
         var elegido = candidatos[0];

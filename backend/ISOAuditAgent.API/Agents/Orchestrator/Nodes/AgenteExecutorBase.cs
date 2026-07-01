@@ -17,10 +17,18 @@ public abstract class AgenteExecutorBase<TInput, TOutput>
     /// <summary>El AIAgent que razona. Detalle de implementación interno.</summary>
     protected AIAgent Agente { get; }
 
-    protected AgenteExecutorBase(string executorId, AIAgent agente)
+    /// <summary>Logger opcional para dejar traza de los reintentos. Puede ser
+    /// null en nodos que no lo inyectan (no se pierde el error final: siempre
+    /// se relanza).</summary>
+    private readonly ILogger? _logger;
+    private readonly string _executorId;
+
+    protected AgenteExecutorBase(string executorId, AIAgent agente, ILogger? logger = null)
         : base(executorId)
     {
         Agente = agente;
+        _logger = logger;
+        _executorId = executorId;
     }
 
     /// <summary>
@@ -50,8 +58,15 @@ public abstract class AgenteExecutorBase<TInput, TOutput>
             catch (Exception ex) when (!ct.IsCancellationRequested && intento < MaxIntentos)
             {
                 ultimoError = ex;
+                _logger?.LogWarning(ex,
+                    "Nodo {NodoId}: intento {Intento}/{Max} falló. Reintentando.",
+                    _executorId, intento, MaxIntentos);
             }
         }
+
+        _logger?.LogError(ultimoError,
+            "Nodo {NodoId}: agotados los {Max} intentos. Se propaga el error.",
+            _executorId, MaxIntentos);
         throw ultimoError!;
     }
 

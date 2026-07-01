@@ -54,9 +54,18 @@ public interface IAuditoriaRepository
     Task MarcarCompletadaAsync(int auditoriaId, CancellationToken ct);
 
     /// <summary>
-    /// Marca la auditoría como Fallida y setea la fecha de finalización.
+    /// Marca la auditoría como Fallida, setea la fecha de finalización y guarda
+    /// el resumen del fallo (categoría + mensaje legible) para mostrarlo sin join.
     /// </summary>
-    Task MarcarFallidaAsync(int auditoriaId, CancellationToken ct);
+    Task MarcarFallidaAsync(
+        int auditoriaId, CategoriaErrorAuditoria categoria, string mensaje, CancellationToken ct);
+
+    /// <summary>
+    /// Devuelve el log de errores registrados para una auditoría, más reciente
+    /// primero. Lista vacía si no hubo errores.
+    /// </summary>
+    Task<IReadOnlyList<RegistroErrorAuditoria>> ObtenerErroresAsync(
+        int auditoriaId, CancellationToken ct);
 
     /// <summary>
     /// Trae la auditoría con artefactos evaluados, hallazgos y documentos analizados incluidos.

@@ -16,9 +16,12 @@ import { descargarInformePdf, previsualizarInformePdf } from '../utils/exportInf
 import { obtenerProyecto, type Proyecto } from '../api/proyectos';
 import {
   listarAuditoriasDeProyecto,
+  obtenerErrores,
   obtenerResultado,
   type AuditoriaDeProyecto,
   type AuditoriaResultado,
+  type NodoWorkflow,
+  type RegistroError,
 } from '../api/auditorias';
 import { listarInformesDeAuditoria, TIPO_INFORME_LABEL, type Informe } from '../api/informes';
 import { listarProcedimientos, listarEtapasDeProcedimiento, type Etapa } from '../api/procedimientos';
@@ -37,6 +40,18 @@ function fmt(iso: string | null): string {
 const ESTADO_AUD: Record<string, string> = {
   Completada: 'b-ok', EnCurso: 'b-warn', Fallida: 'b-err',
 };
+
+// Etiqueta humana de un nodo del workflow para el log de errores. Los errores
+// fuera de nodo llegan con nodo === null.
+const NODO_LABEL: Record<NodoWorkflow, string> = {
+  DocumentAnalysis: 'Análisis documental',
+  ComplianceValidation: 'Validación de procesos',
+  ConsistencyVerification: 'Verificación de consistencia',
+  FindingsClassification: 'Clasificación de hallazgos',
+};
+function labelNodo(nodo: NodoWorkflow | null): string {
+  return nodo === null ? 'Preparación de la auditoría' : NODO_LABEL[nodo] ?? nodo;
+}
 const RESULTADO_BADGE: Record<string, string> = {
   Conforme: 'b-ok', NoConforme: 'b-err', NoAplica: 'b-gray', PendienteEtapaFutura: 'b-warn',
 };
@@ -159,6 +174,7 @@ export default function ProyectoDetalle() {
 
   const [selId, setSelId] = useState<number | null>(null);
   const [resultado, setResultado] = useState<AuditoriaResultado | null>(null);
+  const [errores, setErrores] = useState<RegistroError[]>([]);
   const [informes, setInformes] = useState<Informe[]>([]);
   const [cargandoSel, setCargandoSel] = useState(false);
   const [expandido, setExpandido] = useState<Set<number>>(new Set());
@@ -201,27 +217,31 @@ export default function ProyectoDetalle() {
     return () => { activo = false; };
   }, [proyectoId]);
 
-  // Al seleccionar una auditoría: cargar resultado + informes.
+  // Al seleccionar una auditoría: cargar resultado + informes. Si la auditoría
+  // falló, además traemos su log de errores para mostrar el motivo.
   useEffect(() => {
-    if (selId == null) { setResultado(null); setInformes([]); return; }
+    if (selId == null) { setResultado(null); setInformes([]); setErrores([]); return; }
+    const fallo = auditorias.find((a) => a.id === selId)?.estado === 'Fallida';
     let activo = true;
     (async () => {
       try {
         setCargandoSel(true);
         setExpandido(new Set());
-        const [res, infs] = await Promise.all([
+        const [res, infs, errs] = await Promise.all([
           obtenerResultado(selId).catch(() => null),
           listarInformesDeAuditoria(selId).catch(() => [] as Informe[]),
+          fallo ? obtenerErrores(selId).catch(() => [] as RegistroError[]) : Promise.resolve([] as RegistroError[]),
         ]);
         if (!activo) return;
         setResultado(res);
         setInformes(infs);
+        setErrores(errs);
       } finally {
         if (activo) setCargandoSel(false);
       }
     })();
     return () => { activo = false; };
-  }, [selId]);
+  }, [selId, auditorias]);
 
   // Curva de evolución: para cada ejecución completada (orden cronológico),
   // computa el % de cumplimiento y la cantidad de hallazgos de ese resultado.
@@ -279,6 +299,8 @@ export default function ProyectoDetalle() {
   }, [etapas]);
 
   const cumpl = calcular(resultado);
+  const audSel = auditorias.find((a) => a.id === selId) ?? null;
+  const fallo = audSel?.estado === 'Fallida';
   const operadores = proyecto?.responsables.filter((r) => r.rol === 'Operador') ?? [];
 
   const toggle = (artId: number) =>
@@ -396,6 +418,35 @@ export default function ProyectoDetalle() {
             <div className="pd-empty">Seleccioná una auditoría para ver su resultado.</div>
           ) : cargandoSel ? (
             <p className="loading-text">Cargando resultado…</p>
+          ) : fallo ? (
+            <div className="pd-panel">
+              <div className="pd-fail-head">
+                <span className="pd-fail-badge" aria-hidden>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0Z" strokeLinejoin="round" />
+                    <path d="M12 9v4M12 17h.01" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <div>
+                  <div className="pd-fail-title">La auditoría falló</div>
+                  <div className="pd-fail-sub">
+                    {audSel?.mensajeError ??
+                      'Ocurrió un error durante la ejecución. Revisá la configuración del proyecto e intentá de nuevo.'}
+                  </div>
+                </div>
+              </div>
+
+              {errores.length > 0 && (
+                <ul className="pd-fail-list">
+                  {errores.map((e) => (
+                    <li key={e.id} className="pd-fail-item">
+                      <span className="pd-fail-nodo">{labelNodo(e.nodo)}</span>
+                      <span className="pd-fail-msg">{e.mensaje}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           ) : (
             <>
               <div className="pd-panel">

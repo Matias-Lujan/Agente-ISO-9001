@@ -78,6 +78,17 @@ public class AuditoriaController : ControllerBase
         return Ok(progreso);
     }
 
+    [HttpGet("{id}/errores")]
+    public async Task<IActionResult> ObtenerErrores(int id)
+    {
+        // Log durable de errores de la auditoría (motivo por el que falló, y en
+        // qué nodo). Lista vacía si la auditoría existe pero no tuvo errores.
+        var errores = await _auditoriaService.ObtenerErroresAsync(id);
+        if (errores is null)
+            return NotFound(new { mensaje = $"Auditoría con ID {id} no encontrada" });
+        return Ok(errores);
+    }
+
     [HttpPost]
     [Authorize(Roles = $"{Roles.Administrador},{Roles.Auditor}")]
     public async Task<IActionResult> Crear([FromBody] CrearAuditoriaRequest request)
