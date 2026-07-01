@@ -9,6 +9,7 @@ using ISOAuditAgent.API.Agents.DocumentAnalysis;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Clockify;
 using ISOAuditAgent.API.Agents.DocumentAnalysis.Trello;
 using ISOAuditAgent.API.Agents.ComplianceValidation;
+using ISOAuditAgent.API.Agents.Shared;
 
 namespace ISOAuditAgent.API.Agents.Orchestrator;
 
@@ -49,6 +50,7 @@ public sealed class DocumentAnalysisNode
     private readonly TrelloChecker _trelloChecker;
     private readonly ClockifyChecker _clockifyChecker;
     private readonly IAuditoriaProgresoTracker _tracker;
+    private readonly IRegistroErrorAuditoriaWriter _errorWriter;
     private readonly ILogger<DocumentAnalysisNode> _logger;
 
     public DocumentAnalysisNode(
@@ -58,6 +60,7 @@ public sealed class DocumentAnalysisNode
         TrelloChecker trelloChecker,
         ClockifyChecker clockifyChecker,
         IAuditoriaProgresoTracker tracker,
+        IRegistroErrorAuditoriaWriter errorWriter,
         ILogger<DocumentAnalysisNode> logger)
         : base("DocumentAnalysis", agente)
     {
@@ -66,6 +69,7 @@ public sealed class DocumentAnalysisNode
         _trelloChecker = trelloChecker;
         _clockifyChecker = clockifyChecker;
         _tracker = tracker;
+        _errorWriter = errorWriter;
         _logger = logger;
     }
 
@@ -86,8 +90,10 @@ public sealed class DocumentAnalysisNode
 
             return resultado;
         }
-        catch
+        catch (Exception ex)
         {
+            await _errorWriter.RegistrarAsync(
+                message.AuditoriaId, NodoWorkflow.DocumentAnalysis, ex, CancellationToken.None);
             await _tracker.MarcarFallidoAsync(
                 message.AuditoriaId, NodoWorkflow.DocumentAnalysis, CancellationToken.None);
             throw;
@@ -257,13 +263,13 @@ public sealed class DocumentAnalysisNode
 
             if (resultado is null)
             {
-                throw new InvalidOperationException(
+                throw new RespuestaLlmInvalidaException(
                     "Respuesta del LLM deserializó a null.");
             }
 
             if (resultado.Artefactos is null)
             {
-                throw new InvalidOperationException(
+                throw new RespuestaLlmInvalidaException(
                     "Respuesta del LLM no incluye la propiedad 'artefactos'.");
             }
 
@@ -277,7 +283,7 @@ public sealed class DocumentAnalysisNode
                 ? textoLlm.Substring(0, 500) + "..."
                 : textoLlm;
 
-            throw new InvalidOperationException(
+            throw new RespuestaLlmInvalidaException(
                 $"Respuesta del LLM no es JSON válido: {ex.Message}. " +
                 $"Texto crudo (primeros 500 chars): >>>{preview}<<<", ex);
         }
@@ -358,11 +364,17 @@ public sealed class ComplianceValidationNode
     : AgenteExecutorBase<DocumentosExtraidos, HallazgosPreliminares>
 {
     private readonly IAuditoriaProgresoTracker _tracker;
+    private readonly IRegistroErrorAuditoriaWriter _errorWriter;
 
-    public ComplianceValidationNode(AIAgent agente, IAuditoriaProgresoTracker tracker)
-        : base("ComplianceValidation", agente)
+    public ComplianceValidationNode(
+        AIAgent agente,
+        IAuditoriaProgresoTracker tracker,
+        IRegistroErrorAuditoriaWriter errorWriter,
+        ILogger<ComplianceValidationNode> logger)
+        : base("ComplianceValidation", agente, logger)
     {
         _tracker = tracker;
+        _errorWriter = errorWriter;
     }
 
     public override async ValueTask<HallazgosPreliminares> HandleAsync(
@@ -378,8 +390,10 @@ public sealed class ComplianceValidationNode
                 message.AuditoriaId, NodoWorkflow.ComplianceValidation, ct);
             return resultado;
         }
-        catch
+        catch (Exception ex)
         {
+            await _errorWriter.RegistrarAsync(
+                message.AuditoriaId, NodoWorkflow.ComplianceValidation, ex, CancellationToken.None);
             await _tracker.MarcarFallidoAsync(
                 message.AuditoriaId, NodoWorkflow.ComplianceValidation, CancellationToken.None);
             throw;
@@ -431,11 +445,17 @@ public sealed class ConsistencyVerificationNode
     : AgenteExecutorBase<DocumentosExtraidos, HallazgosPreliminares>
 {
     private readonly IAuditoriaProgresoTracker _tracker;
+    private readonly IRegistroErrorAuditoriaWriter _errorWriter;
 
-    public ConsistencyVerificationNode(AIAgent agente, IAuditoriaProgresoTracker tracker)
-        : base("ConsistencyVerification", agente)
+    public ConsistencyVerificationNode(
+        AIAgent agente,
+        IAuditoriaProgresoTracker tracker,
+        IRegistroErrorAuditoriaWriter errorWriter,
+        ILogger<ConsistencyVerificationNode> logger)
+        : base("ConsistencyVerification", agente, logger)
     {
         _tracker = tracker;
+        _errorWriter = errorWriter;
     }
 
     public override async ValueTask<HallazgosPreliminares> HandleAsync(
@@ -451,8 +471,10 @@ public sealed class ConsistencyVerificationNode
                 message.AuditoriaId, NodoWorkflow.ConsistencyVerification, ct);
             return resultado;
         }
-        catch
+        catch (Exception ex)
         {
+            await _errorWriter.RegistrarAsync(
+                message.AuditoriaId, NodoWorkflow.ConsistencyVerification, ex, CancellationToken.None);
             await _tracker.MarcarFallidoAsync(
                 message.AuditoriaId, NodoWorkflow.ConsistencyVerification, CancellationToken.None);
             throw;
@@ -529,6 +551,7 @@ public sealed partial class FindingsClassificationNode : Executor
 
     private readonly AIAgent _agente;
     private readonly IAuditoriaProgresoTracker _tracker;
+    private readonly IRegistroErrorAuditoriaWriter _errorWriter;
     private readonly ILogger<FindingsClassificationNode> _logger;
 
     // Los tres elementos a cachear antes de poder clasificar.
@@ -539,11 +562,13 @@ public sealed partial class FindingsClassificationNode : Executor
     public FindingsClassificationNode(
         AIAgent agente,
         IAuditoriaProgresoTracker tracker,
+        IRegistroErrorAuditoriaWriter errorWriter,
         ILogger<FindingsClassificationNode> logger)
         : base("FindingsClassification")
     {
         _agente = agente;
         _tracker = tracker;
+        _errorWriter = errorWriter;
         _logger = logger;
     }
 
@@ -653,8 +678,10 @@ public sealed partial class FindingsClassificationNode : Executor
             await _tracker.MarcarCompletadoAsync(
                 idContexto, NodoWorkflow.FindingsClassification, CancellationToken.None);
         }
-        catch
+        catch (Exception ex)
         {
+            await _errorWriter.RegistrarAsync(
+                idContexto, NodoWorkflow.FindingsClassification, ex, CancellationToken.None);
             await _tracker.MarcarFallidoAsync(
                 idContexto, NodoWorkflow.FindingsClassification, CancellationToken.None);
             throw;

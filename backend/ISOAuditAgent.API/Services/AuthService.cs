@@ -256,6 +256,37 @@ public class AuthService
     }
 
     /// <summary>
+    /// El usuario logueado cambia su propia contraseña. A diferencia del reset
+    /// del admin, exige la contraseña actual y la verifica contra el hash antes
+    /// de guardar la nueva.
+    /// </summary>
+    /// <param name="id">ID del usuario (sale del JWT en el controller)</param>
+    public async Task<bool> CambiarPasswordAsync(int id, CambiarPasswordRequest request)
+    {
+        var usuario = await _repo.ObtenerPorIdAsync(id);
+        if (usuario == null) return false;
+
+        if (string.IsNullOrWhiteSpace(request.PasswordActual))
+            throw new ArgumentException("La contraseña actual es obligatoria");
+
+        // Verificar identidad antes de permitir el cambio.
+        if (!BCrypt.Net.BCrypt.Verify(request.PasswordActual, usuario.PasswordHash))
+            throw new ArgumentException("La contraseña actual es incorrecta");
+
+        if (string.IsNullOrWhiteSpace(request.PasswordNueva))
+            throw new ArgumentException("La nueva contraseña es obligatoria");
+
+        if (request.PasswordNueva.Length < PASSWORD_MIN_LENGTH)
+            throw new ArgumentException($"La contraseña debe tener al menos {PASSWORD_MIN_LENGTH} caracteres");
+
+        usuario.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.PasswordNueva, workFactor: 11);
+        await _repo.ActualizarAsync(usuario);
+
+        _logger.LogInformation("Password cambiada por el propio usuario | UsuarioId={Id}", id);
+        return true;
+    }
+
+    /// <summary>
     /// Actualiza la preferencia de tema (claro/oscuro) del usuario.
     /// </summary>
     /// <param name="id">ID del usuario (sale del JWT en el controller)</param>

@@ -4,6 +4,7 @@ using ISOAuditAgent.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ISOAuditAgent.API.Migrations
 {
     [DbContext(typeof(ISOAuditAgentDbContext))]
-    partial class ISOAuditAgentDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260701013102_AgregarRegistroErrorAuditoria")]
+    partial class AgregarRegistroErrorAuditoria
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -35,9 +38,6 @@ namespace ISOAuditAgent.API.Migrations
 
                     b.Property<string>("Descripcion")
                         .HasColumnType("longtext");
-
-                    b.Property<bool>("EsTailoring")
-                        .HasColumnType("tinyint(1)");
 
                     b.Property<int>("EtapaId")
                         .HasColumnType("int");
@@ -207,48 +207,6 @@ namespace ISOAuditAgent.API.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("configuraciones_sistema", (string)null);
-                });
-
-            modelBuilder.Entity("ISOAuditAgent.API.Models.ConsumoTokens", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("AgenteKey")
-                        .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("varchar(60)");
-
-                    b.Property<int?>("AuditoriaId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaHoraUtc")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Modelo")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("varchar(100)");
-
-                    b.Property<int>("TokensEntrada")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TokensSalida")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TokensTotal")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AgenteKey");
-
-                    b.HasIndex("FechaHoraUtc");
-
-                    b.ToTable("consumo_tokens", (string)null);
                 });
 
             modelBuilder.Entity("ISOAuditAgent.API.Models.DocumentoAnalizado", b =>

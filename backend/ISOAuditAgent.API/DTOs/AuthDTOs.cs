@@ -72,3 +72,13 @@ public record ModificarUsuarioRequest(
 public record ResetearPasswordRequest(
     string PasswordNueva
 );
+
+/// <summary>
+/// Lo que el usuario logueado manda para cambiar SU PROPIA contrasena.
+/// A diferencia del reset del admin, exige la contrasena actual para
+/// verificar identidad. El id sale del JWT — nunca del body.
+/// </summary>
+public record CambiarPasswordRequest(
+    string PasswordActual,
+    string PasswordNueva
+);

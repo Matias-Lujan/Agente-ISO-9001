@@ -8,22 +8,26 @@
 //   4. Agente IA       — modelo actual y opciones (placeholders)
 //
 //  Sobre la contrasena:
-//   No mostramos un formulario de cambio porque el backend todavia no expone
-//   el endpoint /api/auth/cambiar-password. En lugar de un mock que enganaria
-//   al usuario, mostramos una card informativa explicando como proceder.
-//
-//  Cuando exista el endpoint real:
-//   - Crear src/api/auth-password.ts con la llamada a `api.post()`
-//   - Reemplazar PasswordCard por un formulario con PasswordInput x3
-//   - El JWT ya viaja en el header automaticamente
+//   El usuario cambia su propia contrasena con PUT /api/auth/me/password, que
+//   exige la contrasena actual (la verifica el backend). El JWT identifica al
+//   usuario via la cookie HttpOnly — no viaja ningun id en el body.
 // ============================================================================
 
-import { useState } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useInjectStyle } from '../utils/useInjectStyle';
 import { configuracionCss } from '../styles/configuracion';
 import { useAuth } from '../login/AuthContext';
+import { cambiarPassword } from '../login/authApi';
+import { obtenerConfig, obtenerConsumoTokens, type ResumenConsumoTokens } from '../api/config';
+import {
+  obtenerPrompt,
+  actualizarPrompt,
+  restablecerPrompt,
+  revertirPrompt,
+  type PromptAgente,
+} from '../api/prompts';
 
-type Tab = 'perfil' | 'notif' | 'integ' | 'agente';
+type Tab = 'perfil' | 'notif' | 'agente';
 
 export default function Configuracion() {
   useInjectStyle(configuracionCss, 'configuracion-style');
@@ -73,13 +77,6 @@ export default function Configuracion() {
         </button>
         <button
           type="button"
-          className={`cfg-tab ${tab === 'integ' ? 'active' : ''}`}
-          onClick={() => setTab('integ')}
-        >
-          Integraciones
-        </button>
-        <button
-          type="button"
           className={`cfg-tab ${tab === 'agente' ? 'active' : ''}`}
           onClick={() => setTab('agente')}
         >
@@ -97,7 +94,6 @@ export default function Configuracion() {
       )}
 
       {tab === 'notif' && <NotificacionesPanel />}
-      {tab === 'integ' && <IntegracionesPanel emailUsuario={usuario?.email ?? ''} />}
       {tab === 'agente' && <AgenteIaPanel />}
     </>
   );
@@ -148,39 +144,126 @@ function PerfilPanel({ inicial, nombre, email, rol }: PerfilPanelProps) {
         </div>
       </div>
 
-      {/* Card 2: Contrasena (informativa) */}
-      <PasswordCard />
+      {/* Card 2: Cambio de contrasena (formulario real) */}
+      <PasswordChangeCard />
     </>
   );
 }
 
-// ── Card informativa de contrasena ─────────────────────────────────────────
+// ── Card de cambio de contrasena ────────────────────────────────────────────
 //
-// No mostramos la contrasena (es imposible: solo guardamos el hash) ni
-// formulario de cambio (el endpoint no existe todavia). Le decimos al
-// usuario que tiene que pedirle al administrador.
-function PasswordCard() {
+// El usuario cambia su propia contrasena. Pide la actual (la verifica el
+// backend) + la nueva x2. Nunca mostramos la contrasena guardada: solo existe
+// su hash. Los errores del backend (ej: "La contraseña actual es incorrecta")
+// llegan via el `mensaje` que propaga api/client.ts.
+function PasswordChangeCard() {
+  const [actual, setActual]     = useState('');
+  const [nueva, setNueva]       = useState('');
+  const [confirmar, setConfirmar] = useState('');
+  const [ver, setVer]           = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError]       = useState('');
+  const [exito, setExito]       = useState(false);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setExito(false);
+
+    if (nueva.length < 8) {
+      setError('La nueva contraseña debe tener al menos 8 caracteres.');
+      return;
+    }
+    if (nueva !== confirmar) {
+      setError('La nueva contraseña y su confirmación no coinciden.');
+      return;
+    }
+    if (nueva === actual) {
+      setError('La nueva contraseña debe ser distinta a la actual.');
+      return;
+    }
+
+    setEnviando(true);
+    try {
+      await cambiarPassword({ passwordActual: actual, passwordNueva: nueva });
+      setExito(true);
+      setActual('');
+      setNueva('');
+      setConfirmar('');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'No se pudo cambiar la contraseña.';
+      // Limpia el prefijo "400 Bad Request — " para una UX mas linda.
+      setError(msg.replace(/^\d+\s+\w+\s+—\s+/, ''));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
   return (
     <div className="cfg-card">
-      <div className="cfg-card-title">Contraseña</div>
+      <div className="cfg-card-title">Cambiar contraseña</div>
+      <div className="cfg-card-sub">Ingresá tu contraseña actual y elegí una nueva</div>
 
-      <div className="cfg-pass-info">
-        <div className="cfg-pass-info-icon" aria-hidden="true">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="11" width="18" height="11" rx="2"/>
-            <path d="M7 11V7a5 5 0 0110 0v4"/>
-          </svg>
+      <form onSubmit={handleSubmit} noValidate>
+        {error && <div className="cfg-feedback error">{error}</div>}
+        {exito && <div className="cfg-feedback success">Contraseña actualizada correctamente.</div>}
+
+        <div className="cfg-field">
+          <label htmlFor="cfg-pass-actual">Contraseña actual</label>
+          <input
+            id="cfg-pass-actual"
+            className="cfg-input"
+            type={ver ? 'text' : 'password'}
+            value={actual}
+            onChange={(e) => setActual(e.target.value)}
+            disabled={enviando}
+            autoComplete="current-password"
+          />
         </div>
 
-        <div className="cfg-pass-info-text">
-          <div className="cfg-pass-info-title">Tu contraseña está protegida</div>
-          <div className="cfg-pass-info-desc">
-            Por motivos de seguridad, las contraseñas no pueden visualizarse desde la plataforma.
-            Si necesitás cambiarla, contactá al administrador del sistema.
-          </div>
+        <div className="cfg-field">
+          <label htmlFor="cfg-pass-nueva">Nueva contraseña</label>
+          <input
+            id="cfg-pass-nueva"
+            className="cfg-input"
+            type={ver ? 'text' : 'password'}
+            value={nueva}
+            onChange={(e) => setNueva(e.target.value)}
+            placeholder="Mínimo 8 caracteres"
+            disabled={enviando}
+            autoComplete="new-password"
+          />
         </div>
-      </div>
+
+        <div className="cfg-field">
+          <label htmlFor="cfg-pass-confirmar">Confirmar nueva contraseña</label>
+          <input
+            id="cfg-pass-confirmar"
+            className="cfg-input"
+            type={ver ? 'text' : 'password'}
+            value={confirmar}
+            onChange={(e) => setConfirmar(e.target.value)}
+            placeholder="Repetí la nueva contraseña"
+            disabled={enviando}
+            autoComplete="new-password"
+          />
+        </div>
+
+        <label className="cfg-pass-show">
+          <input
+            type="checkbox"
+            checked={ver}
+            onChange={(e) => setVer(e.target.checked)}
+          />
+          Mostrar contraseñas
+        </label>
+
+        <div className="cfg-form-actions">
+          <button type="submit" className="cfg-btn" disabled={enviando}>
+            {enviando ? 'Guardando…' : 'Cambiar contraseña'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -210,6 +293,11 @@ const NOTIF_SISTEMA = [
 function NotificacionesPanel() {
   return (
     <>
+      <RoadmapNote>
+        Las notificaciones están planificadas para una próxima versión. Abajo
+        podés ver las alertas que vas a poder activar.
+      </RoadmapNote>
+
       <div className="cfg-card">
         <div className="cfg-card-title">Notificaciones por email</div>
         <div className="cfg-card-sub">Elegí cuándo querés recibir alertas en tu correo</div>
@@ -228,6 +316,16 @@ function NotificacionesPanel() {
   );
 }
 
+// Aviso honesto: la sección muestra funciones planificadas, todavía no activas.
+function RoadmapNote({ children }: { children: ReactNode }) {
+  return (
+    <div className="cfg-roadmap-note">
+      <span className="cfg-roadmap-tag">Próximas funciones</span>
+      <span className="cfg-roadmap-text">{children}</span>
+    </div>
+  );
+}
+
 function ToggleDevRow({ name, desc }: { name: string; desc: string }) {
   return (
     <div className="cfg-toggle-row">
@@ -236,73 +334,6 @@ function ToggleDevRow({ name, desc }: { name: string; desc: string }) {
         <div className="cfg-toggle-desc">{desc}</div>
       </div>
       <span className="cfg-dev-badge">Función en desarrollo</span>
-    </div>
-  );
-}
-
-// ============================================================================
-//  PANEL: INTEGRACIONES
-// ============================================================================
-
-function IntegracionesPanel({ emailUsuario }: { emailUsuario: string }) {
-  const integraciones = [
-    {
-      name: 'Google Drive',
-      sub:  `Cuenta: ${emailUsuario || 'no disponible'} · Último acceso: hace 2 min`,
-      icon: '📁',
-      iconBg: '#E8F0FE',
-      status: 'ok' as const,
-    },
-    {
-      name: 'Trello',
-      sub:  'Workspace: BDT Global · Último acceso: hace 5 min',
-      icon: '📋',
-      iconBg: '#EBF5FB',
-      status: 'ok' as const,
-    },
-    {
-      name: 'Clockify',
-      sub:  'Error de autenticación · Última conexión: 09/04/2026',
-      icon: '⏱️',
-      iconBg: '#FDEAEA',
-      status: 'err' as const,
-    },
-  ];
-
-  return (
-    <div className="cfg-card">
-        <div className="cfg-int-row" style={{ marginBottom: '15px' }}>
-            <div className="cfg-int-icon" style={{ background: '#EDE8FC', color: '#4B2DAB' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                <circle cx="12" cy="12" r="3"/>
-                </svg>
-            </div>
-            <div className="cfg-int-detail">
-                <div className="cfg-int-detail-name">Vista de ejemplo</div>
-                <div className="cfg-int-detail-sub">El monitoreo en vivo se incorporará próximamente.</div>
-            </div>
-        </div>
-    
-      <div className="cfg-card-title">Estado de conexiones</div>
-      <div className="cfg-card-sub">Servicios externos conectados a tu cuenta</div>
-
-      <div className="cfg-int-list">
-        {integraciones.map((int) => (
-          <div key={int.name} className="cfg-int-row">
-            <div className="cfg-int-icon" style={{ background: int.iconBg }}>
-              {int.icon}
-            </div>
-            <div className="cfg-int-detail">
-              <div className="cfg-int-detail-name">{int.name}</div>
-              <div className="cfg-int-detail-sub">{int.sub}</div>
-            </div>
-            <span className={`cfg-status-pill ${int.status === 'ok' ? 'cfg-status-ok' : 'cfg-status-err'}`}>
-              {int.status === 'ok' ? '✓ Conectado' : '✕ Error'}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -323,6 +354,22 @@ const OPCIONES_CLASIFICACION = [
 ];
 
 function AgenteIaPanel() {
+  const { usuario } = useAuth();
+  const esAdmin = usuario?.rol === 'Administrador';
+
+  // El modelo de IA lo define el administrador en la config del sistema. Lo
+  // traemos del backend (GET /api/config) en vez de hardcodearlo, para que la
+  // pantalla muestre siempre el valor real.
+  const [modeloIa, setModeloIa] = useState('');
+
+  useEffect(() => {
+    let activo = true;
+    obtenerConfig()
+      .then((c) => { if (activo) setModeloIa(c.modeloIa); })
+      .catch(() => { if (activo) setModeloIa(''); });
+    return () => { activo = false; };
+  }, []);
+
   return (
     <>
       <div className="cfg-card">
@@ -335,35 +382,29 @@ function AgenteIaPanel() {
             <div className="cfg-model-info">
               <div className="cfg-model-icon">✦</div>
               <div>
-                <div className="cfg-model-name">Gemini 2.5 Flash</div>
-                <div className="cfg-model-meta">Modelo recomendado · Rápido y económico</div>
+                <div className="cfg-model-name">{modeloIa || 'Cargando…'}</div>
+                <div className="cfg-model-meta">Definido por el administrador del sistema</div>
               </div>
             </div>
-            <span className="cfg-dev-badge">Configurable en desarrollo</span>
           </div>
           <div className="cfg-field-hint">
-            El modelo actual es el configurado por el administrador del sistema.
-          </div>
-        </div>
-
-        <div className="cfg-field">
-          <label>Idioma de los informes generados</label>
-          <input className="cfg-input readonly" value="Español" disabled readOnly />
-        </div>
-
-        <div className="cfg-field">
-          <label>Instrucción personalizada al agente</label>
-          <input
-            className="cfg-input readonly"
-            placeholder="Próximamente: podrás dar instrucciones específicas al agente"
-            disabled
-            readOnly
-          />
-          <div className="cfg-field-hint">
-            Se agregará al system prompt del agente en cada auditoría
+            El modelo se configura a nivel sistema. Contactá al administrador para cambiarlo.
           </div>
         </div>
       </div>
+
+      {/* KPI de consumo de tokens — solo Administrador (endpoint admin-only).
+          Es información de costo/uso del sistema. */}
+      {esAdmin && <ConsumoTokensCard />}
+
+      {/* Editor de system prompt — solo Administrador (los endpoints también
+          son admin-only). Los demás roles no ven esta card. */}
+      {esAdmin && <PromptEditorCard />}
+
+      <RoadmapNote>
+        Estas opciones de clasificación están planificadas. Hoy el agente aplica
+        los criterios ISO 9001 definidos por el sistema.
+      </RoadmapNote>
 
       <div className="cfg-card">
         <div className="cfg-card-title">Opciones de clasificación</div>
@@ -373,4 +414,314 @@ function AgenteIaPanel() {
       </div>
     </>
   );
+}
+
+// ── KPI de consumo de tokens (admin-only) ───────────────────────────────────
+//
+// Muestra cuánto consume el agente IA de la app: el total (entrada/salida/total,
+// cantidad de llamadas y de auditorías) y el desglose por agente. Los datos los
+// acumula el backend por cada llamada al LLM y se agregan en
+// GET /api/config/consumo-tokens. Sugerencia de cátedra: dar visibilidad al costo.
+
+// Nombres legibles para las keys internas de los agentes.
+const NOMBRE_AGENTE: Record<string, string> = {
+  DocumentAnalysis: 'Analizador documental',
+  ComplianceValidation: 'Validación de cumplimiento',
+  ConsistencyVerification: 'Verificación de consistencia',
+  FindingsClassification: 'Clasificación de hallazgos',
+};
+
+// Orden fijo del pipeline para mostrar la tabla: primero el análisis documental,
+// después las validaciones, y al final la clasificación de hallazgos. Los agentes
+// no listados quedan al final.
+const ORDEN_AGENTE = [
+  'DocumentAnalysis',
+  'ComplianceValidation',
+  'ConsistencyVerification',
+  'FindingsClassification',
+];
+
+function ordenAgente(key: string): number {
+  const i = ORDEN_AGENTE.indexOf(key);
+  return i === -1 ? ORDEN_AGENTE.length : i;
+}
+
+function nombreAgente(key: string): string {
+  return NOMBRE_AGENTE[key] ?? key;
+}
+
+function formatearNumero(n: number): string {
+  return n.toLocaleString('es-AR');
+}
+
+function ConsumoTokensCard() {
+  const [datos, setDatos]     = useState<ResumenConsumoTokens | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError]     = useState('');
+
+  useEffect(() => {
+    let activo = true;
+    obtenerConsumoTokens()
+      .then((d) => { if (activo) setDatos(d); })
+      .catch((e) => { if (activo) setError(mensajeError(e)); })
+      .finally(() => { if (activo) setCargando(false); });
+    return () => { activo = false; };
+  }, []);
+
+  if (cargando) {
+    return (
+      <div className="cfg-card">
+        <div className="cfg-card-title">Consumo de tokens</div>
+        <div className="cfg-field-hint">Cargando…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="cfg-card">
+        <div className="cfg-card-title">Consumo de tokens</div>
+        <div className="cfg-feedback error">{error}</div>
+      </div>
+    );
+  }
+
+  const total = datos?.total;
+  const sinDatos = !total || total.cantidadLlamadas === 0;
+
+  return (
+    <div className="cfg-card">
+      <div className="cfg-card-title">Consumo de tokens del agente IA</div>
+      <div className="cfg-card-sub">
+        Tokens consumidos por las auditorías desde que se activó la medición
+      </div>
+
+      {sinDatos ? (
+        <div className="cfg-field-hint">
+          Todavía no hay consumo registrado. Ejecutá una auditoría para ver el KPI.
+        </div>
+      ) : (
+        <>
+          <div className="cfg-kpi-grid">
+            <div className="cfg-kpi">
+              <div className="cfg-kpi-value">{formatearNumero(total!.tokensTotal)}</div>
+              <div className="cfg-kpi-label">Tokens totales</div>
+            </div>
+            <div className="cfg-kpi">
+              <div className="cfg-kpi-value">{formatearNumero(total!.tokensEntrada)}</div>
+              <div className="cfg-kpi-label">Tokens de entrada</div>
+            </div>
+            <div className="cfg-kpi">
+              <div className="cfg-kpi-value">{formatearNumero(total!.tokensSalida)}</div>
+              <div className="cfg-kpi-label">Tokens de salida</div>
+            </div>
+            <div className="cfg-kpi">
+              <div className="cfg-kpi-value">{formatearNumero(total!.cantidadLlamadas)}</div>
+              <div className="cfg-kpi-label">Llamadas al LLM</div>
+            </div>
+            <div className="cfg-kpi">
+              <div className="cfg-kpi-value">{formatearNumero(total!.cantidadAuditorias)}</div>
+              <div className="cfg-kpi-label">Auditorías</div>
+            </div>
+          </div>
+
+          <div className="cfg-consumo-tabla">
+            <div className="cfg-consumo-row cfg-consumo-head">
+              <span className="cfg-consumo-agente">Agente</span>
+              <span>Entrada</span>
+              <span>Salida</span>
+              <span>Total</span>
+              <span>Llamadas</span>
+            </div>
+            {[...datos!.porAgente]
+              .sort((a, b) => ordenAgente(a.agenteKey) - ordenAgente(b.agenteKey))
+              .map((a) => (
+              <div key={a.agenteKey} className="cfg-consumo-row">
+                <span className="cfg-consumo-agente">{nombreAgente(a.agenteKey)}</span>
+                <span>{formatearNumero(a.tokensEntrada)}</span>
+                <span>{formatearNumero(a.tokensSalida)}</span>
+                <span>{formatearNumero(a.tokensTotal)}</span>
+                <span>{formatearNumero(a.cantidadLlamadas)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Editor del system prompt de DocumentAnalysis (admin-only) ───────────────
+//
+// DocumentAnalysis es el único agente cuyo comportamiento vive en el system
+// prompt (los otros tres lo tienen en su prompt de turno). El backend versiona
+// cada cambio: guardar crea una versión nueva y activa; el historial permite
+// revertir. Por eso el editor incluye un aviso fuerte: un prompt mal editado
+// rompe el pipeline, pero "Restablecer" y el historial son la red de seguridad.
+const AGENTE_KEY = 'DocumentAnalysis';
+
+function PromptEditorCard() {
+  const [prompt, setPrompt]       = useState<PromptAgente | null>(null);
+  const [texto, setTexto]         = useState('');
+  const [comentario, setComentario] = useState('');
+  const [cargando, setCargando]   = useState(true);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError]         = useState('');
+  const [ok, setOk]               = useState('');
+  const [verHistorial, setVerHistorial] = useState(false);
+
+  const aplicar = (p: PromptAgente) => {
+    setPrompt(p);
+    setTexto(p.contenido);
+  };
+
+  useEffect(() => {
+    let activo = true;
+    obtenerPrompt(AGENTE_KEY)
+      .then((p) => { if (activo) aplicar(p); })
+      .catch((e) => { if (activo) setError(mensajeError(e)); })
+      .finally(() => { if (activo) setCargando(false); });
+    return () => { activo = false; };
+  }, []);
+
+  const modificado = prompt !== null && texto !== prompt.contenido;
+
+  const correr = async (accion: () => Promise<PromptAgente>, comentarioReset = true) => {
+    setGuardando(true);
+    setError('');
+    setOk('');
+    try {
+      const p = await accion();
+      aplicar(p);
+      if (comentarioReset) setComentario('');
+      setOk('Cambios aplicados. Las próximas auditorías usarán este prompt.');
+    } catch (e) {
+      setError(mensajeError(e));
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  if (cargando) {
+    return (
+      <div className="cfg-card">
+        <div className="cfg-card-title">System prompt del agente</div>
+        <div className="cfg-field-hint">Cargando…</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cfg-card">
+      <div className="cfg-prompt-head">
+        <div>
+          <div className="cfg-card-title" style={{ marginBottom: 2 }}>
+            System prompt — Analizador Documental
+          </div>
+          <div className="cfg-card-sub" style={{ margin: 0 }}>
+            Instrucciones base del agente DocumentAnalysis · versión {prompt?.versionActiva ?? '—'}
+          </div>
+        </div>
+        <span className={`cfg-prompt-tag ${prompt?.esDefault ? 'is-default' : 'is-mod'}`}>
+          {prompt?.esDefault ? 'Por defecto' : 'Modificado'}
+        </span>
+      </div>
+
+      <div className="cfg-prompt-warn">
+        <strong>⚠ Cuidado:</strong> este prompt controla el formato JSON que el
+        sistema procesa. Un cambio incorrecto puede hacer fallar las auditorías.
+        Ante la duda, usá <em>Restablecer al valor por defecto</em>.
+      </div>
+
+      {error && <div className="cfg-feedback error">{error}</div>}
+      {ok && <div className="cfg-feedback success">{ok}</div>}
+
+      <textarea
+        className="cfg-prompt-textarea"
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        spellCheck={false}
+        disabled={guardando}
+      />
+
+      <div className="cfg-field" style={{ marginTop: 12 }}>
+        <label htmlFor="cfg-prompt-comentario">Comentario del cambio (opcional)</label>
+        <input
+          id="cfg-prompt-comentario"
+          className="cfg-input"
+          value={comentario}
+          onChange={(e) => setComentario(e.target.value)}
+          placeholder="Ej: ajuste en las reglas de matcheo por código"
+          disabled={guardando}
+        />
+      </div>
+
+      <div className="cfg-prompt-actions">
+        <button
+          type="button"
+          className="cfg-btn-sec"
+          onClick={() => correr(() => restablecerPrompt(AGENTE_KEY))}
+          disabled={guardando}
+        >
+          Restablecer al valor por defecto
+        </button>
+        <div style={{ flex: 1 }} />
+        <button
+          type="button"
+          className="cfg-btn-sec"
+          onClick={() => setVerHistorial((v) => !v)}
+          disabled={guardando}
+        >
+          {verHistorial ? 'Ocultar historial' : `Historial (${prompt?.historial.length ?? 0})`}
+        </button>
+        <button
+          type="button"
+          className="cfg-btn"
+          onClick={() => correr(() => actualizarPrompt(AGENTE_KEY, texto, comentario.trim() || null))}
+          disabled={guardando || !modificado}
+        >
+          {guardando ? 'Guardando…' : 'Guardar nueva versión'}
+        </button>
+      </div>
+
+      {verHistorial && prompt && (
+        <div className="cfg-prompt-hist">
+          {prompt.historial.map((v) => (
+            <div key={v.version} className="cfg-prompt-hist-row">
+              <div className="cfg-prompt-hist-info">
+                <span className="cfg-prompt-hist-ver">
+                  v{v.version}{v.esActiva ? ' · activa' : ''}
+                </span>
+                <span className="cfg-prompt-hist-meta">
+                  {formatearFecha(v.fechaCreacion)}
+                  {v.modificadoPorNombre ? ` · ${v.modificadoPorNombre}` : ' · sistema'}
+                  {v.comentario ? ` · ${v.comentario}` : ''}
+                </span>
+              </div>
+              {!v.esActiva && (
+                <button
+                  type="button"
+                  className="cfg-btn-sec sm"
+                  onClick={() => correr(() => revertirPrompt(AGENTE_KEY, v.version), false)}
+                  disabled={guardando}
+                >
+                  Revertir
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function mensajeError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : 'Ocurrió un error.';
+  return msg.replace(/^\d+\s+\w+\s+—\s+/, '');
+}
+
+function formatearFecha(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('es-AR');
 }

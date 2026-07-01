@@ -118,7 +118,8 @@ public class AuditoriaRepository : IAuditoriaRepository
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task MarcarFallidaAsync(int auditoriaId, CancellationToken ct)
+    public async Task MarcarFallidaAsync(
+        int auditoriaId, CategoriaErrorAuditoria categoria, string mensaje, CancellationToken ct)
     {
         var auditoria = await _db.Auditorias
             .FirstOrDefaultAsync(a => a.Id == auditoriaId, ct)
@@ -127,7 +128,20 @@ public class AuditoriaRepository : IAuditoriaRepository
 
         auditoria.Estado               = EstadoAuditoria.Fallida;
         auditoria.FechaFinalizacionUtc = DateTime.UtcNow;
+        auditoria.CategoriaError       = categoria;
+        auditoria.MensajeError         = mensaje;
         await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task<IReadOnlyList<RegistroErrorAuditoria>> ObtenerErroresAsync(
+        int auditoriaId, CancellationToken ct)
+    {
+        return await _db.RegistrosErrorAuditoria
+            .AsNoTracking()
+            .Where(r => r.AuditoriaId == auditoriaId)
+            .OrderByDescending(r => r.FechaUtc)
+            .ThenByDescending(r => r.Id)
+            .ToListAsync(ct);
     }
 
     public Task<Auditoria?> ObtenerConResultadoOrNullAsync(int id, CancellationToken ct)

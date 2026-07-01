@@ -1,5 +1,6 @@
 ﻿
 using ISOAuditAgent.API.Agents.Contracts;
+using ISOAuditAgent.API.Models;
 using ISOAuditAgent.API.Repositories;
 using ISOAuditAgent.API.Services;
 using Microsoft.Agents.AI.Workflows;
@@ -56,13 +57,30 @@ public sealed class AuditoriaRunner
                 "Auditoría {AuditoriaId} falló. Se marca como Fallida.",
                 auditoriaId);
 
+            // Traducimos la excepción a una categoría + mensaje legible para el
+            // auditor (desenvolviendo el wrapper del WorkflowErrorEvent).
+            var (categoria, mensaje) = ClasificadorErrorAuditoria.Clasificar(ex);
+
+            // Log durable: si un nodo ya registró el fallo puntual, no duplicamos;
+            // si el error ocurrió fuera de un nodo (resolución de contexto,
+            // persistencia), esta es la única fila que lo captura.
+            var errorWriter = sp.GetRequiredService<IRegistroErrorAuditoriaWriter>();
+            await errorWriter.RegistrarFallbackAsync(auditoriaId, ex, CancellationToken.None);
+
             // El nodo que estaba EnCurso al momento de la excepción debería
             // haberse marcado a sí mismo como Fallido (en su catch). Esta es
             // red de seguridad por si el catch del nodo no llegó a correr
             // (ej. excepción fuera del try interno o cancelación abrupta).
             await tracker.MarcarTodosEnCursoComoFallidosAsync(auditoriaId, CancellationToken.None);
 
-            await MarcarFallidaSeguroAsync(auditoriaId, sp, ct);
+            await MarcarFallidaSeguroAsync(auditoriaId, categoria, mensaje, sp, ct);
+        }
+        finally
+        {
+            // Persistir el consumo de tokens acumulado durante la corrida. Va en
+            // finally porque los tokens se consumieron aunque la auditoría falle.
+            // Best-effort: un fallo de métricas nunca debe alterar el resultado.
+            await FlushConsumoTokensSeguroAsync(auditoriaId, sp);
         }
     }
 
@@ -207,18 +225,63 @@ public sealed class AuditoriaRunner
     /// relanzar acá no aportaría nada y taparía el error original.
     /// </summary>
     private async Task MarcarFallidaSeguroAsync(
-        int auditoriaId, IServiceProvider sp, CancellationToken ct)
+        int auditoriaId, CategoriaErrorAuditoria categoria, string mensaje,
+        IServiceProvider sp, CancellationToken ct)
     {
         try
         {
             var auditoriaRepo = sp.GetRequiredService<IAuditoriaRepository>();
-            await auditoriaRepo.MarcarFallidaAsync(auditoriaId, ct);
+            await auditoriaRepo.MarcarFallidaAsync(auditoriaId, categoria, mensaje, ct);
         }
         catch (Exception ex)
         {
             _logger.LogCritical(ex,
                 "No se pudo marcar la auditoría {AuditoriaId} como Fallida. " +
                 "Queda en EnCurso en la BD y requiere intervención manual.",
+                auditoriaId);
+        }
+    }
+
+    // ------------------------------------------------------------------------
+    //  Consumo de tokens — flush best-effort del colector del scope
+    // ------------------------------------------------------------------------
+
+    /// <summary>
+    /// Drena el ColectorConsumoTokens del scope (lo que acumularon los agentes
+    /// vía ChatClientConMetricas) y lo persiste estampándole el AuditoriaId.
+    /// Envuelto en su propio try/catch: es telemetría, no debe tumbar ni
+    /// ensuciar la auditoría. Usa CancellationToken.None para que un cancel de
+    /// la corrida no impida guardar lo ya consumido.
+    /// </summary>
+    private async Task FlushConsumoTokensSeguroAsync(int auditoriaId, IServiceProvider sp)
+    {
+        try
+        {
+            var colector = sp.GetRequiredService<ColectorConsumoTokens>();
+            var registros = colector.Drenar();
+            if (registros.Count == 0)
+                return;
+
+            var ahora = DateTime.UtcNow;
+            var filas = registros.Select(r => new ConsumoTokens
+            {
+                AuditoriaId   = auditoriaId,
+                AgenteKey     = r.AgenteKey,
+                Modelo        = r.Modelo,
+                TokensEntrada = (int)r.TokensEntrada,
+                TokensSalida  = (int)r.TokensSalida,
+                TokensTotal   = (int)r.TokensTotal,
+                FechaHoraUtc  = ahora,
+            });
+
+            var repo = sp.GetRequiredService<IConsumoTokensRepository>();
+            await repo.GuardarLoteAsync(filas, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "No se pudo persistir el consumo de tokens de la auditoría {AuditoriaId}. " +
+                "El KPI puede quedar incompleto, pero la auditoría no se ve afectada.",
                 auditoriaId);
         }
     }

@@ -102,6 +102,17 @@ export const proyectoDetalleCss = `
 
 .pd-empty{font-size:13px;color:var(--text-muted);padding:1.2rem;text-align:center;background:var(--surface-2);border-radius:11px;}
 
+/* ----- Panel de auditoría fallida ----- */
+.pd-fail-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:1rem;}
+.pd-fail-badge{flex-shrink:0;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:var(--err-bg);color:var(--err-fg);}
+.pd-fail-badge svg{width:19px;height:19px;}
+.pd-fail-title{font-size:15px;font-weight:600;color:var(--text);}
+.pd-fail-sub{font-size:13px;color:var(--text-muted);margin-top:3px;line-height:1.45;}
+.pd-fail-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+.pd-fail-item{display:flex;flex-direction:column;gap:3px;background:var(--err-bg);border:1px solid var(--err-fg);border-radius:9px;padding:.7rem .85rem;}
+.pd-fail-nodo{font-size:11.5px;font-weight:700;color:var(--err-fg);text-transform:uppercase;letter-spacing:.03em;}
+.pd-fail-msg{font-size:13px;color:var(--text);line-height:1.4;}
+
 /* ----- Modal ver informe ----- */
 .pd-overlay{position:fixed;inset:0;background:rgba(15,8,40,0.55);display:flex;align-items:center;justify-content:center;z-index:1000;padding:1rem;}
 .pd-modal{background:var(--surface);border-radius:12px;max-width:760px;width:100%;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,0.35);}

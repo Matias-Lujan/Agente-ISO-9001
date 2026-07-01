@@ -168,4 +168,34 @@ public static class SystemPrompts
         Si estás por escribir cualquier cosa que no sea JSON puro, detenete y
         empezá de nuevo con '{'.
         """";
+
+    // ── System prompts de los otros 3 agentes ───────────────────────────────
+    //
+    // Para ComplianceValidation, ConsistencyVerification y FindingsClassification
+    // la lógica pesada (formato JSON, qué analizar) vive en sus PromptBuilders de
+    // turno; el system prompt solo fija la persona. Se mantienen acá para tener
+    // TODOS los defaults en un único lugar: es la fuente para el seed inicial y
+    // para el "restablecer al valor por defecto".
+    public const string ComplianceValidation =
+        "Sos el agente ComplianceValidation. Validás tailoring/procedimiento contra ejecución real.";
+
+    public const string ConsistencyVerification =
+        "Sos el agente ConsistencyVerification. Validás consistencia formal y estructural entre artefactos.";
+
+    public const string FindingsClassification =
+        "Sos el agente FindingsClassification. Clasificás hallazgos en NC, OBS u OM.";
+
+    // ── Registro de defaults por agente ─────────────────────────────────────
+    //
+    // Las keys coinciden con las de los AIAgent keyed en el DI y con los nombres
+    // de carpeta de cada agente. Es la lista canónica de agentes con system
+    // prompt configurable.
+    public static readonly IReadOnlyDictionary<string, string> Defaults =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["DocumentAnalysis"]        = AnalizadorDocumental,
+            ["ComplianceValidation"]    = ComplianceValidation,
+            ["ConsistencyVerification"] = ConsistencyVerification,
+            ["FindingsClassification"]  = FindingsClassification,
+        };
 }

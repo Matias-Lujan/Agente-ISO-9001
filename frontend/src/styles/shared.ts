@@ -281,6 +281,15 @@ body{
 .ea-stat .n{font-size:24px;font-weight:700;color:var(--text);line-height:1;}
 .ea-stat .l{font-size:11.5px;color:var(--text-muted);margin-top:6px;}
 
+.ea-error-list{list-style:none;margin:0 0 1.3rem;padding:0;display:flex;flex-direction:column;gap:8px;}
+.ea-error-item{
+  display:flex;flex-direction:column;gap:3px;
+  background:var(--err-bg);border:1px solid var(--err-fg);border-radius:9px;
+  padding:.7rem .85rem;
+}
+.ea-error-nodo{font-size:11.5px;font-weight:700;color:var(--err-fg);text-transform:uppercase;letter-spacing:.03em;}
+.ea-error-msg{font-size:13px;color:var(--text);line-height:1.4;}
+
 .ea-actions{display:flex;gap:8px;flex-wrap:wrap;}
 .btn-sec{
   display:inline-flex;align-items:center;gap:6px;

@@ -137,6 +137,35 @@ public class AuthController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// El usuario logueado cambia su propia contraseña. Exige la contraseña
+    /// actual para verificar identidad. El id sale del JWT — cada usuario solo
+    /// cambia la suya (no requiere ser Administrador).
+    /// </summary>
+    [HttpPut("me/password")]
+    [Authorize]
+    public async Task<IActionResult> CambiarPassword([FromBody] CambiarPasswordRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var idClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (idClaim == null || !int.TryParse(idClaim, out var id))
+            return Unauthorized();
+
+        try
+        {
+            var ok = await _authService.CambiarPasswordAsync(id, request);
+            if (!ok)
+                return NotFound();
+            return NoContent(); // 204 — cambio aplicado sin body
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { mensaje = ex.Message });
+        }
+    }
+
     // ── GESTION DE USUARIOS (solo Administrador) ──────────────────────────────
 
     /// <summary>

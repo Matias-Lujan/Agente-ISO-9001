@@ -14,7 +14,22 @@ public record AuditoriaResponse(
     int EtapaId,
     DateTime FechaInicioUtc,
     DateTime? FechaFinalizacionUtc,
-    string Estado
+    string Estado,
+    // Resumen del fallo cuando Estado == Fallida (null en otros casos).
+    string? CategoriaError,
+    string? MensajeError
+);
+
+/// <summary>
+/// Una entrada del log de errores de una auditoría. No incluye el detalle
+/// técnico (stack): eso queda en la BD para el equipo, no se muestra al auditor.
+/// </summary>
+public record RegistroErrorResponse(
+    int Id,
+    string? Nodo,
+    string Categoria,
+    string Mensaje,
+    DateTime FechaUtc
 );
 
 /// <summary>
