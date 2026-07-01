@@ -104,6 +104,23 @@ public sealed class AuditoriaRunner
         // --- 5. Persistir (marca Completada dentro de la transacción) -------
         var persistencia = sp.GetRequiredService<IAuditoriaPersistenceService>();
         await persistencia.PersistirResultadoAsync(resultado, ct);
+
+        // --- 6. Generar el informe automático de la auditoría ---------------
+        // Se deriva del resultado ya persistido. Va FUERA de la transacción de
+        // persistencia a propósito: si fallara, la auditoría ya está Completada
+        // y el informe se puede regenerar manualmente. Por eso el try/catch no
+        // propaga: un informe faltante no debe ensuciar una auditoría exitosa.
+        try
+        {
+            var informeService = sp.GetRequiredService<InformeService>();
+            await informeService.GenerarAutomaticoAsync(auditoriaId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "La auditoría {AuditoriaId} se completó pero no se pudo generar su " +
+                "informe automático. Se puede regenerar manualmente.", auditoriaId);
+        }
     }
 
     /// <summary>

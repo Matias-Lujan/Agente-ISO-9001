@@ -26,6 +26,11 @@ export const dashboardCss = `
   font-size:11px;font-weight:500;margin-bottom:0.75rem;
   text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);
 }
+/* Rótulo de "lente" (estado actual / histórico) — aclara la base de cada bloque */
+.dash-lente-hint{
+  margin-left:.5rem;font-size:12px;font-weight:400;color:var(--text-muted);
+  text-transform:none;letter-spacing:normal;
+}
 
 /* ----- Proyectos recientes ----- */
 .dash-projects{display:flex;flex-direction:column;gap:8px;margin-bottom:1.5rem;}

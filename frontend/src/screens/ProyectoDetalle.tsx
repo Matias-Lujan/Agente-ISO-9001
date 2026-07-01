@@ -12,7 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useInjectStyle } from '../utils/useInjectStyle';
 import { proyectoDetalleCss } from '../styles/proyectoDetalle';
-import { descargarInformePdf } from '../utils/exportInformePdf';
+import { descargarInformePdf, previsualizarInformePdf } from '../utils/exportInformePdf';
 import { obtenerProyecto, type Proyecto } from '../api/proyectos';
 import {
   listarAuditoriasDeProyecto,
@@ -85,7 +85,9 @@ function CurvaEvolucion({ pts, selId, onSelect }: {
   if (pts.length === 0) {
     return <div className="pd-empty">Todavía no hay ejecuciones completadas para graficar la evolución.</div>;
   }
-  const W = 720, H = 188, padL = 32, padR = 16, padT = 16, padB = 38;
+  // viewBox en escala ~px reales (igual criterio que el gráfico del dashboard):
+  // así la tipografía y los elementos quedan al mismo tamaño natural.
+  const W = 1480, H = 330, padL = 44, padR = 28, padT = 40, padB = 66;
   const innerW = W - padL - padR, innerH = H - padT - padB;
   const n = pts.length;
   const X = (i: number) => (n > 1 ? padL + i * (innerW / (n - 1)) : padL + innerW / 2);
@@ -101,18 +103,19 @@ function CurvaEvolucion({ pts, selId, onSelect }: {
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} className="pd-evo-svg">
         <defs>
           <linearGradient id="evoGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.22" />
-            <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
+            <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.20" />
+            <stop offset="100%" stopColor="var(--primary)" stopOpacity="0" />
           </linearGradient>
         </defs>
 
-        {/* Guías horizontales: 0 / 70 / 90 / 100 */}
+        {/* Guías 0 / 50 / 100 + eje Y */}
         {[0, 50, 100].map((g) => (
           <g key={g}>
             <line x1={padL} y1={Y(g)} x2={W - padR} y2={Y(g)} className="pd-evo-grid" />
-            <text x={padL - 6} y={Y(g) + 3} className="pd-evo-axis" textAnchor="end">{g}</text>
+            <text x={padL - 10} y={Y(g) + 4} className="pd-evo-axis" textAnchor="end">{g}</text>
           </g>
         ))}
+        {/* Umbrales de cumplimiento 70 / 90 */}
         {[70, 90].map((g) => (
           <line key={g} x1={padL} y1={Y(g)} x2={W - padR} y2={Y(g)} className="pd-evo-thr" />
         ))}
@@ -122,13 +125,13 @@ function CurvaEvolucion({ pts, selId, onSelect }: {
 
         {vp.map((p) => (
           <g key={p.id} className="pd-evo-pt" onClick={() => onSelect(p.id)}>
-            <circle cx={p.vx} cy={p.vy} r={p.id === selId ? 7 : 5}
+            <circle cx={p.vx} cy={p.vy} r={p.id === selId ? 8 : 6}
               fill="var(--surface)" stroke={colorPct(p.cumpl)} strokeWidth={p.id === selId ? 3 : 2.5} />
-            <text x={p.vx} y={p.vy - 12} className="pd-evo-val" textAnchor="middle" fill={colorPct(p.cumpl)}>
+            <text x={p.vx} y={p.vy - 14} className="pd-evo-val" textAnchor="middle" fill={colorPct(p.cumpl)}>
               {p.cumpl == null ? '—' : `${p.cumpl}%`}
             </text>
-            <text x={p.vx} y={baseY + 16} className="pd-evo-x" textAnchor="middle">{fechaCorta(p.fecha)}</text>
-            <text x={p.vx} y={baseY + 29} className="pd-evo-x2" textAnchor="middle">{p.hallazgos} hz</text>
+            <text x={p.vx} y={baseY + 24} className="pd-evo-x" textAnchor="middle">{fechaCorta(p.fecha)}</text>
+            <text x={p.vx} y={baseY + 42} className="pd-evo-x2" textAnchor="middle">{p.hallazgos} hz</text>
           </g>
         ))}
       </svg>
@@ -160,6 +163,9 @@ export default function ProyectoDetalle() {
   const [cargandoSel, setCargandoSel] = useState(false);
   const [expandido, setExpandido] = useState<Set<number>>(new Set());
   const [verInforme, setVerInforme] = useState<Informe | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState(false);
+  const [descargando, setDescargando] = useState<number | null>(null);
 
   // Curva de evolución: una métrica por cada ejecución (auditoría) completada.
   const [evolucion, setEvolucion] = useState<PuntoEvo[]>([]);
@@ -242,6 +248,29 @@ export default function ProyectoDetalle() {
     })();
     return () => { activo = false; };
   }, [auditorias]);
+
+  // Vista previa del informe: genera el PDF y lo embebe como blob en el modal.
+  useEffect(() => {
+    if (!verInforme) { setPdfUrl(null); setPdfError(false); return; }
+    let activo = true;
+    let url: string | null = null;
+    setPdfUrl(null); setPdfError(false);
+    previsualizarInformePdf(verInforme)
+      .then((u) => { if (activo) { url = u; setPdfUrl(u); } else URL.revokeObjectURL(u); })
+      .catch(() => { if (activo) setPdfError(true); });
+    return () => { activo = false; if (url) URL.revokeObjectURL(url); };
+  }, [verInforme]);
+
+  const handleDescargar = async (inf: Informe) => {
+    setDescargando(inf.id);
+    try {
+      await descargarInformePdf(inf);
+    } catch {
+      alert('No se pudo generar el PDF del informe.');
+    } finally {
+      setDescargando((d) => (d === inf.id ? null : d));
+    }
+  };
 
   const etapaNombre = useMemo(() => {
     const m = new Map<number, string>();
@@ -483,8 +512,8 @@ export default function ProyectoDetalle() {
                         <button className="pd-link" onClick={() => setVerInforme(inf)}>
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>Ver
                         </button>
-                        <button className="pd-link" onClick={() => descargarInformePdf(inf)}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>PDF
+                        <button className="pd-link" onClick={() => handleDescargar(inf)} disabled={descargando === inf.id}>
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>{descargando === inf.id ? 'Generando…' : 'PDF'}
                         </button>
                       </div>
                     </div>
@@ -507,10 +536,18 @@ export default function ProyectoDetalle() {
               </div>
               <button className="pd-modal-close" onClick={() => setVerInforme(null)} aria-label="Cerrar">×</button>
             </div>
-            <div className="pd-modal-body"><div className="pd-contenido">{verInforme.contenido || '(sin contenido)'}</div></div>
+            <div className="pd-modal-body">
+              {pdfError ? (
+                <div className="pd-empty">No se pudo generar la vista previa del PDF.</div>
+              ) : pdfUrl ? (
+                <iframe className="pd-pdf-frame" src={pdfUrl} title="Vista previa del informe" />
+              ) : (
+                <div className="pd-empty">Generando vista previa…</div>
+              )}
+            </div>
             <div className="pd-modal-foot">
-              <button className="btn-pri" onClick={() => descargarInformePdf(verInforme)}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="15" height="15"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>Descargar PDF
+              <button className="btn-pri" onClick={() => handleDescargar(verInforme)} disabled={descargando === verInforme.id}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" width="15" height="15"><path d="M12 3v12M7 10l5 5 5-5M5 21h14" /></svg>{descargando === verInforme.id ? 'Generando…' : 'Descargar PDF'}
               </button>
             </div>
           </div>

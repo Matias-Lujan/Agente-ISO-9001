@@ -1,3 +1,4 @@
+using System.Text;
 using ISOAuditAgent.API.DTOs;
 using ISOAuditAgent.API.Models;
 using ISOAuditAgent.API.Repositories;
@@ -46,9 +47,9 @@ public class InformeService
         return await MapearConDetallesAsync(informe);
     }
 
-    public async Task<InformeResponse> GenerarAutomaticoAsync(int auditoriaId)
+    public async Task<InformeResponse> GenerarAutomaticoAsync(int auditoriaId, CancellationToken ct = default)
     {
-        var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(auditoriaId)
+        var auditoria = await _auditoriaRepo.ObtenerConResultadoOrNullAsync(auditoriaId, ct)
             ?? throw new InvalidOperationException($"Auditoría con ID {auditoriaId} no encontrada");
 
         var proyecto = await _proyectoRepo.ObtenerPorIdAsync(auditoria.ProyectoId);
@@ -71,7 +72,7 @@ public class InformeService
 
     public async Task<InformeResponse> GenerarManualAsync(GenerarInformeRequest request)
     {
-        var auditoria = await _auditoriaRepo.ObtenerPorIdAsync(request.AuditoriaId)
+        var auditoria = await _auditoriaRepo.ObtenerConResultadoOrNullAsync(request.AuditoriaId, CancellationToken.None)
             ?? throw new InvalidOperationException($"Auditoría con ID {request.AuditoriaId} no encontrada");
 
         // Solo se puede generar informe de auditorias completadas
@@ -95,17 +96,75 @@ public class InformeService
         return await MapearConDetallesAsync(creado);
     }
 
+    // Arma el contenido del informe a partir del resultado real de la auditoría:
+    // cumplimiento, hallazgos por tipo (con descripción) y artefactos evaluados.
+    // Requiere que la auditoría venga cargada con ArtefactosEvaluados → Hallazgos
+    // (ObtenerConResultadoOrNullAsync). Regla de cumplimiento: conformes /
+    // (conformes + no conformes) entre los artefactos aplicables.
     private static string GenerarContenido(Auditoria auditoria, string nombreProyecto)
     {
-        return
-            "INFORME DE AUDITORIA ISO 9001\n" +
-            "=============================\n" +
-            $"Proyecto       : {nombreProyecto}\n" +
-            $"Auditoria ID   : {auditoria.Id}\n" +
-            $"Etapa          : {auditoria.EtapaId}\n" +
-            $"Fecha inicio   : {auditoria.FechaInicioUtc:yyyy-MM-dd HH:mm} UTC\n" +
-            $"Fecha fin      : {auditoria.FechaFinalizacionUtc?.ToString("yyyy-MM-dd HH:mm") ?? "En curso"} UTC\n" +
-            $"Estado         : {auditoria.Estado}";
+        var aplicables = auditoria.ArtefactosEvaluados
+            .Where(ae => ae.Aplica == EstadoAplicacionTailoring.Aplica)
+            .ToList();
+        int conformes   = aplicables.Count(ae => ae.Resultado == ResultadoEvaluacion.Conforme);
+        int noConformes = aplicables.Count(ae => ae.Resultado == ResultadoEvaluacion.NoConforme);
+        int evaluados   = conformes + noConformes;
+        string cumplimiento = evaluados > 0
+            ? $"{(int)Math.Round((double)conformes / evaluados * 100, MidpointRounding.AwayFromZero)}% " +
+              $"({conformes}/{evaluados} artefactos conformes)"
+            : "sin artefactos evaluados";
+
+        var hallazgos = aplicables
+            .SelectMany(ae => ae.Hallazgos.Select(h => (Artefacto: ae.ArtefactoEsperado, Hallazgo: h)))
+            .ToList();
+        int nc  = hallazgos.Count(x => x.Hallazgo.Tipo == TipoHallazgo.NC);
+        int obs = hallazgos.Count(x => x.Hallazgo.Tipo == TipoHallazgo.OBS);
+        int om  = hallazgos.Count(x => x.Hallazgo.Tipo == TipoHallazgo.OM);
+
+        var sb = new StringBuilder();
+        sb.AppendLine("INFORME DE AUDITORÍA ISO 9001");
+        sb.AppendLine("=============================");
+        sb.AppendLine($"Proyecto       : {nombreProyecto}");
+        sb.AppendLine($"Auditoría ID   : {auditoria.Id}");
+        sb.AppendLine($"Etapa          : {auditoria.EtapaId}");
+        sb.AppendLine($"Fecha inicio   : {auditoria.FechaInicioUtc:yyyy-MM-dd HH:mm} UTC");
+        sb.AppendLine($"Fecha fin      : {auditoria.FechaFinalizacionUtc?.ToString("yyyy-MM-dd HH:mm") ?? "—"} UTC");
+        sb.AppendLine($"Estado         : {auditoria.Estado}");
+        sb.AppendLine();
+        sb.AppendLine("RESUMEN");
+        sb.AppendLine("-------");
+        sb.AppendLine($"Cumplimiento   : {cumplimiento}");
+        sb.AppendLine($"Artefactos     : {auditoria.ArtefactosEvaluados.Count} evaluados ({aplicables.Count} aplican)");
+        sb.AppendLine($"Hallazgos      : {hallazgos.Count}  (NC: {nc} · OBS: {obs} · OM: {om})");
+        sb.AppendLine();
+
+        if (hallazgos.Count > 0)
+        {
+            sb.AppendLine("HALLAZGOS");
+            sb.AppendLine("---------");
+            foreach (var (artefacto, h) in hallazgos.OrderBy(x => x.Hallazgo.Tipo))
+            {
+                var nombre = artefacto?.Nombre ?? "Artefacto";
+                var codigo = string.IsNullOrWhiteSpace(artefacto?.Codigo) ? "" : $"[{artefacto!.Codigo}] ";
+                sb.AppendLine($"- ({h.Tipo}) {codigo}{nombre}");
+                sb.AppendLine($"    {h.Descripcion}");
+                if (!string.IsNullOrWhiteSpace(h.Justificacion))
+                    sb.AppendLine($"    Justificación: {h.Justificacion}");
+                sb.AppendLine($"    Agente: {h.AgenteOrigen}");
+            }
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("ARTEFACTOS EVALUADOS");
+        sb.AppendLine("--------------------");
+        foreach (var ae in auditoria.ArtefactosEvaluados.OrderBy(a => a.Id))
+        {
+            var nombre = ae.ArtefactoEsperado?.Nombre ?? $"Artefacto #{ae.ArtefactoEsperadoId}";
+            var codigo = string.IsNullOrWhiteSpace(ae.ArtefactoEsperado?.Codigo) ? "" : $"[{ae.ArtefactoEsperado!.Codigo}] ";
+            sb.AppendLine($"- {codigo}{nombre}: {ae.Aplica} / {ae.Resultado}");
+        }
+
+        return sb.ToString();
     }
 
     private async Task<IReadOnlyList<InformeResponse>> MapearConDetallesAsync(

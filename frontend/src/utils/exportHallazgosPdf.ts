@@ -4,6 +4,10 @@
 //  Usa jsPDF (libreria liviana, ~200KB). Hace un PDF basico de texto plano
 //  con encabezado + tabla manual + paginacion automatica.
 //
+//  `construirHallazgosPdf` es el armador compartido (devuelve el jsPDF sin
+//  guardar): lo reutiliza la pantalla de Hallazgos (export) y la de Informes
+//  (descarga + preview en iframe), así ambos PDF son idénticos en formato.
+//
 //  Cuando el backend tenga el endpoint /api/informes/hallazgos.pdf vamos a
 //  delegar la generacion al servidor (mejor calidad), pero por ahora esto
 //  resuelve el caso.
@@ -20,7 +24,17 @@ interface ExportOpts {
   generadoPor: string;  // nombre del usuario logueado
 }
 
-export function exportarHallazgosPdf({ hallazgos, generadoPor }: ExportOpts): void {
+interface ConstruirPdfOpts {
+  titulo: string;
+  metaLineas: string[];   // líneas de metadata bajo el subtítulo branded
+  hallazgos: Hallazgo[];
+}
+
+/**
+ * Arma el PDF "lindo" de hallazgos y devuelve el documento (sin guardar).
+ * Fuente única de verdad del formato; quien llama decide guardar o previsualizar.
+ */
+export function construirHallazgosPdf({ titulo, metaLineas, hallazgos }: ConstruirPdfOpts): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -31,7 +45,7 @@ export function exportarHallazgosPdf({ hallazgos, generadoPor }: ExportOpts): vo
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 16, 80); // #1e1050
-  doc.text('Informe de Hallazgos', margin, y);
+  doc.text(titulo, margin, y);
   y += 7;
 
   doc.setFontSize(10);
@@ -40,14 +54,11 @@ export function exportarHallazgosPdf({ hallazgos, generadoPor }: ExportOpts): vo
   doc.text('BDT Global — Plataforma de Auditoría ISO 9001', margin, y);
   y += 5;
 
-  const ahora = new Date().toLocaleString('es-AR', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-  doc.text(`Generado por: ${generadoPor}  ·  Fecha: ${ahora}`, margin, y);
+  for (const linea of metaLineas) {
+    doc.text(linea, margin, y);
+    y += 4;
+  }
   y += 4;
-  doc.text(`Total de hallazgos: ${hallazgos.length}`, margin, y);
-  y += 8;
 
   // ── Resumen por tipo ───────────────────────────────────────────────────
   const nc = hallazgos.filter((h) => h.tipo === 'NoConformidad').length;
@@ -128,7 +139,22 @@ export function exportarHallazgosPdf({ hallazgos, generadoPor }: ExportOpts): vo
     );
   }
 
-  // ── Descargar ──────────────────────────────────────────────────────────
-  const filename = `informe-hallazgos-${new Date().toISOString().slice(0, 10)}.pdf`;
-  doc.save(filename);
+  return doc;
+}
+
+/** Exporta la revisión de hallazgos de la pantalla Hallazgos (arma + descarga). */
+export function exportarHallazgosPdf({ hallazgos, generadoPor }: ExportOpts): void {
+  const ahora = new Date().toLocaleString('es-AR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+  const doc = construirHallazgosPdf({
+    titulo: 'Informe de Hallazgos',
+    metaLineas: [
+      `Generado por: ${generadoPor}  ·  Fecha: ${ahora}`,
+      `Total de hallazgos: ${hallazgos.length}`,
+    ],
+    hallazgos,
+  });
+  doc.save(`informe-hallazgos-${new Date().toISOString().slice(0, 10)}.pdf`);
 }

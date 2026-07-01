@@ -6,8 +6,10 @@
 //  dash-* de dashboardCss. Sin selector de rol (el dashboard solo lo ven Admin
 //  y Auditor, que ven la misma vista global).
 //
-//  Toda la data sale de cargarDashboardCompleto() (api/dashboard.ts), derivada
-//  de los endpoints reales. Gráficos en SVG/CSS (sin dependencias extra).
+//  Toda la data sale de cargarDashboard() (api/dashboard.ts), que es un cliente
+//  fino de GET /api/dashboard: la agregación la hace el backend (AnalyticsService),
+//  única fuente de verdad que comparte con la pantalla de Hallazgos. KPIs/donuts =
+//  estado actual; evolución = histórico. Gráficos en SVG/CSS (sin dependencias).
 // ============================================================================
 
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -17,7 +19,7 @@ import { dashboardCss } from '../styles/dashboard';
 import { exportarDashboardPdf } from '../utils/exportDashboardPdf';
 import { useAuth } from '../login/AuthContext';
 import {
-  cargarDashboardCompleto,
+  cargarDashboard,
   type DashboardCompleto,
   type ProyectoCumpl,
   type SerieEvolucion,
@@ -222,7 +224,7 @@ export default function Dashboard() {
   useEffect(() => {
     let activo = true;
     setCargando(true); setError(null);
-    cargarDashboardCompleto()
+    cargarDashboard()
       .then((d) => { if (activo) setData(d); })
       .catch((e: unknown) => { if (activo) setError(e instanceof Error ? e.message : 'No se pudo cargar el dashboard'); })
       .finally(() => { if (activo) setCargando(false); });
@@ -291,6 +293,10 @@ export default function Dashboard() {
         return (
           <div ref={pdfRef}>
             {/* MÉTRICAS */}
+            <div className="dash-section-title">
+              Estado actual
+              <span className="dash-lente-hint">· última auditoría completada de cada proyecto</span>
+            </div>
             <div className="dash-metrics dash-pdf-block">
               <div className="dash-metric"><div className="dash-metric-label">Proyectos auditados</div><div className="dash-metric-value">{m.proyectosAuditados}</div><div className="dash-metric-sub">{m.proyectosTotal} en total</div></div>
               <div className="dash-metric"><div className="dash-metric-label">No conformidades</div><div className="dash-metric-value dash-v-nc">{m.noConformidades}</div><div className="dash-metric-sub">{m.totalHallazgos} hallazgos en total</div></div>
@@ -359,6 +365,7 @@ export default function Dashboard() {
             {/* EVOLUCIÓN */}
             <div className="dash-card dash-pdf-block">
               <h2>Evolución de hallazgos
+                <span className="dash-lente-hint">· histórico, todas las ejecuciones</span>
                 <span className="dash-controls"><span className="dash-seg">
                   {(['30', 'trim', 'todo'] as Rango[]).map((r) => (
                     <button key={r} className={rango === r ? 'on' : ''} onClick={() => setRango(r)}>

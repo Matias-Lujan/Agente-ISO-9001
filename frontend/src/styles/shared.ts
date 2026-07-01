@@ -90,7 +90,9 @@ body{
 }
 
 /* ----- Shell ----- */
-.shell{display:flex;min-height:100vh;}
+/* App shell: alto fijo al viewport. El único que scrollea es .main; así el
+   sidebar no se estira con el contenido (Cerrar sesión queda siempre abajo). */
+.shell{display:flex;height:100vh;}
 
 /* ----- Sidebar ----- */
 .sidebar{
@@ -98,6 +100,8 @@ body{
   display:flex;flex-direction:column;
   padding:1.5rem 0;
   flex-shrink:0;
+  height:100vh;            /* alto del viewport, independiente del contenido */
+  overflow-y:auto;         /* si el propio sidebar no entra, scrollea él solo */
   background:var(--sb-bg);
   transition:background-color .2s;
 }
@@ -145,7 +149,7 @@ body{
 .nav-icon{width:16px;height:16px;flex-shrink:0;}
 
 /* ----- Main panel ----- */
-.main{flex:1;padding:1.5rem;overflow:auto;}
+.main{flex:1;min-height:0;padding:1.5rem;overflow:auto;}
 
 .topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;}
 
@@ -248,6 +252,43 @@ body{
   font-size:15px;font-weight:500;color:var(--ok-fg);
 }
 .final-box.error{background:var(--err-bg);color:var(--err-fg);}
+
+/* ----- Resultado al terminar la auditoría ----- */
+.ea-result-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:1.3rem;text-align:left;}
+.ea-badge{
+  flex-shrink:0;width:34px;height:34px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  background:var(--ok-bg);color:var(--ok-fg);
+}
+.ea-badge svg{width:18px;height:18px;}
+.ea-badge.warn{background:var(--warn-bg);color:var(--warn-fg);}
+.ea-badge.err{background:var(--err-bg);color:var(--err-fg);}
+.ea-result-title{font-size:16px;font-weight:600;color:var(--text);}
+.ea-result-sub{font-size:13px;color:var(--text-muted);margin-top:3px;}
+
+.ea-result-row{display:flex;align-items:center;gap:14px;margin-bottom:1.3rem;}
+.ea-ring{position:relative;width:64px;height:64px;flex-shrink:0;}
+.ea-ring svg{transform:rotate(-90deg);display:block;}
+.ea-ring .track{stroke:var(--border);}
+.ea-ring .bar{stroke-linecap:round;transition:stroke-dashoffset .6s ease;}
+.ea-ring .bar.ok{stroke:var(--ok-fg);}.ea-ring .bar.warn{stroke:var(--warn-fg);}.ea-ring .bar.err{stroke:var(--err-fg);}
+.ea-ring .center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:var(--text);}
+.ea-ring-t{font-size:13.5px;font-weight:600;color:var(--text);}
+.ea-ring-s{font-size:12px;color:var(--text-muted);margin-top:2px;}
+
+.ea-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.8rem;margin-bottom:1.4rem;}
+.ea-stat{background:var(--surface-2);border-radius:11px;padding:.9rem 1rem;text-align:left;}
+.ea-stat .n{font-size:24px;font-weight:700;color:var(--text);line-height:1;}
+.ea-stat .l{font-size:11.5px;color:var(--text-muted);margin-top:6px;}
+
+.ea-actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn-sec{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 18px;border-radius:8px;
+  background:var(--surface);color:var(--text);border:1px solid var(--border);
+  font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .2s;
+}
+.btn-sec:hover{background:var(--surface-2);}
 
 .error-banner{
   background:var(--err-bg);color:var(--err-fg);

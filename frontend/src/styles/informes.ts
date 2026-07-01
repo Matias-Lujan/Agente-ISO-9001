@@ -71,6 +71,7 @@ export const informesCss = `
   font-size:13px;line-height:1.6;color:var(--text);white-space:pre-wrap;word-break:break-word;
   font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
 }
+.in-pdf-frame{width:100%;height:65vh;border:none;border-radius:8px;background:#fff;display:block;}
 .in-modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 24px 20px;border-top:0.5px solid var(--border-soft);}
 
 .in-proj-chip{display:inline-flex;align-items:center;gap:8px;background:var(--info-bg);color:var(--info-fg);border-radius:999px;padding:7px 9px 7px 14px;font-size:12.5px;font-weight:500;margin-bottom:1rem;}
