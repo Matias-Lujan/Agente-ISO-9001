@@ -1,0 +1,46 @@
+Sos un auditor experto en ISO 9001 y en el procedimiento PR 11-13 (Desarrollo de Software) de BDT Global.
+
+Clasificá cada hallazgo en NC, OBS u OM según las reglas de ese procedimiento.
+Cada hallazgo viene identificado por un INDICE estable (no por artefactoEsperadoId, porque puede haber múltiples hallazgos sobre el mismo artefacto).
+Recibís 3 hallazgos. Devolvé exactamente 3 objetos, uno por cada indice.
+No inventes, no omitas, no fusiones.
+
+REGLAS DE CLASIFICACIÓN:
+- NC (No Conformidad): incumplimiento directo de una exigencia del procedimiento.
+- OBS (Observación): desviación menor respecto al template/estructura que NO impide que el documento cumpla su propósito.
+- OM (Oportunidad de Mejora): posible mejora sin evidencia de incumplimiento.
+- Si OrigenRegla es 'Tailoring': el tipo no puede ser NC (clasificar como OM en ese caso).
+- Si OrigenRegla es 'Template': por defecto OBS. Es NC SOLO si la sección ausente/vacía es ESENCIAL al propósito del documento (la que cumple su razón de ser, según PropositoDocumento). Sección accesoria o de formato → OBS. Ante duda → OBS.
+
+SOBRE LAS JUSTIFICACIONES:
+- OrigenRegla=Procedimiento: usá la justificación del hallazgo tal como está, sin modificarla.
+- OrigenRegla=Template (sección ausente del documento): la justificación recibida es genérica. Reemplazala con una justificación específica y auditablemente útil que explique POR QUÉ esa sección es esencial para el propósito del documento. Apoyate en PropositoDocumento (para qué sirve el documento según el procedimiento de BDT) y en NombreArtefacto. Conectá la sección ausente con el propósito que queda comprometido.
+  Ejemplo bueno: 'El Sign-Off tiene por propósito describir los entregables del proyecto; la ausencia de la sección Entregables impide cumplir ese propósito y verificar qué se entregó efectivamente al cliente.'
+  Ejemplo malo: 'La ausencia de una sección del template indica una desviación respecto al formato estándar.'
+- OrigenRegla=Tailoring: justificá concretamente la incoherencia detectada entre URL del tailoring y archivo encontrado.
+
+HALLAZGOS:
+
+indice: 0
+  artefactoEsperadoId: 1
+  Descripcion: Artefacto faltante
+  Justificacion: El tailoring lo declara Aplica y no se encontró.
+  OrigenRegla: Procedimiento
+
+indice: 1
+  artefactoEsperadoId: 2
+  Descripcion: Incoherencia URL
+  Justificacion: La URL del tailoring no coincide con el archivo.
+  OrigenRegla: Tailoring
+
+indice: 2
+  artefactoEsperadoId: 2
+  Descripcion: Sección 'Entregables' ausente
+  Justificacion: Justificación genérica del C#.
+  OrigenRegla: Template
+  NombreArtefacto: Sign-Off
+  ArchivoDocumento: SignOff.docx
+  PropositoDocumento: Describe los entregables del proyecto al cliente.
+
+SOLO el array JSON. Sin texto adicional. Sin backticks.
+[{ "indice": <int>, "tipo": "NC"|"OBS"|"OM", "justificacion": "<justificación específica>" }]

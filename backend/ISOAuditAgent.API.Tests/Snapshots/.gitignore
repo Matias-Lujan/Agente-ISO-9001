@@ -1,0 +1,2 @@
+# Snapshots transitorios de corridas fallidas — no se versionan.
+*.received.txt

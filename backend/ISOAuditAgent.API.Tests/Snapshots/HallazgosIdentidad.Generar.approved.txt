@@ -1,0 +1,21 @@
+{
+  "codigoMismatch": [
+    {
+      "ArtefactoEsperadoId": 3,
+      "Descripcion": "El documento de 'ERS' corresponde a otro formulario (código FR 31-03, se esperaba FR 30).",
+      "Justificacion": "El documento encontrado para el artefacto 'ERS' declara internamente el código FR 31-03, pero el esperado es FR 30. El archivo localizado corresponde a otro formulario, por lo que la evidencia del artefacto esperado no está realmente presente.",
+      "OrigenRegla": "Identidad"
+    }
+  ],
+  "codigoOk": [],
+  "proyectoMismatch": [
+    {
+      "ArtefactoEsperadoId": 16,
+      "Descripcion": "El documento de 'Sign-Off' parece ser de otro proyecto.",
+      "Justificacion": "El documento encontrado para el artefacto 'Sign-Off' declara el proyecto 'App PAS', que no coincide con el proyecto auditado 'App Productores'. La evidencia parece corresponder a otro proyecto.",
+      "OrigenRegla": "Identidad"
+    }
+  ],
+  "proyectoOk": [],
+  "noComparable": []
+}

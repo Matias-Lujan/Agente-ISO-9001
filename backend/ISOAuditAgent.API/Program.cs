@@ -1,41 +1,216 @@
+using System.Text;
+using ISOAuditAgent.API.Agents.Orchestrator;
+using ISOAuditAgent.API.Data;
+using ISOAuditAgent.API.Integrations.LLM;
+using ISOAuditAgent.API.Integrations.MCP.Drive;
+using ISOAuditAgent.API.Integrations.MCP.Trello;
+using ISOAuditAgent.API.Integrations.MCP.Clockify;
+using ISOAuditAgent.API.Repositories;
+using ISOAuditAgent.API.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using ModelContextProtocol.AspNetCore;
+
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+// =============================================================================
+// 1. CONTROLADORES
+// Le decimos a .NET que busque los Controllers y que los enums
+// se lean como texto ("Administrador") en lugar de numeros (0, 1, 2)
+// =============================================================================
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+
+// =============================================================================
+// 2. CORS — Permitir que el frontend Vite (puerto 5173) hable con la API
+// Sin esto, el browser bloquea las requests del frontend.
+// =============================================================================
+const string CorsPolicyFrontend = "FrontendDev";
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicyFrontend, policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            // Necesario para que el browser envíe/reciba la cookie HttpOnly del JWT.
+            .AllowCredentials();
+    });
+});
+
+// =============================================================================
+// 3. BASE DE DATOS — MySQL con Entity Framework
+// La cadena de conexion vive en appsettings.Development.json
+// bajo la clave "ConnectionStrings:DefaultConnection"
+// =============================================================================
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionString 'DefaultConnection' no configurada");
+
+builder.Services.AddDbContext<ISOAuditAgentDbContext>(options =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
+
+// =============================================================================
+// 4. AUTENTICACION JWT
+// Le decimos a .NET como validar los tokens JWT que llegan en cada request.
+// Si el token es invalido o vencio, el request es rechazado automaticamente.
+// =============================================================================
+var jwtKey = builder.Configuration["Jwt:SecretKey"]
+    ?? throw new InvalidOperationException("Jwt:SecretKey no configurada");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+
+            ValidateIssuer   = true,
+            ValidIssuer      = builder.Configuration["Jwt:Issuer"],
+
+            ValidateAudience = true,
+            ValidAudience    = builder.Configuration["Jwt:Audience"],
+
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
+
+        // El JWT viaja en una cookie HttpOnly (no en sessionStorage). Si no vino
+        // el header Authorization, lo tomamos de la cookie 'auth_token'.
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (string.IsNullOrEmpty(context.Token) &&
+                    context.Request.Cookies.TryGetValue("auth_token", out var cookieToken))
+                {
+                    context.Token = cookieToken;
+                }
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// =============================================================================
+// 5. SERVICIOS Y REPOSITORIOS
+// =============================================================================
+
+// Repositorios
+builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+
+// Servicios
+builder.Services.AddScoped<AuthService>();
+
+// System prompts de los agentes (versionados en BD). Lo consume el factory de
+// los AIAgent para leer el prompt activo en cada auditoría, y el ConfigController.
+builder.Services.AddScoped<IPromptStore, PromptStore>();
+
+// Modulo 2.2 — Proyectos
+builder.Services.AddScoped<IProyectoRepository, ProyectoRepository>();
+builder.Services.AddScoped<ProyectoService>();
+
+// Modulo 2.3 — Auditorias
+builder.Services.AddScoped<IAuditoriaRepository, AuditoriaRepository>();
+builder.Services.AddScoped<AuditoriaService>();
+
+// Modulo 2.4 — Procedimientos y artefactos
+builder.Services.AddScoped<IProcedimientoRepository, ProcedimientoRepository>();
+builder.Services.AddScoped<ProcedimientoService>();
+
+// Modulo 2.5 — Hallazgos (solo lectura — los insertan los agentes)
+builder.Services.AddScoped<IHallazgoRepository, HallazgoRepository>();
+builder.Services.AddScoped<HallazgoService>();
+
+// Analitica — única fuente de verdad del dashboard y la revisión de hallazgos
+builder.Services.AddScoped<AnalyticsService>();
+
+// Modulo 2.5 — Informes
+builder.Services.AddScoped<IInformeRepository, InformeRepository>();
+builder.Services.AddScoped<InformeService>();
+
+// =============================================================================
+// 5.b WORKFLOW DEL ORCHESTRATOR (portado de dev)
+// =============================================================================
+
+// Repositorios del workflow (los compartidos ya se registraron arriba)
+builder.Services.AddScoped<IConfiguracionRepository, ConfiguracionRepository>();
+builder.Services.AddScoped<IArtefactoEvaluadoRepository, ArtefactoEvaluadoRepository>();
+builder.Services.AddScoped<IDocumentoAnalizadoRepository, DocumentoAnalizadoRepository>();
+builder.Services.AddScoped<IAuditoriaProgresoRepository, AuditoriaProgresoRepository>();
+builder.Services.AddScoped<IConsumoTokensRepository, ConsumoTokensRepository>();
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+
+// Referencia del Departamento de Calidad (vigencia vigente por formulario).
+// Aislada detrás de IReferenciaCalidad: hoy MySQL, reemplazable sin tocar el workflow.
+builder.Services.AddScoped<IReferenciaCalidad, ReferenciaCalidadMySql>();
+
+// Tracker de progreso (Singleton: crea su propio scope/DbContext por operación)
+builder.Services.AddSingleton<IAuditoriaProgresoTracker, AuditoriaProgresoTracker>();
+
+// Log durable de errores de auditoría (Singleton, mismo patrón que el tracker)
+builder.Services.AddSingleton<IRegistroErrorAuditoriaWriter, RegistroErrorAuditoriaWriter>();
+
+// Server MCP de Google Drive + cliente (config "GoogleDrive" y "Mcp:Drive")
+builder.Services.AddGoogleDriveMcpServer(builder.Configuration);
+
+// Servers MCP de Trello y Clockify (evidencias ML-06, portado de dev).
+// Registran TrelloChecker/ClockifyChecker que consume el DocumentAnalysisNode.
+builder.Services.AddTrelloMcpServer(builder.Configuration);
+builder.Services.AddClockifyMcpServer(builder.Configuration);
+
+// Gemini (IChatClient) + 4 AIAgent keyed (config "Gemini")
+builder.Services.AddGeminiAndAgents(builder.Configuration);
+
+// Servicio determinista del nodo inicial (dev lo registra aparte del orchestrator)
+builder.Services.AddScoped<ResolutorContextoService>();
+
+// Nodos + cola + runner + worker en background
+builder.Services.AddAuditoriaOrchestrator();
+
+// =============================================================================
+// 6. OPENAPI
+// =============================================================================
 builder.Services.AddOpenApi();
 
+// =============================================================================
+// CONSTRUIR LA APLICACION
+// =============================================================================
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// IMPORTANTE: CORS debe ir ANTES de Authentication/Authorization
+app.UseCors(CorsPolicyFrontend);
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
+// El orden importa — primero autenticacion, luego autorizacion
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.MapGet("/weatherforecast", () =>
+// Servers MCP montados (Drive + evidencias Trello/Clockify de dev)
+app.MapMcp("/mcp/drive");
+app.MapMcp("/mcp/trello");
+app.MapMcp("/mcp/clockify");
+
+app.MapControllers();
+
+// En desarrollo: aplica migraciones pendientes y siembra los usuarios demo, así
+// todo el equipo arranca con el mismo login funcionando (sin inserts manuales).
+// Ver Data/DataSeeder.cs. En producción NO se ejecuta.
+if (app.Environment.IsDevelopment())
 {
-    var forecast =  Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+    await DataSeeder.InicializarAsync(app.Services);
+}
 
 app.Run();
-
-record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
