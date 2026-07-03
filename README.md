@@ -2,7 +2,7 @@
 
 Trabajo final — Tecnicatura en Análisis de Sistemas (ORT).
 
-Sistema que **audita automáticamente proyectos de desarrollo de software** de BDT Global contra su procedimiento de calidad (PR 11-13), combinando reglas determinísticas en C# con agentes LLM. Verifica que cada proyecto tenga la documentación exigida por su **tailoring**, que esa documentación exista realmente en Google Drive, que corresponda al proyecto y al formulario correctos, y que su contenido sea válido y vigente. Produce un resultado por artefacto (Conforme / No Conforme / No Aplica) con hallazgos clasificados (NC / OBS / OM) y un informe.
+Sistema que **audita automáticamente proyectos de desarrollo de software** contra el procedimiento de calidad de cada proyecto, combinando reglas determinísticas en C# con agentes LLM. Verifica que cada proyecto tenga la documentación exigida por su **tailoring**, que esa documentación exista realmente en Google Drive, que corresponda al proyecto y al formulario correctos, y que su contenido sea válido y vigente. Produce un resultado por artefacto (Conforme / No Conforme / No Aplica) con hallazgos clasificados (NC / OBS / OM) y un informe.
 
 ---
 
